@@ -1,0 +1,65 @@
+帝龙样例包 v1（可补充业务资料）
+
+ZIP根目录必须直接包含 manifest.json 和 images/ 文件夹。
+id、name、image 是每条记录的必填文字字段。重复编号仍默认跳过，不会覆盖已有资料。
+wood、style、tone、source：材质、风格、色系、来源，均可选填。
+customer、customerCode、orderNo：客户/项目、客户编号、订单编号。
+substrate、inkSeries、machine：原纸、油墨型号或系列、生产设备。
+staff：责任人员对象，字段 designer、colorist、operator、reviewer。
+feedback：生产或客户反馈文字。
+productionRecords：实际生产记录数组，字段 batchNo、stage、date、equipment、quantity、substrate、deltaE、result、operator。
+  空记录忽略；填写记录时batchNo必填；date可空，非空需为有效YYYY-MM-DD；deltaE可空，非空需为非负数值/数值字符串。
+  quantity等其余字段为文字，例如“100 m”。
+history：可选历史数组，每项date/title/description/status，日期需为YYYY-MM-DD。
+parameters：可选JSON对象，作为附加参数保留，编辑表单不改动它。
+
+缺失业务信息显示未填写，不由大模型补造。导入只接收以上业务字段；analysis、layers等图像分析数据不会被外部数值覆盖，程序会重新计算。
+内置100条演示记录保持只读，自己导入或保存的记录可在侧栏/完整档案点击“编辑信息”，补充基础资料、客户工艺、人员、生产记录和反馈。
+编号、原图和算法参考配方不可在资料编辑中修改。保存时追加一条真实的用户编辑操作记录。
+导出本地样例包会保留这些业务信息和历史；导出后可在另一浏览器重新导入。任务和生产比对报告仍独立，不包含在样例包中。
+ZIP上限100MB、解压内容150MB，最多500个图片文件条目/500条样例；单图30MB/4000万像素。支持普通ZIP Stored/Deflate。
+
+完整示例（以下均为演示值，请替换）：
+{
+  "schemaVersion": 1,
+  "samples": [
+    {
+      "id": "META-DEMO-20261031-01",
+      "name": "可编辑资料示例（演示）",
+      "image": "images/design.png",
+      "wood": "橡木",
+      "style": "自然",
+      "tone": "浅米",
+      "source": "流程测试示例，非真实客户或生产资料",
+      "customer": "示例客户（演示）",
+      "customerCode": "DEMO-C-001",
+      "orderNo": "DEMO-ORDER-001",
+      "substrate": "70g原纸（演示）",
+      "inkSeries": "示例油墨系列",
+      "machine": "示例设备",
+      "staff": {
+        "designer": "示例设计员",
+        "colorist": "示例调墨员",
+        "operator": "示例操作员",
+        "reviewer": "示例审核员"
+      },
+      "feedback": "用于体验资料编辑，请替换为自己的真实记录。",
+      "productionRecords": [
+        {
+          "batchNo": "DEMO-BATCH-001",
+          "stage": "试印",
+          "date": "2026-10-31",
+          "equipment": "示例设备",
+          "quantity": "100 m（演示）",
+          "substrate": "70g原纸（演示）",
+          "deltaE": "1.2",
+          "result": "演示记录",
+          "operator": "示例操作员"
+        }
+      ]
+    }
+  ]
+}
+
+
+新增可选字段：recordKind="design-candidate"代表设计候选；candidateReview.status为pending/accepted/adjust/rejected，分别代表待评价/已采用/需调整/未采用。用户在页面保存/评价后，导出会自动带上这些资料；普通图片样例无需填写。样例包不包含任务清单或配墨次数。

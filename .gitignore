@@ -1,0 +1,29 @@
+# Local dependencies, editor settings and credentials
+node_modules/
+__pycache__/
+*.py[cod]
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+
+# Previous source copies and local verification evidence
+/index.before-*.html
+/*.before-*
+/*-verification/
+/compare-*.png
+/demo-heatmap-current.png
+/production-demo-current.png
+/preview-width-fixed.png
+/production-compare-overview.jpg
+/production-compare-heatmap.jpg
+/task_plan.md
+/findings.md
+/progress.md
+/*验收*.md
+/*.txt
+!/样例包格式说明.txt
+!/制作自己的样例包.txt
