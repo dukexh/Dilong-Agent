@@ -174,13 +174,17 @@
     // cropped by three border pixels and with sample covariance (49 / 48).
     const stride = width + 1, integralLength = stride * (height + 1);
     const sums = Array.from({ length: 6 }, () => new Float64Array(integralLength));
+    // Reuse scratch buffers without changing the order of floating-point operations.
+    const row = new Float64Array(6), values = new Float64Array(6), value = new Float64Array(6);
     for (let y = 0; y < height; y++) {
-      const row = new Float64Array(6);
+      row.fill(0);
       for (let x = 0; x < width; x++) {
         const index = y * width + x, i = (y + 1) * stride + x + 1;
         const valid = !validMask || validMask[index];
         const a = valid ? first[index] : 0, b = valid ? second[index] : 0;
-        const values = [a, b, a * a, b * b, a * b, valid ? 1 : 0];
+        values[0] = a; values[1] = b;
+        values[2] = a * a; values[3] = b * b; values[4] = a * b;
+        values[5] = valid ? 1 : 0;
         for (let channel = 0; channel < 6; channel++) {
           row[channel] += values[channel];
           sums[channel][i] = sums[channel][i - stride] + row[channel];
@@ -195,7 +199,10 @@
         const right = x + SSIM_RADIUS + 1, bottom = y + SSIM_RADIUS + 1;
         const a = top * stride + left, b = top * stride + right;
         const c = bottom * stride + left, d = bottom * stride + right;
-        const value = sums.map(sum => sum[d] - sum[b] - sum[c] + sum[a]);
+        for (let channel = 0; channel < 6; channel++) {
+          const sum = sums[channel];
+          value[channel] = sum[d] - sum[b] - sum[c] + sum[a];
+        }
         if (value[5] !== 49) continue;
         const meanA = value[0] / 49, meanB = value[1] / 49;
         const varianceA = Math.max(0, (value[2] / 49 - meanA * meanA) * 49 / 48);

@@ -153,6 +153,27 @@ test('SSIM agrees with skimage 0.25 sample-covariance reference values', () => {
   close(core.grayscaleSSIM(first, flipped, width, height), 0.03805444812472717, 1e-12);
 });
 
+test('SSIM matches a single constant patch and ignores masked non-finite pixels', () => {
+  const width = 19, height = 17;
+  const first = new Float64Array(width * height).fill(NaN);
+  const second = new Float64Array(width * height).fill(Infinity);
+  const mask = new Uint8Array(width * height);
+  const a = 37.25, b = 91.5;
+  for (let y = 4; y < 11; y++) for (let x = 5; x < 12; x++) {
+    const index = y * width + x;
+    first[index] = a; second[index] = b; mask[index] = 1;
+  }
+  // Only one complete 7×7 window is valid. Constant patches have zero variance
+  // and covariance, so the contrast/structure term cancels from the formula.
+  const C1 = Math.pow(0.01 * 255, 2);
+  close(core.grayscaleSSIM(first, second, width, height, mask),
+    (2 * a * b + C1) / (a * a + b * b + C1), 1e-12);
+  assert.throws(() => core.grayscaleSSIM(first, second, width, height,
+    new Uint8Array(width * height)), /有效图像区域不足/);
+  const uniform = new Float64Array(width * height).fill(a);
+  assert.equal(core.grayscaleSSIM(uniform, uniform, width, height), 1);
+});
+
 test('warp preserves a full image and bilinearly interpolates resized pixels', () => {
   const im = image(9, 9, (x, y) => [x * 20, y * 20, x * 10 + y * 10, 255]);
   assert.deepEqual(core.warp(im, fullQuad, 9, 9).data, im.data);
