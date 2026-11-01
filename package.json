@@ -5,7 +5,7 @@
   "description": "仅用于自动验收；运行网页不需要安装这些依赖",
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "test:browser": "node tests/stage1-browser.cjs"
+    "test:browser": "node tests/run-browser.cjs"
   },
   "devDependencies": { "playwright": "1.64.1" }
 }

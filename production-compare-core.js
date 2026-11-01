@@ -417,5 +417,33 @@
       reference: referencePreview, actual: actualPreview, previewDeltaMap, previewValidMask };
   }
 
-  return Object.freeze({ rgbToLab, deltaE00, analyze, compareRegions, comparisonBounds, thresholdStats, warp, validateQuad, grayscaleSSIM });
+  // Full-resolution SSIM in overlapping stripes: each valid 7x7 window is
+  // counted once, without allocating full-image grayscale/integral buffers.
+  async function structureSimilarity(reference, actual, options = {}) {
+    assertImage(reference, '原图'); assertImage(actual, '候选图片');
+    const { width, height } = reference;
+    if (actual.width !== width || actual.height !== height) throw Error('结构比较需要相同尺寸的图片');
+    if (width < 7 || height < 7) throw Error('结构比较需要至少7×7像素');
+    const rows = Math.max(1, Math.floor(32768 / width));
+    const yieldTask = options.yieldTask || (() => new Promise(resolve => setTimeout(resolve, 0)));
+    let sum = 0, count = 0;
+    for (let top = 0; top < height - 6; top += rows) {
+      const centers = Math.min(rows, height - 6 - top), stripeHeight = centers + 6;
+      const first = new Float64Array(width * stripeHeight), second = new Float64Array(first.length), mask = new Uint8Array(first.length);
+      for (let i = 0; i < first.length; i++) {
+        const j = (top * width + i) * 4, a = reference.data, b = actual.data;
+        if (a[j + 3] < ALPHA_MIN || b[j + 3] < ALPHA_MIN) continue;
+        mask[i] = 1;
+        first[i] = .2126 * a[j] + .7152 * a[j + 1] + .0722 * a[j + 2];
+        second[i] = .2126 * b[j] + .7152 * b[j + 1] + .0722 * b[j + 2];
+      }
+      const result = ssimDetails(first, second, width, stripeHeight, mask, true);
+      sum += result.value * result.windowCount; count += result.windowCount;
+      await yieldTask();
+    }
+    if (!count) throw Error('没有足够的7×7不透明区域可计算结构相似度');
+    return Math.max(-1, Math.min(1, sum / count));
+  }
+
+  return Object.freeze({ rgbToLab, deltaE00, analyze, compareRegions, comparisonBounds, thresholdStats, warp, validateQuad, grayscaleSSIM, structureSimilarity });
 });

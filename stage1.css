@@ -71,3 +71,8 @@
 .summary-empty button{margin-top:14px}
 @media(max-width:600px){.summary-records-dialog{padding:18px!important}.summary-record{padding:12px}.summary-record dl{grid-template-columns:minmax(0,1fr)}.summary-candidate{grid-template-columns:minmax(0,1fr);gap:12px}.summary-candidate>img{width:100%;height:160px}.summary-record-heading{align-items:flex-start;flex-wrap:wrap}}
 @media(max-width:600px){.stage1-edit-grid{grid-template-columns:minmax(0,1fr)}.stage1-edit-form fieldset{padding:10px}.stage1-production-edit{padding:10px}}
+.candidate-preview-dialog .candidate-view-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0;font-size:12px}
+.candidate-view-tools a{color:#145f65;text-decoration:underline;margin-left:auto}
+.candidate-preview-dialog .candidate-image-viewport{height:60vh;max-width:100%;overflow:auto;cursor:grab;touch-action:none;background:repeating-conic-gradient(#e4eaea 0% 25%,#f6f8f8 0% 50%) 0/20px 20px}
+.candidate-preview-dialog .candidate-image-viewport:active{cursor:grabbing}
+.candidate-preview-dialog .candidate-image-viewport img{display:block;max-width:none;max-height:none;object-fit:contain;margin:auto;user-select:none}

@@ -111,7 +111,7 @@
     const summary=await S.analyze(url), result=S.analyzeFull(await image(url));
     if(!result)throw Error('图片没有可分析的有效颜色');
     const {r,g,b}=summary.averageRgb;
-    return {...input,...metadata.normalize(input),schemaVersion:1,imageUrl:url,thumbnailUrl:url,layers:result.layers.length,
+    return {...input,...metadata.normalize(input),schemaVersion:1,imageUrl:url,thumbnailUrl:await global.DilongDesignImages.thumbnail(url),layers:result.layers.length,
       sourceUrl:'',license:'用户提供',date:new Date().toISOString().slice(0,10),
       analysis:{...summary,algorithmVersion:'dilong-color-v0.3',analysedAt:new Date().toISOString(),layerCount:result.layers.length,
         averageHex:'#'+[r,g,b].map(n=>n.toString(16).padStart(2,'0')).join(''),reconstructionDifference:result.difference,
@@ -225,13 +225,15 @@
   };
   S.layerDifference = (model, enabled) => {
     if (!model?.original) return 0;
-    let sum = 0;
+    let sum = 0, count = 0;
     for (let k = 0; k < model.assignments.length; k++) {
+      if (model.original[k*4+3] <= 220) continue;
+      count++;
       let j = model.assignments[k]; while (j >= 0 && !enabled[j]) j--;
       const rgb = j < 0 ? { r: 255, g: 255, b: 255 } : model.colours[j];
       sum += Math.hypot(model.original[k*4]-rgb.r, model.original[k*4+1]-rgb.g, model.original[k*4+2]-rgb.b) / Math.sqrt(3);
     }
-    return Math.round(sum / model.assignments.length * 100) / 100;
+    return count ? Math.round(sum / count * 100) / 100 : 0;
   };
   const encoder = new TextEncoder(), decoder = new TextDecoder();
   function crc(bytes) { let c = -1; for (const b of bytes) { c ^= b; for (let k=0;k<8;k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return (c ^ -1) >>> 0; }
@@ -380,12 +382,20 @@
     S.DesignTaskInfo=function({taskId}){S.useStore();const task=S.tasks.find(t=>t.id===taskId);return task?h('div',{className:'design-task-info',role:'status'},h('strong',null,'当前任务：'+task.title),h('span',null,task.status+' · '+(task.outputCount??0)+' 个处理结果 · 已保存 '+(task.resultIds||[]).length+' 个候选')):null;};
     S.TaskSavedResults=function({taskId}){
       S.useStore();const task=S.tasks.find(t=>t.id===taskId),assets=(task?.resultIds||[]).map(key=>S.assets.find(a=>a.id===key)).filter(Boolean);
-      return assets.length?h('div',{className:'result-cards task-saved-results'},...assets.map(a=>h('article',{key:a.id},h('div',{className:'result-image'},h(S.CandidateImage,{src:a.imageUrl,alt:a.name})),h('div',{className:'result-copy'},h('div',null,h('b',null,a.name)),h('p',null,'此任务已保存的候选'),h(S.CandidateReview,{sample:a}))))):h('div',{className:'design-empty-results'},h('b',null,'本任务尚未保存候选'),h('span',null,task?.error||'输入与参数已恢复，可重新执行并保存需要的方案。'));
+      return assets.length?h('div',{className:'result-cards task-saved-results'},...assets.map(a=>h('article',{key:a.id},h('div',{className:'result-image'},h(S.CandidateImage,{src:a.imageUrl,previewSrc:a.thumbnailUrl,alt:a.name})),h('div',{className:'result-copy'},h('div',null,h('b',null,a.name)),h('p',null,'此任务已保存的候选'),a.parameters?.mode==='twin'&&h('p',{title:'原图与候选的全分辨率灰度SSIM；明暗变化也会影响；负值显示0%。'},global.DilongDesignImages.scoreLabel(a.parameters.structureSimilarity)),h(S.CandidateReview,{sample:a}))))):h('div',{className:'design-empty-results'},h('b',null,'本任务尚未保存候选'),h('span',null,task?.error||'输入与参数已恢复，可重新执行并保存需要的方案。'));
     };
     S.CandidateImage=function({src,previewSrc,alt}){
-      const [open,setOpen]=React.useState(false),trigger=React.useRef(null);
-      return h(React.Fragment,null,h('button',{ref:trigger,type:'button',className:'candidate-preview-trigger','aria-label':'放大查看'+alt,title:'点击放大查看',onClick:()=>setOpen(true)},h('img',{src:previewSrc||src,alt,loading:'lazy'}),h('span',{className:'candidate-preview-hint'},'放大查看')),
-        h(ui.Dialog,{open,onOpenChange:setOpen},h(ui.Content,{className:'sample-detail-dialog candidate-preview-dialog',onCloseAutoFocus:e=>{e.preventDefault();trigger.current?.focus();}},h(ui.Header,null,h(ui.Title,null,alt),h(ui.Description,null,'查看完整图片，按 Esc 或点击右上角关闭。')),h('img',{src,alt}))));
+      const [open,setOpen]=React.useState(false),[thumbnail,setThumbnail]=React.useState(''),[zoom,setZoom]=React.useState(null),[size,setSize]=React.useState(null),[error,setError]=React.useState('');
+      const trigger=React.useRef(null),viewport=React.useRef(null),drag=React.useRef(null);
+      React.useEffect(()=>{let cancelled=false;setThumbnail('');if(!previewSrc&&src)global.DilongDesignImages.thumbnail(src).then(url=>{if(!cancelled)setThumbnail(url)}).catch(()=>{});return()=>{cancelled=true}},[src,previewSrc]);
+      React.useEffect(()=>{setZoom(null);setSize(null);setError('')},[src,open]);
+      const scale=zoom||(size&&viewport.current?Math.min(1,viewport.current.clientWidth/size.width,viewport.current.clientHeight/size.height):1);
+      const changeZoom=multiplier=>setZoom(Math.max(.05,Math.min(4,scale*multiplier)));
+      return h(React.Fragment,null,h('button',{ref:trigger,type:'button',className:'candidate-preview-trigger','aria-label':'放大查看'+alt,title:'点击查看完整分辨率',onClick:()=>setOpen(true)},h('img',{src:previewSrc||thumbnail||src,alt,loading:'lazy'}),h('span',{className:'candidate-preview-hint'},'放大查看')),
+        h(ui.Dialog,{open,onOpenChange:setOpen},h(ui.Content,{className:'sample-detail-dialog candidate-preview-dialog',onCloseAutoFocus:e=>{e.preventDefault();trigger.current?.focus();}},h(ui.Header,null,h(ui.Title,null,alt),h(ui.Description,null,'完整分辨率查看；可缩放、拖动或滚动查看细节，按 Esc 关闭。')),
+          h('div',{className:'candidate-view-tools'},h(ui.Button,{type:'button',variant:'outline',onClick:()=>setZoom(null)},'适应窗口'),h(ui.Button,{type:'button',variant:'outline',onClick:()=>setZoom(1)},'100%'),h(ui.Button,{type:'button',variant:'outline','aria-label':'缩小图片',onClick:()=>changeZoom(.8)},'−'),h(ui.Button,{type:'button',variant:'outline','aria-label':'放大图片',onClick:()=>changeZoom(1.25)},'+'),h('span',{'aria-live':'polite'},size?size.width+' × '+size.height+' · '+Math.round(scale*100)+'%':'正在加载完整图片'),h('a',{href:src,download:(alt||'设计结果')+'.png',onClick:async e=>{if(src.startsWith('data:image/png'))return;e.preventDefault();try{download(await(await fetch(await dataURL(src))).blob(),(alt||'设计结果')+'.png')}catch(error){setError('下载失败：'+error.message)}}},'下载完整图片')),
+          error&&h('p',{role:'alert'},error),
+          h('div',{ref:viewport,className:'candidate-image-viewport',tabIndex:0,'aria-label':'完整图片，可滚动查看',onPointerDown:e=>{if(e.button!==0)return;drag.current={x:e.clientX,y:e.clientY,left:e.currentTarget.scrollLeft,top:e.currentTarget.scrollTop};e.currentTarget.setPointerCapture(e.pointerId)},onPointerMove:e=>{if(!drag.current)return;e.currentTarget.scrollLeft=drag.current.left+drag.current.x-e.clientX;e.currentTarget.scrollTop=drag.current.top+drag.current.y-e.clientY},onPointerUp:()=>{drag.current=null},onPointerCancel:()=>{drag.current=null}},h('img',{src,alt,draggable:false,onLoad:e=>setSize({width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight}),onError:()=>setError('完整图片加载失败，请关闭后重试'),style:{width:size?size.width*scale:undefined,height:size?size.height*scale:undefined}})))));
     };
     S.DeleteButton=function({sample}){S.useStore();return S.assets.some(a=>a.id===sample.id)?h(ui.Button,{type:'button',variant:'outline',size:'sm',className:'stage1-delete-button',disabled:S.operations.delete?.state==='busy',onClick:()=>S.confirmDelete(sample)},'删除样例'):null;};
     S.EditButton=function({sample}){S.useStore();return S.assets.some(a=>a.id===sample.id)?h(ui.Button,{type:'button',variant:'outline',size:'sm',onClick:()=>S.startEdit(sample)},'编辑信息'):null;};
