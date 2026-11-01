@@ -76,3 +76,8 @@
 .candidate-preview-dialog .candidate-image-viewport{height:60vh;max-width:100%;overflow:auto;cursor:grab;touch-action:none;background:repeating-conic-gradient(#e4eaea 0% 25%,#f6f8f8 0% 50%) 0/20px 20px}
 .candidate-preview-dialog .candidate-image-viewport:active{cursor:grabbing}
 .candidate-preview-dialog .candidate-image-viewport img{display:block;max-width:none;max-height:none;object-fit:contain;margin:auto;user-select:none}
+.ink-analysis-notice{padding:12px 16px;margin:12px 0;border:1px solid #c7d4d5;background:#f2f7f7;font-size:12px;line-height:1.7;color:#355457}
+.ink-analysis-notice p{margin:3px 0}.ink-analysis-notice .analysis-warning{color:#88550b;font-weight:600}
+.history-cleanup{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;padding:12px;background:#f2f7f7;font-size:12px}
+.history-cleanup p{flex-basis:100%;line-height:1.6}.history-select{display:flex;gap:6px;align-items:center;font-size:12px;white-space:nowrap}
+.design-progress{width:100%;max-width:320px;display:grid;gap:12px;justify-items:center}.design-progress p{font-size:12px;line-height:1.6}.design-progress progress{width:100%;accent-color:#145f65}

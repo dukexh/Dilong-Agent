@@ -420,6 +420,8 @@
   // Full-resolution SSIM in overlapping stripes: each valid 7x7 window is
   // counted once, without allocating full-image grayscale/integral buffers.
   async function structureSimilarity(reference, actual, options = {}) {
+    const checkCancelled=()=>{if(options.signal?.aborted)throw new DOMException('已取消执行','AbortError')};
+    checkCancelled();
     assertImage(reference, '原图'); assertImage(actual, '候选图片');
     const { width, height } = reference;
     if (actual.width !== width || actual.height !== height) throw Error('结构比较需要相同尺寸的图片');
@@ -428,6 +430,7 @@
     const yieldTask = options.yieldTask || (() => new Promise(resolve => setTimeout(resolve, 0)));
     let sum = 0, count = 0;
     for (let top = 0; top < height - 6; top += rows) {
+      checkCancelled();
       const centers = Math.min(rows, height - 6 - top), stripeHeight = centers + 6;
       const first = new Float64Array(width * stripeHeight), second = new Float64Array(first.length), mask = new Uint8Array(first.length);
       for (let i = 0; i < first.length; i++) {
@@ -439,7 +442,9 @@
       }
       const result = ssimDetails(first, second, width, stripeHeight, mask, true);
       sum += result.value * result.windowCount; count += result.windowCount;
+      options.onProgress?.((top+centers)/(height-6));
       await yieldTask();
+      checkCancelled();
     }
     if (!count) throw Error('没有足够的7×7不透明区域可计算结构相似度');
     return Math.max(-1, Math.min(1, sum / count));

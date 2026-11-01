@@ -6,7 +6,37 @@
   const emit = () => S.listeners.forEach(f => f());
   S.status = (key, state, message = '') => { S.operations[key] = { state, message }; emit(); };
   S.subscribe = f => { S.listeners.add(f); return () => S.listeners.delete(f); };
+  S.designRuns=new Map();
+  S.startDesignRun=key=>{
+    const controller=new AbortController(),run={controller,fraction:0,phase:'准备任务'};S.designRuns.set(key,run);emit();
+    return {signal:controller.signal,onProgress:progress=>{if(!controller.signal.aborted){run.fraction=Math.max(run.fraction,Math.min(.99,progress.fraction));run.phase=progress.phase;emit();}}};
+  };
+  S.checkDesignCancelled=options=>{if(options.signal.aborted)throw new DOMException('已取消执行','AbortError')};
+  S.finishDesignRun=key=>{S.designRuns.delete(key);emit()};
+  S.deletedHistory={tasks:new Set(),inkRuns:new Set()};
   const id = () => crypto.randomUUID();
+  // A page-lifetime lock distinguishes an abandoned task from work still
+  // running in another tab. It does not synchronize edits between tabs.
+  const taskOwner=id();
+  const ownerReady=global.navigator.locks?new Promise(resolve=>{
+    global.navigator.locks.request('dilong-design-owner-'+taskOwner,()=>{resolve();return new Promise(()=>{});}).catch(resolve);
+  }):Promise.resolve();
+  const recoverTasks=async tasks=>{
+    await ownerReady;
+    const locks=global.navigator.locks?await global.navigator.locks.query():null;
+    const live=new Set((locks?.held||[]).map(lock=>lock.name));
+    const changed=[];
+    const recovered=tasks.map(task=>{
+      if(task.status!=='处理中'||(task.ownerId&&live.has('dilong-design-owner-'+task.ownerId)))return task;
+      const confirmed=!!locks&&!!task.ownerId;
+      const next={...task,status:confirmed?'已中断':'状态待确认',error:confirmed?'上次执行已停止，输入和已保存候选仍保留，可重新执行。':'无法确认上次任务是否仍在其他窗口执行，请确认后再重试。',updatedAt:new Date().toISOString()};
+      // Unknown legacy owners may still be active: only adjust this view.
+      if(confirmed)changed.push(next);
+      return next;
+    });
+    if(changed.length)await write('tasks',changed);
+    return recovered;
+  };
   let dataWrites=Promise.resolve();
   const withDataWrite=action=>{const pending=dataWrites.then(action);dataWrites=pending.catch(()=>{});return pending;};
   S.designModeLabels={compare:'相似检索',complete:'小样补全',twin:'风格迁移',generate:'示例候选推荐'};
@@ -44,7 +74,7 @@
     if(!names.length)return;
     await new Promise((resolve,reject)=>{const tx=d.transaction(names,'readwrite');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('保存事务取消'));try{for(const name of names)records[name].forEach(record=>tx.objectStore(name).put(record));}catch(e){tx.abort();reject(e);}});
   }
-  S.ready = Promise.all([read('assets'), read('tasks'),read('inkRuns')]).then(([a,t,ink])=>{const chronological=(a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id);S.assets=a.map(item=>S.isCandidate(item)?{...item,recordKind:'design-candidate'}:item);S.tasks=t.sort(chronological);S.inkRuns=ink.sort(chronological);emit();}).catch(e => S.status('storage', 'error', '本地数据读取失败：' + e.message));
+  S.ready = Promise.all([read('assets'), read('tasks'),read('inkRuns')]).then(async([a,t,ink])=>{const chronological=(a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id);S.assets=a.map(item=>S.isCandidate(item)?{...item,recordKind:'design-candidate'}:item);S.tasks=(await recoverTasks(t)).sort(chronological);S.inkRuns=ink.sort(chronological);emit();}).catch(e => S.status('storage', 'error', '本地数据读取失败：' + e.message));
   S.all = () => [...S.base, ...S.assets];
   S.deleteAsset = assetId => withDataWrite(async()=>{
     await S.ready;
@@ -188,12 +218,33 @@
     S.status('ink-restore','ready');S.navigate('color');
     requestAnimationFrame(()=>requestAnimationFrame(()=>global.dispatchEvent(new CustomEvent('dilong-ink-open',{detail:{run:structuredClone(run)}}))));
   };
+  S.deleteHistory=(store,ids)=>withDataWrite(async()=>{
+    await S.ready;if(!['tasks','inkRuns'].includes(store))throw Error('不支持清理此类记录');
+    const keys=[...new Set(ids)];if(!keys.length)return 0;
+    S.status('history-delete','busy');
+    try{
+      const d=await db();
+      await new Promise((resolve,reject)=>{
+        const tx=d.transaction(store,'readwrite'),records=tx.objectStore(store);let reason;
+        tx.oncomplete=resolve;tx.onerror=()=>reject(reason||tx.error);tx.onabort=()=>reject(reason||tx.error||Error('清理事务取消'));
+        const request=records.getAll();request.onsuccess=()=>{
+          if(store==='tasks'&&request.result.some(record=>keys.includes(record.id)&&record.status==='处理中')){reason=Error('包含正在执行或运行状态未确认的任务，请先取消或确认任务结束后再清理。');tx.abort();return}
+          try{keys.forEach(key=>records.delete(key))}catch(error){reason=error;tx.abort()}
+        };
+      });
+      S[store]=S[store].filter(record=>!keys.includes(record.id));
+      keys.forEach(key=>{S.deletedHistory[store].add(key);if(store==='inkRuns')unsavedInkRuns.delete(key)});
+      if(store==='tasks'&&keys.includes(S.activeTask))S.activeTask=null;
+      S.status('history-delete','ready','已删除 '+keys.length+' 条记录');return keys.length;
+    }catch(error){S.status('history-delete','error','清理失败：'+error.message);throw error}
+  });
   S.beginDesignTask=async request=>{
     await S.ready;
     const input=request.input.kind==='upload'?{kind:'upload',name:request.input.name,imageUrl:await dataURL(request.input.src),summary:request.input.summary}:{kind:'library',sampleId:request.input.sampleId,name:request.input.name};
     if(input.kind==='library'&&!S.all().some(a=>a.id===input.sampleId))throw Error('任务输入样例已不存在，请重新选择');
-    return withDataWrite(async()=>{const previous=S.tasks.find(t=>t.id===request.taskId),reuse=previous&&['待处理','执行失败'].includes(previous.status),now=new Date().toISOString();
+    return withDataWrite(async()=>{const previous=S.tasks.find(t=>t.id===request.taskId),reuse=previous&&['待处理','执行失败','已中断','状态待确认','已取消'].includes(previous.status),now=new Date().toISOString();
       const next={...(reuse?previous:{}),schemaVersion:2,id:reuse?previous.id:id(),source:reuse?previous.source:'设计智能体',sourceId:reuse?previous.sourceId:'design-'+request.runKey,sampleId:input.kind==='library'?input.sampleId:null,title:reuse?previous.title:input.name+' · '+S.designModeLabels[request.mode],mode:request.mode,input,parameters:request.parameters,conditions:describeConditions(request.mode,request.parameters),status:'处理中',resultIds:reuse?(previous.resultIds||[]):[],attempts:(reuse?previous.attempts||0:0)+1,createdAt:reuse?previous.createdAt:now,updatedAt:now,runKey:request.runKey,error:''};
+      next.ownerId=taskOwner;
       await write('tasks',[next]);S.tasks=S.tasks.some(t=>t.id===next.id)?S.tasks.map(t=>t.id===next.id?next:t):[...S.tasks,next];S.status('task','ready');return next;
     });
   };
@@ -208,10 +259,11 @@
     S.openTask(task); return task;
   });
   S.openTask = task => {
-    const sample=task.input?.kind==='upload'?{...S.base[0],id:'UPLOAD-'+task.id,name:task.input.name,imageUrl:task.input.imageUrl,analysis:{...S.base[0]?.analysis,...task.input.summary}}:S.all().find(a=>a.id===task.sampleId);
-    if(!sample){S.activeTask=null;S.status('task','error','任务源样例已删除，请在样例库重新选择。');S.navigate('samples');return;}
+    let sample=task.input?.kind==='upload'?{...S.base[0],id:'UPLOAD-'+task.id,name:task.input.name,imageUrl:task.input.imageUrl,analysis:{...S.base[0]?.analysis,...task.input.summary}}:S.all().find(a=>a.id===task.sampleId);
+    const missing=!sample;
+    if(missing)sample={id:task.sampleId||'missing-source',name:task.input?.name||'源样例已删除',imageUrl:'',missing:true,wood:'未记录',style:'未记录',tone:'未记录',analysis:{averageRgb:{r:0,g:0,b:0},brightness:0,textureDensity:0}};
     S.status('task','ready');S.activeTask=task.id;
-    if(task.status==='源样例已删除')S.updateTask(task.id,{status:'待处理'}).catch(e=>S.status('task','error',e.message));
+    if(!missing&&task.status==='源样例已删除')S.updateTask(task.id,{status:'待处理'}).catch(e=>S.status('task','error',e.message));
     S.open('design',sample,task);
   };
   S.open = (page, sample, task) => { if(page==='design')S.activeTask=task?.id||null; S.navigate(page); requestAnimationFrame(()=>requestAnimationFrame(()=>global.dispatchEvent(new CustomEvent('dilong-open', { detail: { page, sample, task } })))); };
@@ -329,6 +381,13 @@
   S.connect = (React, base, analyze, analyzeFull, ui) => {
     S.React=React; S.base=base; S.analyze=analyze; S.analyzeFull=analyzeFull;
     const h=React.createElement;
+    S.inkWarnings=layers=>{
+      const warnings=[];
+      if(layers.some(layer=>layer.share===0))warnings.push('检测到占比为0%的色层，请人工复核，不能据此确定印刷层数。');
+      if(new Set(layers.map(layer=>layer.hex)).size<layers.length)warnings.push('检测到重复色层，当前分析可能未充分区分纹理颜色。');
+      return warnings;
+    };
+    S.InkAnalysisNotice=function({layers,busy}){return h('div',{className:'ink-analysis-notice',role:'status'},h('strong',null,'本地算法初步分析'),h('p',null,'用于演示与人工参考；细密纹理可能识别不足，配方需经试印确认。'),!busy&&layers?.length>0&&S.inkWarnings(layers).map(text=>h('p',{key:text,className:'analysis-warning'},text)));};
     S.useStore=()=>{const [,set]=React.useState(0);React.useEffect(()=>S.subscribe(()=>set(x=>x+1)),[]);};
     S.useSamples=()=>{S.useStore();return S.all();};
     S.Status=function(){S.useStore();const ops=Object.values(S.operations),bad=ops.find(o=>o.state==='error'),busy=ops.some(o=>o.state==='busy');return h('span',{role:'status',title:bad?.message},busy?'处理中':bad?'操作失败：'+bad.message:'就绪');};
@@ -340,34 +399,50 @@
     const detail=(label,value)=>h('div',{key:label},h('dt',null,label),h('dd',null,value??'未记录'));
     S.StatsDialog=function(){
       S.useStore();const kind=S.statsView,session=S.statsSession||0,trigger=S.statsTrigger,title={tasks:'设计任务',pending:'待评价方案',ink:'配墨操作记录'}[kind];
+      const [selected,setSelected]=React.useState([]),[cleaning,setCleaning]=React.useState(false),[cleanupMessage,setCleanupMessage]=React.useState('');
+      React.useEffect(()=>{setSelected([]);setCleanupMessage('')},[kind,session]);
       const rows=kind==='tasks'?newest(S.tasks):kind==='pending'?newest(S.assets.filter(a=>S.isCandidate(a)&&candidateStatus(a)==='pending')):kind==='ink'?newest(S.inkRuns):[];
+      const manageable=kind==='tasks'||kind==='ink';
+      const eligible=record=>kind!=='tasks'||!['处理中','状态待确认'].includes(record.status);
+      const selectedIds=selected.filter(id=>rows.some(record=>record.id===id&&eligible(record)));
+      const removeRecords=async ids=>{
+        if(cleaning||!ids.length)return;
+        const note=kind==='tasks'?'已保存的候选和样例库会保留。':'记录中的图片与参数快照将删除，样例库会保留。';
+        if(!global.confirm('确定删除 '+ids.length+' 条'+title+'？\n'+note+'此操作不可撤销。'))return;
+        setCleaning(true);setCleanupMessage('');try{const n=await S.deleteHistory(kind==='tasks'?'tasks':'inkRuns',ids);if(session===S.statsSession&&kind===S.statsView){setSelected([]);setCleanupMessage('已删除 '+n+' 条记录。'+note)}}catch(error){if(session===S.statsSession&&kind===S.statsView)setCleanupMessage(error.message)}finally{setCleaning(false)}
+      };
+      const selectRecord=record=>h('label',{className:'history-select'},h('input',{type:'checkbox',checked:selectedIds.includes(record.id),disabled:cleaning||!eligible(record),'aria-label':'选择记录 '+(record.title||record.inputName||record.id),onChange:e=>setSelected(old=>e.target.checked?[...old,record.id]:old.filter(id=>id!==record.id))}),'选择');
+      const deleteRecord=record=>h(ui.Button,{type:'button',variant:'outline',size:'sm',disabled:cleaning||!eligible(record),onClick:()=>removeRecords([record.id])},'删除记录');
       const go=action=>{if(session!==S.statsSession)return;S.closeStats(session);action();};
       const action=(label,fn)=>h(ui.Button,{type:'button',variant:'outline',size:'sm',onClick:()=>go(fn)},label);
       const sourceName=task=>task.input?.name||S.all().find(a=>a.id===task.sampleId)?.name||task.sampleId||'未记录';
       const taskCard=task=>h('article',{key:task.id,className:'summary-record','data-record-id':task.id},
-        h('div',{className:'summary-record-heading'},h('h3',null,task.title||'设计任务'),h('span',null,task.status||'未记录状态')),
+        h('div',{className:'summary-record-heading'},selectRecord(task),h('h3',null,task.title||'设计任务'),h('span',null,task.status||'未记录状态')),
         h('dl',null,detail('创建时间',recordTime(task.createdAt)),detail('处理方式',S.designModeLabels[task.mode]||task.mode||'趋势设计任务'),detail('输入样例',sourceName(task)),detail('任务来源',task.source),detail('设计条件',task.conditions||'未记录'),detail('结果',`${task.outputCount==null?'处理结果数量未记录':task.outputCount+' 个处理结果'}；已保存 ${(task.resultIds||[]).filter(id=>S.assets.some(a=>a.id===id)).length} 个候选`)),
         task.error&&h('p',{className:'summary-record-error'},'失败原因：'+task.error),
-        h('div',{className:'summary-record-actions'},action('打开任务',()=>S.openTask(task))));
+        h('div',{className:'summary-record-actions'},action('打开任务',()=>S.openTask(task)),deleteRecord(task)));
       const candidateCard=asset=>h('article',{key:asset.id,className:'summary-record summary-candidate','data-record-id':asset.id},
         h('img',{src:asset.thumbnailUrl||asset.imageUrl,alt:asset.name||asset.id,loading:'lazy'}),
         h('div',null,h('div',{className:'summary-record-heading'},h('h3',null,asset.name||asset.id),h('span',null,'待评价')),
           h('dl',null,detail('样例编号',asset.id),detail('保存时间',recordTime(asset.createdAt||asset.importedAt)),detail('来源',asset.source)),
           h(S.CandidateReview,{sample:asset}),h('div',{className:'summary-record-actions'},action('查看样例档案',()=>S.open('samples',asset)),action('用于配墨',()=>S.open('color',asset)))));
       const inkCard=run=>{const sample=S.all().find(a=>a.id===run.sampleId);return h('article',{key:run.id,className:'summary-record','data-record-id':run.id},
-        h('div',{className:'summary-record-heading'},h('h3',null,run.inputName||'未记录图片名称'),h('span',null,'分析成功')),
+        h('div',{className:'summary-record-heading'},selectRecord(run),h('h3',null,run.inputName||'未记录图片名称'),h('span',null,'分析成功')),
         h('dl',null,detail('分析时间',recordTime(run.createdAt)),detail('图片来源',run.source),detail('识别色层',Number.isFinite(run.layerCount)?run.layerCount+' 层':'未记录'),detail('合成偏差（RGB）',Number.isFinite(run.difference)?run.difference.toFixed(2)+' / 255':'未记录'),detail('关联样例',sample?.name||(run.sampleId?'源样例已删除（'+run.sampleId+'）':'用户上传图片'))),
         !S.canRestoreInkRun(run)&&h('p',{className:'stage1-edit-note'},'此旧记录未保存原图或完整配方，无法恢复当次操作。'),
-        h('div',{className:'summary-record-actions'},S.canRestoreInkRun(run)&&action('打开此次配墨',()=>S.openInkRun(run)),sample&&action('查看来源样例',()=>S.open('samples',sample)),sample&&action('重新配墨',()=>S.open('color',sample))));};
+        h('div',{className:'summary-record-actions'},S.canRestoreInkRun(run)&&action('打开此次配墨',()=>S.openInkRun(run)),sample&&action('查看来源样例',()=>S.open('samples',sample)),sample&&action('重新配墨',()=>S.open('color',sample)),deleteRecord(run)));};
       return h(ui.Dialog,{key:session,open:!!title,onOpenChange:open=>{if(!open)S.closeStats(session);}},h(ui.Content,{className:'sample-detail-dialog summary-records-dialog',onCloseAutoFocus:event=>{event.preventDefault();if(!S.statsView&&trigger?.isConnected)trigger.focus();}},
         h(ui.Header,null,h(ui.Title,null,title||'统计明细'),h(ui.Description,null,kind==='ink'?'打开此次配墨可恢复当次图片、配方及最近保存的参数，不重复分析或计数。旧记录未保存原图或完整配方，保留原有信息。':kind==='pending'?'查看已保存且尚未评价的候选；完成评价后会从此列表移除。':'查看实际任务的输入、条件和结果，打开任务可继续处理或查看已保存候选。')),
         h('p',{className:'summary-record-count',role:'status'},'共 '+rows.length+' 条'+(rows.length?'，按时间从新到旧排列':'')),
+        manageable&&h('div',{className:'history-cleanup'},h('p',null,kind==='tasks'?'删除任务不会删除已保存候选；执行中或状态待确认的任务请先结束或重新执行后取消。':'清理历史会删除对应快照，不删除样例库。'),h(ui.Button,{type:'button',variant:'outline',disabled:cleaning||!rows.some(eligible),onClick:()=>setSelected(rows.filter(eligible).map(record=>record.id))},'全选可清理记录'),h(ui.Button,{type:'button',variant:'outline',disabled:cleaning||!selectedIds.length,onClick:()=>setSelected([])},'取消选择'),h(ui.Button,{type:'button',variant:'outline',disabled:cleaning||!selectedIds.length,onClick:()=>removeRecords(selectedIds)},cleaning?'正在清理…':'删除所选（'+selectedIds.length+'）'),cleanupMessage&&h('p',{role:'status'},cleanupMessage)),
         rows.length?h('div',{className:'summary-record-list'},rows.map(kind==='tasks'?taskCard:kind==='pending'?candidateCard:inkCard)):
           h('div',{className:'summary-empty'},h('p',null,kind==='tasks'?'还没有实际设计任务。执行一次设计后，任务会显示在这里。':kind==='pending'?'暂无待评价方案。保存设计候选后，可在这里查看和评价。':'还没有成功配墨记录。主动选择样例或上传图片并完成分析后，会显示在这里。'),action(kind==='ink'?'进入配墨':'进入设计',()=>S.navigate(kind==='ink'?'color':'design')))));
     };
-    S.InkRunInfo=function({runId,onRetry}){S.useStore();if(!runId)return null;const run=S.inkRuns.find(r=>r.id===runId)||unsavedInkRuns.get(runId),status=S.inkRecordStatus?.id===runId?S.inkRecordStatus:null;return h('div',{className:'design-task-info ink-run-info',role:'status'},h('strong',null,'当前配墨记录：'+(run?.inputName||'正在保存图片')),
+    S.InkRunInfo=function({runId,onRetry}){S.useStore();if(!runId)return null;if(S.deletedHistory.inkRuns.has(runId))return h('div',{className:'design-task-info ink-run-info',role:'status'},'此次历史已删除。当前预览仍可导出，后续参数调整不再保存到该记录。');const run=S.inkRuns.find(r=>r.id===runId)||unsavedInkRuns.get(runId),status=S.inkRecordStatus?.id===runId?S.inkRecordStatus:null;return h('div',{className:'design-task-info ink-run-info',role:'status'},h('strong',null,'当前配墨记录：'+(run?.inputName||'正在保存图片')),
       h('span',null,status?.state==='error'?status.message:status?.state==='busy'?'正在保存…':(run?'分析时间：'+recordTime(run.createdAt)+'；':'')+'重量与色层设置自动保存到此记录'),status?.state==='error'&&h(ui.Button,{type:'button',variant:'outline',size:'sm',onClick:onRetry},'重试保存'));};
+    S.DesignProgress=function({runKey}){S.useStore();const run=S.designRuns.get(runKey);if(!run)return null;const cancelling=run.controller.signal.aborted;return h('div',{className:'design-progress'},h('p',{role:'status'},cancelling?'正在取消，等待当前处理步骤结束…':run.phase+' · '+Math.floor(run.fraction*100)+'%'),h('progress',{'aria-label':'设计任务进度',value:run.fraction,max:1}),h(ui.Button,{type:'button',variant:'outline',disabled:cancelling||run.phase==='保存任务状态',onClick:()=>{run.controller.abort();emit()}},'取消任务'));};
     S.CandidateSaveButton=function({src,name,source,parameters,sourceKey,taskId=S.activeTask}){
+      if(!S.tasks.some(task=>task.id===taskId))taskId=null;
       S.useStore();const [error,setError]=React.useState('');
       const saved=S.assets.find(a=>a.sourceKey===sourceKey),linked=!!saved&&(!taskId||!!S.tasks.find(t=>t.id===taskId)?.resultIds?.includes(saved.id)),busy=S.operations.save?.state==='busy';
       return h(React.Fragment,null,h('button',{type:'button',className:linked?'saved':'',disabled:busy||(linked&&!error),onClick:async()=>{setError('');try{await S.save(src,name,source,parameters,sourceKey,taskId);}catch(e){setError('保存失败：'+e.message);}}},
@@ -379,17 +454,25 @@
       if(!current||!S.isCandidate(current))return null;
       return h('div',{className:'candidate-review-control'},h('label',null,'候选评价',h('select',{'aria-label':'候选评价',value:candidateStatus(current),disabled:S.operations.review?.state==='busy'||S.operations.save?.state==='busy',onChange:async e=>{setError('');try{await S.reviewCandidate(current.id,e.target.value);}catch(error){setError(error.message);}}},[['pending','待评价'],['accepted','已采用'],['adjust','需调整'],['rejected','未采用']].map(([value,label])=>h('option',{key:value,value},label)))),error&&h('p',{role:'alert'},error));
     };
-    S.DesignTaskInfo=function({taskId}){S.useStore();const task=S.tasks.find(t=>t.id===taskId);return task?h('div',{className:'design-task-info',role:'status'},h('strong',null,'当前任务：'+task.title),h('span',null,task.status+' · '+(task.outputCount??0)+' 个处理结果 · 已保存 '+(task.resultIds||[]).length+' 个候选')):null;};
+    S.DesignTaskInfo=function({taskId}){S.useStore();const task=S.tasks.find(t=>t.id===taskId),missing=task&&task.input?.kind!=='upload'&&!S.all().some(a=>a.id===task.sampleId);if(!task&&S.deletedHistory.tasks.has(taskId))return h('div',{className:'design-task-info',role:'status'},'此任务记录已删除；已保存候选仍在样例库，重新执行会创建新任务。');return task?h('div',{className:'design-task-info',role:'status'},h('strong',null,'当前任务：'+task.title),h('span',null,task.status+' · '+(task.outputCount??0)+' 个处理结果 · 已保存 '+(task.resultIds||[]).length+' 个候选'),missing&&h('div',null,h('p',null,'源样例已删除，仍可查看和评价已保存候选。重新设计请先选择新输入。'),h(ui.Button,{type:'button',variant:'outline',onClick:()=>S.navigate('samples')},'选择新样例')),!missing&&['已中断','状态待确认'].includes(task.status)&&h('p',null,task.error+' 点击“重新执行”重试。')):null;};
     S.TaskSavedResults=function({taskId}){
       S.useStore();const task=S.tasks.find(t=>t.id===taskId),assets=(task?.resultIds||[]).map(key=>S.assets.find(a=>a.id===key)).filter(Boolean);
+      if(S.deletedHistory.tasks.has(taskId))return h('div',{className:'design-empty-results'},h('b',null,'任务记录已删除'),h('span',null,'已保存候选仍在样例库中。'),h(ui.Button,{onClick:()=>S.navigate('samples')},'查看样例库'));
       return assets.length?h('div',{className:'result-cards task-saved-results'},...assets.map(a=>h('article',{key:a.id},h('div',{className:'result-image'},h(S.CandidateImage,{src:a.imageUrl,previewSrc:a.thumbnailUrl,alt:a.name})),h('div',{className:'result-copy'},h('div',null,h('b',null,a.name)),h('p',null,'此任务已保存的候选'),a.parameters?.mode==='twin'&&h('p',{title:'原图与候选的全分辨率灰度SSIM；明暗变化也会影响；负值显示0%。'},global.DilongDesignImages.scoreLabel(a.parameters.structureSimilarity)),h(S.CandidateReview,{sample:a}))))):h('div',{className:'design-empty-results'},h('b',null,'本任务尚未保存候选'),h('span',null,task?.error||'输入与参数已恢复，可重新执行并保存需要的方案。'));
     };
     S.CandidateImage=function({src,previewSrc,alt}){
       const [open,setOpen]=React.useState(false),[thumbnail,setThumbnail]=React.useState(''),[zoom,setZoom]=React.useState(null),[size,setSize]=React.useState(null),[error,setError]=React.useState('');
       const trigger=React.useRef(null),viewport=React.useRef(null),drag=React.useRef(null);
+      const [viewportSize,setViewportSize]=React.useState(null);
       React.useEffect(()=>{let cancelled=false;setThumbnail('');if(!previewSrc&&src)global.DilongDesignImages.thumbnail(src).then(url=>{if(!cancelled)setThumbnail(url)}).catch(()=>{});return()=>{cancelled=true}},[src,previewSrc]);
       React.useEffect(()=>{setZoom(null);setSize(null);setError('')},[src,open]);
-      const scale=zoom||(size&&viewport.current?Math.min(1,viewport.current.clientWidth/size.width,viewport.current.clientHeight/size.height):1);
+      React.useEffect(()=>{
+        const node=viewport.current;if(!open||!node)return;
+        const measure=()=>{const width=node.clientWidth,height=node.clientHeight;setViewportSize(old=>old?.width===width&&old?.height===height?old:{width,height})};
+        measure();const observer=new ResizeObserver(measure);observer.observe(node);
+        return()=>observer.disconnect();
+      },[open,size]);
+      const scale=zoom||(size&&viewportSize?Math.min(1,viewportSize.width/size.width,viewportSize.height/size.height):1);
       const changeZoom=multiplier=>setZoom(Math.max(.05,Math.min(4,scale*multiplier)));
       return h(React.Fragment,null,h('button',{ref:trigger,type:'button',className:'candidate-preview-trigger','aria-label':'放大查看'+alt,title:'点击查看完整分辨率',onClick:()=>setOpen(true)},h('img',{src:previewSrc||thumbnail||src,alt,loading:'lazy'}),h('span',{className:'candidate-preview-hint'},'放大查看')),
         h(ui.Dialog,{open,onOpenChange:setOpen},h(ui.Content,{className:'sample-detail-dialog candidate-preview-dialog',onCloseAutoFocus:e=>{e.preventDefault();trigger.current?.focus();}},h(ui.Header,null,h(ui.Title,null,alt),h(ui.Description,null,'完整分辨率查看；可缩放、拖动或滚动查看细节，按 Esc 关闭。')),

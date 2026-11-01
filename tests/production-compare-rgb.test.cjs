@@ -33,7 +33,7 @@ test('RGB metric uses all original pixels despite a smaller preview and ignores 
 });
 test('opaque comparison matches the existing ink reconstruction deviation formula',()=>{
  const fs=require('node:fs'),vm=require('node:vm');
- const sandbox={window:{},TextEncoder,TextDecoder,Blob,indexedDB:{open(){throw Error('No storage required for formula test');}}};
+ const sandbox={window:{navigator:{}},crypto:require('node:crypto').webcrypto,TextEncoder,TextDecoder,Blob,indexedDB:{open(){throw Error('No storage required for formula test');}}};
  vm.runInNewContext(fs.readFileSync(require.resolve('../stage1.js'),'utf8'),sandbox);
  const reference=image(16,16,[130,120,100]),actual=image(16,16,[120,115,90]);
  const model={original:reference.data,assignments:new Uint8Array(256),colours:[{r:120,g:115,b:90}]};
