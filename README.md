@@ -71,6 +71,7 @@ python3 start-local.py
 npm ci
 npm test
 npm run test:browser
+npm run test:images
 ```
 
 `npm test` 运行单元测试，`npm run test:browser` 顺序运行 `tests/` 中所有 `*-browser.cjs` 回归脚本。也可单独运行，例如：
@@ -81,6 +82,8 @@ node tests/ink-history-browser.cjs
 node tests/dashboard-details-browser.cjs
 node tests/trial-fixes-browser.cjs
 ```
+
+`npm run test:images` 验证图片保存与导入的解码次数、原图像素和分析配方、独立缩略图、PNG 原字节导出、旧格式兼容及 IndexedDB 恢复。
 
 测试创建临时服务与独立浏览器上下文，不使用日常浏览器中的个人样例和历史记录。
 

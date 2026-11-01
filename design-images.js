@@ -44,7 +44,8 @@
     try { context.drawImage(image, 0, 0, element.width, element.height); return encode(element); }
     finally { element.width = element.height = 0; }
   }
-  async function thumbnail(src) { return preview(await load(src)); }
+  async function thumbnail(source) { return preview(typeof source === 'string' ? await load(source) : source); }
+  thumbnail.acceptsDecodedImage = true;
   const palettes = { smoked: { r: 91, g: 70, b: 57 }, warmGrey: { r: 139, g: 128, b: 112 }, lightNatural: { r: 201, g: 178, b: 142 }, redBrown: { r: 132, g: 70, b: 49 } };
   async function twin(src, style, strength, options = {}) {
     await checkpoint(options,0,'读取原图');

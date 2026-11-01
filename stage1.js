@@ -133,15 +133,44 @@
     requestAnimationFrame(()=>requestAnimationFrame(()=>global.dispatchEvent(new CustomEvent('dilong-library-imported',{detail:{ids}}))));
   };
   function image(url) { return new Promise((resolve, reject) => { const im = new Image(); im.onload = () => resolve(im); im.onerror = () => reject(Error('图片损坏或无法读取')); im.src = url; }); }
-  async function dataURL(url) {
-    const im = await image(url), c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
-    c.getContext('2d').drawImage(im, 0, 0); return c.toDataURL('image/png');
+  function imagePNG(im, maxEdge = Infinity) {
+    const scale = Math.min(1, maxEdge / Math.max(im.naturalWidth, im.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(im.naturalWidth * scale));
+    c.height = Math.max(1, Math.round(im.naturalHeight * scale));
+    try {
+      const context = c.getContext('2d');
+      if (!context) throw Error('无法读取图片');
+      context.drawImage(im, 0, 0, c.width, c.height);
+      const url = c.toDataURL('image/png');
+      if (!url.startsWith('data:image/png')) throw Error('浏览器无法保存这张图片，请使用尺寸更小的图片。');
+      return url;
+    } finally { c.width = 0; c.height = 0; }
+  }
+  async function dataURL(source) {
+    return imagePNG(typeof source === 'string' ? await image(source) : source);
+  }
+  async function pngBytes(url) {
+    // Saved samples already contain canvas-normalized PNGs. Keep their exact
+    // bytes on export; older records in other formats still take the PNG path.
+    const png = /^data:image\/png;base64,/i.test(url) ? url : await dataURL(url);
+    const bytes = new Uint8Array(await (await fetch(png)).arrayBuffer());
+    if (![137,80,78,71,13,10,26,10].every((value, i) => bytes[i] === value)) throw Error('图片损坏或无法读取');
+    return bytes;
   }
   async function analyzedRecord(input, url) {
-    const summary=await S.analyze(url), result=S.analyzeFull(await image(url));
+    // Analyze the same normalized PNG as before, decoding it once for both
+    // algorithms. Thumbnails never enter the analysis or export pipeline.
+    const im=await image(url);
+    const summary=await S.analyze(S.analyze.acceptsDecodedImage?im:url), result=S.analyzeFull(im);
     if(!result)throw Error('图片没有可分析的有效颜色');
     const {r,g,b}=summary.averageRgb;
-    return {...input,...metadata.normalize(input),schemaVersion:1,imageUrl:url,thumbnailUrl:await global.DilongDesignImages.thumbnail(url),layers:result.layers.length,
+    let thumbnailUrl=url;
+    if(Math.max(im.naturalWidth,im.naturalHeight)>640)try{
+      const thumbnail=global.DilongDesignImages.thumbnail;
+      thumbnailUrl=await thumbnail(thumbnail.acceptsDecodedImage?im:url);
+    }catch(_){/* A preview failure must not prevent saving the validated original. */}
+    return {...input,...metadata.normalize(input),schemaVersion:1,imageUrl:url,thumbnailUrl,layers:result.layers.length,
       sourceUrl:'',license:'用户提供',date:new Date().toISOString().slice(0,10),
       analysis:{...summary,algorithmVersion:'dilong-color-v0.3',analysedAt:new Date().toISOString(),layerCount:result.layers.length,
         averageHex:'#'+[r,g,b].map(n=>n.toString(16).padStart(2,'0')).join(''),reconstructionDifference:result.difference,
@@ -330,7 +359,7 @@
       const samples=S.assets, files=[], records=[];
       if(!samples.length)throw Error('暂无本地样例，请先保存或导入样例。');
       for(const [i,s] of samples.entries()) {
-        const path=`images/${i}.png`, url=await dataURL(s.imageUrl), bytes=new Uint8Array(await (await fetch(url)).arrayBuffer());
+        const path=`images/${i}.png`, bytes=await pngBytes(s.imageUrl);
         files.push([path,bytes]); records.push({id:s.id,...metadata.normalize(s),image:path});
       }
       files.unshift(['manifest.json',encoder.encode(JSON.stringify({schemaVersion:1,samples:records},null,2))]);
@@ -353,7 +382,7 @@
         if(typeof r.image!=='string' || !files.has(r.image)) throw Error('图片文件不存在');
         const bytes=files.get(r.image); if(bytes.length>30*1024*1024) throw Error('图片超过30MB');
         const blob=new Blob([bytes]), url=URL.createObjectURL(blob); let encoded;
-        try {const im=await image(url);if(im.naturalWidth*im.naturalHeight>40000000)throw Error('图片超过4000万像素'); encoded=await dataURL(url);}finally{URL.revokeObjectURL(url);}
+        try {const im=await image(url);if(im.naturalWidth*im.naturalHeight>40000000)throw Error('图片超过4000万像素'); encoded=await dataURL(im);}finally{URL.revokeObjectURL(url);}
         const record=await analyzedRecord({...r,status:'本地导入'},encoded);
         rows.push({record,state:'有效'});seen.add(r.id);
       }catch(e){rows.push({record:r||{},state:'错误：'+e.message});}
