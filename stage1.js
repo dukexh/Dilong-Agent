@@ -14,7 +14,18 @@
   S.checkDesignCancelled=options=>{if(options.signal.aborted)throw new DOMException('已取消执行','AbortError')};
   S.finishDesignRun=key=>{S.designRuns.delete(key);emit()};
   S.deletedHistory={tasks:new Set(),inkRuns:new Set()};
-  const id = () => crypto.randomUUID();
+  S.createId = () => {
+    const crypto = global.crypto;
+    if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+    // Public HTTP omits randomUUID, but still exposes secure random bytes.
+    if (typeof crypto?.getRandomValues !== 'function') throw Error('浏览器不支持安全随机数，请使用较新的 Chrome 或 Edge。');
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+    return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+  };
+  const id = S.createId;
   // A page-lifetime lock distinguishes an abandoned task from work still
   // running in another tab. It does not synchronize edits between tabs.
   const taskOwner=id();

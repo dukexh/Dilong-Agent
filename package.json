@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node --test tests/*.test.cjs",
     "test:browser": "node tests/run-browser.cjs",
-    "test:images": "node tests/image-workflows-browser.cjs"
+    "test:images": "node tests/image-workflows-browser.cjs",
+    "test:http": "node tests/http-compat-browser.cjs"
   },
   "devDependencies": { "playwright": "1.64.1" }
 }
