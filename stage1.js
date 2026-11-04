@@ -472,7 +472,7 @@
     return {summary:list.length?list.map(r=>r.name+'：'+r.desc).join('；'):'所选演示资料中没有相关内容，请调整研究主题或来源。',change:list.map(r=>r.name+' · '+r.stage).join('；')||'—',palette:list.flatMap(r=>r.palette).join('、')||'—',material:list.map(r=>r.material).join('；')||'—',risk:list.length?'以上为演示资料汇总，实际需求需人工核对。':'暂无依据，不能形成结论',evidence:'匹配演示方向 '+list.length+' 项，来源记录 '+sources.reduce((sum,r)=>sum+r.count,0)+' 条',growth:matchLibrary?'关联样例 '+new Set(list.flatMap(r=>S.matchOriginal(r).map(a=>a.id))).size+' 条':'样例库匹配已关闭',confidence:'已选择来源：'+(platforms.join('、')||'无')};
   };
   S.connect = (React, base, analyze, analyzeFull, ui) => {
-    S.React=React; S.base=base; S.analyze=analyze; S.analyzeFull=analyzeFull;
+    S.React=React; S.base=global.DilongSampleLibrary.merge(base,global.DilongPublicTextureData?.records||[],metadata); S.analyze=analyze; S.analyzeFull=analyzeFull;
     const h=React.createElement;
     S.inkWarnings=layers=>{
       const warnings=[];
@@ -626,5 +626,6 @@
         h(S.PackageFormat),
         busy&&h('p',null,'正在校验图片…'),message&&h('p',{role:'alert'},message),importedIds.length>0&&h(ui.Button,{type:'button',variant:'outline',onClick:()=>S.showImported(importedIds)},'查看导入样例'),rows&&h('div',null,h('p',null,`有效 ${rows.filter(r=>r.state==='有效').length} · 重复 ${rows.filter(r=>r.state.startsWith('重复')).length} · 错误 ${rows.filter(r=>r.state.startsWith('错误')).length}`),...rows.map((r,i)=>h('p',{key:i},`${r.record.id||'无编号'} ${r.record.name||''}：${r.state}`)),h(ui.Button,{disabled:busy||!rows.some(r=>r.state==='有效'),onClick:async()=>{setBusy(true);try{const n=await S.commitPackage(rows);setMessage(`已导入 ${n} 条样例`);setImportedIds([...S.lastImportIds]);setRows(null);}catch(e){setMessage('保存失败：'+e.message);}finally{setBusy(false);}}},'确认导入有效记录')));
     };
+    global.DilongSampleLibrary.install(S,React,ui);
   };
 })(window);
