@@ -9,7 +9,7 @@ const source = fs.readFileSync(path.join(__dirname, '../stage1.js'), 'utf8');
 function load(crypto) {
   // Leave IndexedDB opening pending: ID generation must work during startup,
   // before storage or any React component has initialized.
-  const context = { crypto, navigator: {}, indexedDB: { open: () => ({}) }, TextEncoder, TextDecoder };
+  const context = { crypto, navigator: {}, addEventListener() {}, indexedDB: { open: () => ({}) }, TextEncoder, TextDecoder };
   context.window = context;
   vm.runInNewContext(source, context);
   return context.DilongStage1.createId;

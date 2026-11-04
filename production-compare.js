@@ -223,6 +223,8 @@
         } catch (err) { if (mounted.current && tokens.every((t, i) => t === uploadTokens.current[i])) setError(err.message); }
         finally { if (mounted.current) setLoading(old => old.map((value, i) => tokens[i] === uploadTokens.current[i] ? false : value)); }
       }
+      // Initialize the demo once; subsequent renders preserve uploaded images.
+      useEffect(() => { if (!sources.some(Boolean)) void loadExample(); }, []);
       async function analyze() {
         if (selectionBlocked) return;
         setError('');
@@ -281,7 +283,7 @@
           h('span', null, metricLabels[kind]), h('strong', { className: valueClass || '' }, value), h('span', { className: 'pc-metric-description' }, description), h('small', { className: 'pc-metric-link' }, '查看公式与本次结果 ›'));
       }
       return h('div', { className: 'production-compare embedded-module' }, h('main', { className: 'workspace' },
-        h('section', { className: 'page-heading' }, h('div', null, h('div', { className: 'breadcrumb' }, '生产比对工作台', icon('arrow', 13), '新建比对任务'), h('h1', null, '设计与实物还原评估'), h('p', null, '对照设计预期，查看生产样品的颜色与纹理差异。')), h('div', { className: 'pc-heading-actions' }, button('载入演示样本', loadExample, { disabled: busy || loading.some(Boolean), className: 'ghost' }), button('导出比对报告', exportReport, { className: 'primary export-button', icon: 'download', disabled: !result || busy }))),
+        h('section', { className: 'page-heading' }, h('div', null, h('div', { className: 'breadcrumb' }, '生产比对工作台', icon('arrow', 13), '新建比对任务'), h('h1', null, '设计与实物还原评估'), h('p', null, '对照设计预期，查看生产样品的颜色与纹理差异。')), h('div', { className: 'pc-heading-actions' }, button('导出比对报告', exportReport, { className: 'primary export-button', icon: 'download', disabled: !result || busy }))),
         h('div', { className: 'pc-task-fields' }, h('label', null, '样品名称', h('input', { value: sample, onChange: e => setSample(e.target.value), placeholder: '例如：浅色橡木装饰纸', maxLength: 100 })), h('label', null, '生产批次', h('input', { value: batch, onChange: e => setBatch(e.target.value), placeholder: '例如：20261019-01', maxLength: 100 }))),
         h('section', { className: 'summary-strip', 'aria-live': 'polite' }, metrics.map(([label, value], i) => h('div', { key: label }, h('span', null, label), h('strong', { className: i === 0 ? result ? 'ready' : 'pending' : '' }, value)))),
         error && h('div', { className: 'pc-error', role: 'alert' }, icon('info', 17), error),

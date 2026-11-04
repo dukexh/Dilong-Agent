@@ -320,7 +320,7 @@ test('actual selection is always read-only with no manual selection controls or 
   assert.equal(f.state[11], '未判定');
 });
 
-test('reset, source replacement and demo restore both full images and keep synchronization active', async () => {
+test('reset and source replacement restore both full images and keep synchronization active', async () => {
   const f = fixture();
   f.state[1] = [crop, crop];
   buttonNamed(f.render(), '重置两侧选区').props.onClick();
@@ -329,10 +329,8 @@ test('reset, source replacement and demo restore both full images and keep synch
   await panelElement(f, 1).props.onFile({ name: 'replacement.png', size: 100 });
   assert.deepEqual(normalized(f.state[1]), [quad, quad]);
   assert.equal(f.state[5], null);
-  await buttonNamed(f.render(), '载入演示样本').props.onClick();
-  assert.deepEqual(normalized(f.state[1]), [quad, quad]);
-  assert.equal(f.state[0][0].example, true);
-  assert.equal(f.state[0][1].example, true);
+  assert.equal(buttonNamed(f.render(), '载入演示样本'), null);
+  assert.equal(f.state[0][1].name, 'replacement.png');
   panelElement(f, 0).props.onQuad(crop);
   assert.deepEqual(normalized(f.state[1]), [crop, crop]);
 });

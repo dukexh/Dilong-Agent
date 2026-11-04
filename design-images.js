@@ -44,6 +44,31 @@
     try { context.drawImage(image, 0, 0, element.width, element.height); return encode(element); }
     finally { element.width = element.height = 0; }
   }
+  // A reduced preview can lose a faint or isolated pixel. Only the original
+  // may establish that an image has no visible content.
+  function analysisImageData(image, width, height) {
+    validateSize(image.naturalWidth, image.naturalHeight);
+    const element = document.createElement('canvas');
+    const read = (w, h) => {
+      element.width = w; element.height = h;
+      const context = element.getContext('2d', { willReadFrequently: true });
+      if (!context) throw Error('无法读取图片');
+      context.drawImage(image, 0, 0, w, h);
+      return context.getImageData(0, 0, w, h);
+    };
+    const visible = pixels => {
+      for (let i = 3; i < pixels.data.length; i += 4) if (pixels.data[i] > 0) return true;
+      return false;
+    };
+    try {
+      let pixels = read(width, height);
+      if (visible(pixels)) return pixels;
+      if (width !== image.naturalWidth || height !== image.naturalHeight) pixels = read(image.naturalWidth, image.naturalHeight);
+      if (visible(pixels)) return pixels;
+      const error = Error('图片完全透明，没有可见内容，请更换图片。');
+      error.code = 'IMAGE_FULLY_TRANSPARENT'; throw error;
+    } finally { element.width = element.height = 0; }
+  }
   async function thumbnail(source) { return preview(typeof source === 'string' ? await load(source) : source); }
   thumbnail.acceptsDecodedImage = true;
   const palettes = { smoked: { r: 91, g: 70, b: 57 }, warmGrey: { r: 139, g: 128, b: 112 }, lightNatural: { r: 201, g: 178, b: 142 }, redBrown: { r: 132, g: 70, b: 49 } };
@@ -126,5 +151,5 @@
     return results;
   }
   function scoreLabel(value) { return Number.isFinite(value) ? '结构相似度 ' + (clamp(value, 0, 1) * 100).toFixed(1) + '%' : '结构相似度：暂无法计算'; }
-  global.DilongDesignImages = { twin, complete, thumbnail, scoreLabel, validateSize };
+  global.DilongDesignImages = { twin, complete, thumbnail, scoreLabel, validateSize, analysisImageData };
 })(window);

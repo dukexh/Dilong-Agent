@@ -45,7 +45,7 @@
       if(confirmed)changed.push(next);
       return next;
     });
-    if(changed.length)await write('tasks',changed);
+    if(changed.length)try{await write('tasks',changed)}catch(error){if(error.code==='DATA_CONFLICT')return read('tasks');throw error}
     return recovered;
   };
   let dataWrites=Promise.resolve();
@@ -68,23 +68,66 @@
       r.onsuccess = () => {r.result.onversionchange=()=>r.result.close();S.status('storage','ready');resolve(r.result);}; r.onerror = () => reject(r.error);
     }).catch(e => { dbPromise = null; throw e; });
   }
-  async function write(store, records) {
-    const d = await db();
-    await new Promise((resolve, reject) => {
-      const t = d.transaction(store, 'readwrite'); records.forEach(r => t.objectStore(store).put(r));
-      t.oncomplete = resolve; t.onerror = () => reject(t.error); t.onabort = () => reject(t.error || Error('保存事务取消'));
-    });
-  }
+  const revision = record => record?._revision || 0;
+  const conflict = deleted => Object.assign(Error(deleted ? '该记录已在其他页面删除，不能保存旧内容。' : '该记录已在其他页面修改，请重新加载最新内容后核对。'), { code: 'DATA_CONFLICT' });
+  let channel;
+  try { channel = typeof global.BroadcastChannel === 'function' ? new global.BroadcastChannel('dilong-data-updates') : null; } catch (_) {}
+  const notify = () => { try { channel?.postMessage('changed'); } catch (_) {} };
+  async function write(store, records) { return writeLinked({ [store]: records }); }
   async function read(store) {
     const d = await db(); return new Promise((resolve, reject) => {
       const r = d.transaction(store).objectStore(store).getAll(); r.onsuccess = () => resolve(r.result); r.onerror = () => reject(r.error);
     });
   }
-  async function writeLinked(records){
-    const d=await db(),names=Object.keys(records).filter(name=>records[name].length);
-    if(!names.length)return;
-    await new Promise((resolve,reject)=>{const tx=d.transaction(names,'readwrite');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('保存事务取消'));try{for(const name of names)records[name].forEach(record=>tx.objectStore(name).put(record));}catch(e){tx.abort();reject(e);}});
+  // The check and write share one transaction, including when notifications are delayed.
+  async function writeLinked(records, checks = {}) {
+    const d = await db(), names = [...new Set([...Object.keys(records), ...Object.keys(checks)])].filter(name => records[name]?.length || checks[name]?.length);
+    if (!names.length) return;
+    const committed = [];
+    await new Promise((resolve, reject) => {
+      const tx = d.transaction(names.length === 1 ? names[0] : names, 'readwrite'); let reason;
+      tx.oncomplete = () => { committed.forEach(([record, version]) => { record._revision = version; }); notify(); resolve(); };
+      tx.onerror = () => reject(reason || tx.error);
+      tx.onabort = () => { if(reason?.code==='DATA_CONFLICT')void refreshFromDatabase(); reject(reason || tx.error || Error('保存事务取消')); };
+      const check = (name, record, save) => {
+        const store = tx.objectStore(name), request = store.get(record.id);
+        const expected = revision(record), mustExist = !save || record._revision !== undefined || S[name].some(item => item.id === record.id);
+        request.onsuccess = () => {
+          try {
+          const current = request.result;
+          if ((!current && mustExist) || (current && revision(current) !== expected)) {
+            reason = conflict(!current); tx.abort(); return;
+          }
+          if (save) { const version = revision(current) + 1; store.put({ ...record, _revision: version }); committed.push([record, version]); }
+          } catch (error) { reason = error; tx.abort(); }
+        };
+      };
+      try { for (const name of names) { (checks[name] || []).forEach(record => check(name, record, false)); (records[name] || []).forEach(record => check(name, record, true)); } }
+      catch (error) { reason = error; tx.abort(); }
+    });
   }
+  const inkConflicts = new Set();
+  const refreshFromDatabase = () => withDataWrite(async () => {
+    await S.ready;
+    const d = await db(), names = ['assets', 'tasks', 'inkRuns'];
+    const latest = await new Promise((resolve, reject) => {
+      const tx = d.transaction(names, 'readonly'), values = {};
+      names.forEach(name => { const request = tx.objectStore(name).getAll(); request.onsuccess = () => { values[name] = request.result; }; });
+      tx.oncomplete = () => resolve(values); tx.onerror = () => reject(tx.error); tx.onabort = () => reject(tx.error);
+    });
+    const previous = S.assets;
+    for (const name of ['tasks', 'inkRuns']) for (const old of S[name]) {
+      const current = latest[name].find(item => item.id === old.id);
+      if (!current) { S.deletedHistory[name].add(old.id); if (name === 'inkRuns') unsavedInkRuns.delete(old.id); }
+      else if (name === 'inkRuns' && revision(current) !== revision(old)) inkConflicts.add(old.id);
+    }
+    for (const name of names) S[name] = latest[name].sort((a,b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || a.id.localeCompare(b.id));
+    emit();
+    for (const old of previous) if (!S.assets.some(item => item.id === old.id)) global.dispatchEvent(new CustomEvent('dilong-asset-deleted', { detail: { asset: old } }));
+    for (const asset of S.assets) if (revision(asset) !== revision(previous.find(item => item.id === asset.id))) global.dispatchEvent(new CustomEvent('dilong-asset-updated', { detail: { asset } }));
+  }).catch(error => S.status('sync', 'error', '同步失败：' + error.message));
+  if (channel) channel.onmessage = refreshFromDatabase;
+  if (!channel) global.addEventListener('focus', refreshFromDatabase);
   S.ready = Promise.all([read('assets'), read('tasks'),read('inkRuns')]).then(async([a,t,ink])=>{const chronological=(a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id);S.assets=a.map(item=>S.isCandidate(item)?{...item,recordKind:'design-candidate'}:item);S.tasks=(await recoverTasks(t)).sort(chronological);S.inkRuns=ink.sort(chronological);emit();}).catch(e => S.status('storage', 'error', '本地数据读取失败：' + e.message));
   S.all = () => [...S.base, ...S.assets];
   S.deleteAsset = assetId => withDataWrite(async()=>{
@@ -93,17 +136,28 @@
     if(!asset)throw Error('只能删除自己导入或保存的样例。');
     S.status('delete','busy');
     try {
-      const changed=S.tasks.filter(t=>t.sampleId===assetId||(t.resultIds||[]).includes(assetId)).map(t=>{
-        const resultIds=(t.resultIds||[]).filter(id=>id!==assetId);
-        const status=t.sampleId===assetId?'源样例已删除':['已保存候选','已评价'].includes(t.status)?(resultIds.length?resultStatus(resultIds):'已处理'):t.status;
-        return {...t,resultIds,status,updatedAt:new Date().toISOString()};
-      });
-      const d=await db();
-      await new Promise((resolve,reject)=>{
-        const tx=d.transaction(['assets','tasks'],'readwrite');
-        tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||Error('删除事务取消'));
-        try{tx.objectStore('assets').delete(assetId);changed.forEach(t=>tx.objectStore('tasks').put(t));}
-        catch(e){tx.abort();reject(e);}
+      let changed = [];
+      const d = await db();
+      await new Promise((resolve,reject) => {
+        const tx=d.transaction(['assets','tasks'],'readwrite'); let reason;
+        tx.oncomplete=()=>{notify();resolve()};tx.onerror=()=>reject(reason||tx.error);tx.onabort=()=>{if(reason?.code==='DATA_CONFLICT')void refreshFromDatabase();reject(reason||tx.error||Error('删除事务取消'))};
+        const request=tx.objectStore('assets').get(assetId);
+        request.onsuccess=()=>{
+          try {
+          if(!request.result||revision(request.result)!==revision(asset)){reason=conflict(!request.result);tx.abort();return;}
+          const tasks=tx.objectStore('tasks').getAll();
+          tasks.onsuccess=()=>{
+            try {
+            changed=tasks.result.filter(t=>t.sampleId===assetId||(t.resultIds||[]).includes(assetId)).map(t=>{
+              const resultIds=(t.resultIds||[]).filter(key=>key!==assetId);
+              const status=t.sampleId===assetId?'源样例已删除':['已保存候选','已评价'].includes(t.status)?(resultIds.length?resultStatus(resultIds):'已处理'):t.status;
+              return {...t,resultIds,status,_revision:revision(t)+1,updatedAt:new Date().toISOString()};
+            });
+            tx.objectStore('assets').delete(assetId);changed.forEach(task=>tx.objectStore('tasks').put(task));
+            } catch(error) {reason=error;tx.abort();}
+          };
+          } catch(error) {reason=error;tx.abort();}
+        };
       });
       S.assets=S.assets.filter(a=>a.id!==assetId);
       S.tasks=S.tasks.map(t=>changed.find(next=>next.id===t.id)||t);
@@ -119,11 +173,11 @@
     if(!global.confirm('确定删除“'+asset.name+'”（'+asset.id+'）？\n这会从当前浏览器的样例库移除该图片与分析数据，关联任务将更新。已导出的 ZIP 文件不受影响。'))return;
     try{await S.deleteAsset(asset.id);}catch(e){/* Visible operation status reports the failure. */}
   };
-  S.startEdit = asset => {if(!S.assets.some(a=>a.id===asset.id))return;S.editingAssetId=asset.id;S.editSession=(S.editSession||0)+1;emit();};
+  S.startEdit = asset => {if(!S.assets.some(a=>a.id===asset.id))return;S.editingAssetId=asset.id;S.editingAssetSnapshot=asset;S.editSession=(S.editSession||0)+1;emit();};
   S.closeEdit = () => {if(S.operations.edit?.state==='busy')return;S.editingAssetId=null;S.status('edit','ready');};
-  S.updateAsset = (assetId,patch) => withDataWrite(async()=>{
+  S.updateAsset = (assetId,patch,baseline) => withDataWrite(async()=>{
     await S.ready;
-    const previous=S.assets.find(a=>a.id===assetId);
+    const previous=baseline||S.assets.find(a=>a.id===assetId);
     if(!previous)throw Error('只能编辑自己导入或保存的样例。');
     S.status('edit','busy');
     try{
@@ -192,7 +246,7 @@
     const task=S.tasks.find(t=>t.id===taskId),resultIds=task?[...new Set([...(task.resultIds||[]),sample.id])]:[];
     const assets=isNew?[...S.assets,sample]:S.assets;
     const nextTask=task?{...task,resultIds,status:resultStatus(resultIds,assets),updatedAt:new Date().toISOString()}:null;
-    await writeLinked({assets:isNew?[sample]:[],tasks:nextTask?[nextTask]:[]});
+    await writeLinked({assets:isNew?[sample]:[],tasks:nextTask?[nextTask]:[]},isNew?{}:{assets:[sample]});
     if(isNew)S.assets.push(sample);if(nextTask)S.tasks=S.tasks.map(t=>t.id===taskId?nextTask:t);emit();return sample;
   });
   S.save = (src, name, source, parameters = {}, sourceKey, taskId=S.activeTask) => {
@@ -237,7 +291,7 @@
   async function persistInkRun(next){
     inkRecordStatus(next.id,'busy');
     try{await write('inkRuns',[next]);S.inkRuns=S.inkRuns.some(r=>r.id===next.id)?S.inkRuns.map(r=>r.id===next.id?next:r):[...S.inkRuns,next];unsavedInkRuns.delete(next.id);inkRecordStatus(next.id,'ready');}
-    catch(e){unsavedInkRuns.set(next.id,next);inkRecordStatus(next.id,'error','配墨记录保存失败：'+e.message);throw e;}
+    catch(e){if(e.code==='DATA_CONFLICT')inkConflicts.add(next.id);else unsavedInkRuns.set(next.id,next);inkRecordStatus(next.id,'error','配墨记录保存失败：'+e.message);throw e;}
   }
   S.captureInkImage=im=>{const canvas=document.createElement('canvas');canvas.width=im.naturalWidth;canvas.height=im.naturalHeight;const context=canvas.getContext('2d');if(!context)throw Error('无法保存图片');context.drawImage(im,0,0);return canvas.toDataURL('image/png');};
   S.canRestoreInkRun=run=>{const snap=run?.snapshot,model=snap?.renderModel;return snap?.version===1&&typeof snap.imageUrl==='string'&&snap.imageUrl.startsWith('data:image/')&&snap.layers?.length>0&&model?.width>0&&model?.height>0&&model.assignments?.length===model.width*model.height&&model.original?.length===model.width*model.height*4&&model.colours?.length===snap.layers.length;};
@@ -247,7 +301,7 @@
     await persistInkRun(next);
   });
   S.updateInkRunSettings=(runId,settings)=>withDataWrite(async()=>{
-    await S.ready;const old=unsavedInkRuns.get(runId)||S.inkRuns.find(r=>r.id===runId);if(!S.canRestoreInkRun(old))return;
+    await S.ready;if(S.deletedHistory.inkRuns.has(runId))return;if(inkConflicts.has(runId)){inkRecordStatus(runId,'error','此记录已在其他页面修改，请重新加载最新记录后再调整。');return;}const old=unsavedInkRuns.get(runId)||S.inkRuns.find(r=>r.id===runId);if(!S.canRestoreInkRun(old))return;
     if(!unsavedInkRuns.has(runId)&&JSON.stringify(old.snapshot.settings)===JSON.stringify(settings))return;
     const next={...old,updatedAt:new Date().toISOString(),difference:S.layerDifference(old.snapshot.renderModel,settings.enabled),snapshot:{...old.snapshot,settings:structuredClone(settings)}};
     await persistInkRun(next);
@@ -255,7 +309,7 @@
   S.openInkRun=async record=>{
     await dataWrites;const run=S.inkRuns.find(r=>r.id===record.id);
     if(!S.canRestoreInkRun(run)){S.status('ink-restore','error','此旧记录没有完整快照，无法恢复当次配墨；可选择来源样例重新分析。');return;}
-    S.status('ink-restore','ready');S.navigate('color');
+    inkConflicts.delete(run.id);unsavedInkRuns.delete(run.id);S.status('ink-restore','ready');S.navigate('color');
     requestAnimationFrame(()=>requestAnimationFrame(()=>global.dispatchEvent(new CustomEvent('dilong-ink-open',{detail:{run:structuredClone(run)}}))));
   };
   S.deleteHistory=(store,ids)=>withDataWrite(async()=>{
@@ -266,10 +320,10 @@
       const d=await db();
       await new Promise((resolve,reject)=>{
         const tx=d.transaction(store,'readwrite'),records=tx.objectStore(store);let reason;
-        tx.oncomplete=resolve;tx.onerror=()=>reject(reason||tx.error);tx.onabort=()=>reject(reason||tx.error||Error('清理事务取消'));
+        tx.oncomplete=()=>{notify();resolve()};tx.onerror=()=>reject(reason||tx.error);tx.onabort=()=>{if(reason?.code==='DATA_CONFLICT')void refreshFromDatabase();reject(reason||tx.error||Error('清理事务取消'))};
         const request=records.getAll();request.onsuccess=()=>{
           if(store==='tasks'&&request.result.some(record=>keys.includes(record.id)&&record.status==='处理中')){reason=Error('包含正在执行或运行状态未确认的任务，请先取消或确认任务结束后再清理。');tx.abort();return}
-          try{keys.forEach(key=>records.delete(key))}catch(error){reason=error;tx.abort()}
+          try{for(const current of request.result.filter(record=>keys.includes(record.id))){const expected=S[store].find(record=>record.id===current.id);if(!expected||revision(expected)!==revision(current))throw conflict(false)}keys.forEach(key=>records.delete(key))}catch(error){reason=error;tx.abort()}
         };
       });
       S[store]=S[store].filter(record=>!keys.includes(record.id));
@@ -319,7 +373,7 @@
     if (!model?.original) return 0;
     let sum = 0, count = 0;
     for (let k = 0; k < model.assignments.length; k++) {
-      if (model.original[k*4+3] <= 220) continue;
+      if (model.original[k*4+3] <= (model.alphaThreshold ?? 220)) continue;
       count++;
       let j = model.assignments[k]; while (j >= 0 && !enabled[j]) j--;
       const rgb = j < 0 ? { r: 255, g: 255, b: 255 } : model.colours[j];
@@ -346,7 +400,7 @@
     while (end >= Math.max(0,b.length-65557) && v.getUint32(end,true)!==0x06054b50) end--;
     if (end<0 || end<Math.max(0,b.length-65557)) throw Error('不是有效的 ZIP 文件');
     let p = v.getUint32(end+16,true), size = 0;
-    const count = v.getUint16(end+10,true); if (count>501) throw Error('最多导入500条样例');
+    const count = v.getUint16(end+10,true);
     for (let k=0;k<count;k++) {
       if (v.getUint32(p,true)!==0x02014b50) throw Error('ZIP 目录损坏');
       const method=v.getUint16(p+10,true), packed=v.getUint32(p+20,true), length=v.getUint32(p+24,true), nl=v.getUint16(p+28,true), el=v.getUint16(p+30,true), cl=v.getUint16(p+32,true), off=v.getUint32(p+42,true);
@@ -382,7 +436,6 @@
     const files=await S.unzip(await file.arrayBuffer());
     const manifest=JSON.parse(decoder.decode(files.get('manifest.json')||[]));
     if(manifest.schemaVersion!==1 || !Array.isArray(manifest.samples)) throw Error('不支持的样例包版本或清单格式');
-    if(manifest.samples.length>500)throw Error('最多导入500条样例');
     const seen=new Set(S.all().map(s=>s.id)), rows=[];
     for(const r of manifest.samples) {
       try {
@@ -400,7 +453,7 @@
     }
     return rows;
   };
-  S.commitPackage=async rows=>{const now=new Date().toISOString();const records=rows.filter(r=>r.state==='有效').map(r=>({...r.record,importedAt:now,createdAt:r.record.createdAt||now})).filter(r=>!S.all().some(a=>a.id===r.id));await write('assets',records);S.assets.push(...records);S.lastImportIds=records.map(r=>r.id);emit();return records.length;};
+  S.commitPackage=rows=>withDataWrite(async()=>{await S.ready;const now=new Date().toISOString();const records=rows.filter(r=>r.state==='有效').map(r=>({...r.record,importedAt:now,createdAt:r.record.createdAt||now})).filter(r=>!S.all().some(a=>a.id===r.id));await write('assets',records);S.assets.push(...records);S.lastImportIds=records.map(r=>r.id);emit();return records.length;});
   S.filterOriginal=(platform,period,space)=>{
     const days={'近7天':7,'近30天':30,'近90天':90,'近半年':180}[period]||90;
     const ages=[[3,18,20],[20,65,70],[5,30,40],[85,90,120]], spaces=[['客厅','卧室','厨房与柜体'],['客厅','商业空间'],['卧室','厨房与柜体'],['商业空间']];
@@ -478,7 +531,7 @@
         rows.length?h('div',{className:'summary-record-list'},rows.map(kind==='tasks'?taskCard:kind==='pending'?candidateCard:inkCard)):
           h('div',{className:'summary-empty'},h('p',null,kind==='tasks'?'还没有实际设计任务。执行一次设计后，任务会显示在这里。':kind==='pending'?'暂无待评价方案。保存设计候选后，可在这里查看和评价。':'还没有成功配墨记录。主动选择样例或上传图片并完成分析后，会显示在这里。'),action(kind==='ink'?'进入配墨':'进入设计',()=>S.navigate(kind==='ink'?'color':'design')))));
     };
-    S.InkRunInfo=function({runId,onRetry}){S.useStore();if(!runId)return null;if(S.deletedHistory.inkRuns.has(runId))return h('div',{className:'design-task-info ink-run-info',role:'status'},'此次历史已删除。当前预览仍可导出，后续参数调整不再保存到该记录。');const run=S.inkRuns.find(r=>r.id===runId)||unsavedInkRuns.get(runId),status=S.inkRecordStatus?.id===runId?S.inkRecordStatus:null;return h('div',{className:'design-task-info ink-run-info',role:'status'},h('strong',null,'当前配墨记录：'+(run?.inputName||'正在保存图片')),
+    S.InkRunInfo=function({runId,onRetry}){S.useStore();if(!runId)return null;if(S.deletedHistory.inkRuns.has(runId))return h('div',{className:'design-task-info ink-run-info',role:'status'},'此次历史已删除。当前预览仍可导出，后续参数调整不再保存到该记录。');const run=S.inkRuns.find(r=>r.id===runId)||unsavedInkRuns.get(runId);if(inkConflicts.has(runId))return h('div',{className:'design-task-info ink-run-info',role:'alert'},'此记录已在其他页面修改，当前预览已保留，参数暂不保存。',run&&h(ui.Button,{type:'button',variant:'outline',onClick:()=>S.openInkRun(run)},'重新加载最新记录'));const status=S.inkRecordStatus?.id===runId?S.inkRecordStatus:null;return h('div',{className:'design-task-info ink-run-info',role:'status'},h('strong',null,'当前配墨记录：'+(run?.inputName||'正在保存图片')),
       h('span',null,status?.state==='error'?status.message:status?.state==='busy'?'正在保存…':(run?'分析时间：'+recordTime(run.createdAt)+'；':'')+'重量与色层设置自动保存到此记录'),status?.state==='error'&&h(ui.Button,{type:'button',variant:'outline',size:'sm',onClick:onRetry},'重试保存'));};
     S.DesignProgress=function({runKey}){S.useStore();const run=S.designRuns.get(runKey);if(!run)return null;const cancelling=run.controller.signal.aborted;return h('div',{className:'design-progress'},h('p',{role:'status'},cancelling?'正在取消，等待当前处理步骤结束…':run.phase+' · '+Math.floor(run.fraction*100)+'%'),h('progress',{'aria-label':'设计任务进度',value:run.fraction,max:1}),h(ui.Button,{type:'button',variant:'outline',disabled:cancelling||run.phase==='保存任务状态',onClick:()=>{run.controller.abort();emit()}},'取消任务'));};
     S.CandidateSaveButton=function({src,name,source,parameters,sourceKey,taskId=S.activeTask}){
@@ -524,10 +577,12 @@
     S.EditButton=function({sample}){S.useStore();return S.assets.some(a=>a.id===sample.id)?h(ui.Button,{type:'button',variant:'outline',size:'sm',onClick:()=>S.startEdit(sample)},'编辑信息'):null;};
     S.SampleActions=function({sample}){return h('div',{className:'stage1-dialog-actions'},h(ui.Button,{variant:'outline',size:'sm',onClick:()=>S.open('design',sample)},'用于设计'),h(ui.Button,{variant:'outline',size:'sm',onClick:()=>S.open('color',sample)},'用于配墨'),h(S.EditButton,{sample}),h(S.DeleteButton,{sample}),h(S.CandidateReview,{sample}));};
     S.EditForm=function({asset}){
+      const current=S.assets.find(item=>item.id===asset.id),changed=!current||revision(current)!==revision(asset);
       const [draft,setDraft]=React.useState(()=>metadata.draft(asset)),[busy,setBusy]=React.useState(false),[error,setError]=React.useState('');
       const update=(key,value)=>setDraft(d=>({...d,[key]:value}));
       const field=(key,label,value,onChange,options={})=>h('label',{key,className:'stage1-edit-field'},h('span',null,label),h('input',{'aria-label':label,value:value??'',onChange:e=>onChange(e.target.value),disabled:busy,type:options.type||'text',required:!!options.required,min:options.min,step:options.step,placeholder:options.placeholder}));
-      return h('form',{className:'stage1-edit-form',onSubmit:async e=>{e.preventDefault();setError('');setBusy(true);try{await S.updateAsset(asset.id,draft);S.closeEdit();}catch(e){setError(e.message);}finally{setBusy(false);}}},
+      return h('form',{className:'stage1-edit-form',onSubmit:async e=>{e.preventDefault();setError('');setBusy(true);try{await S.updateAsset(asset.id,draft,asset);S.closeEdit();}catch(e){setError(e.message);}finally{setBusy(false);}}},
+        changed&&h('div',{role:'alert'},current?'该记录已在其他页面修改。当前填写内容已保留，请重新加载最新内容后核对。':'该记录已在其他页面删除。当前填写内容已保留，但不能继续保存。',current&&h(ui.Button,{type:'button',variant:'outline',onClick:()=>{if(global.confirm('重新加载会替换当前表单内容，是否继续？'))S.startEdit(current)}},'重新加载最新内容')),
         h('p',{className:'stage1-edit-note'},'样例编号：'+asset.id+'（固定）。业务资料均可留空后再补充；样例名称必填。'),
         ...metadata.groups.map(group=>h('fieldset',{key:group.title},h('legend',null,group.title),h('div',{className:'stage1-edit-grid'},group.fields.map(([key,label])=>field(key,label,draft[key],v=>update(key,v),{required:key==='name'}))))) ,
         h('fieldset',null,h('legend',null,'责任人员'),h('div',{className:'stage1-edit-grid'},metadata.staffFields.map(([key,label])=>field(key,label,draft.staff[key],v=>setDraft(d=>({...d,staff:{...d.staff,[key]:v}})))))),
@@ -537,9 +592,9 @@
           h(ui.Button,{type:'button',variant:'outline',disabled:busy,onClick:()=>setDraft(d=>({...d,productionRecords:[...d.productionRecords,Object.fromEntries(metadata.productionFields.map(([key])=>[key,'']))]}))},'添加生产记录')),
         h('label',{className:'stage1-edit-field'},h('span',null,'生产 / 客户反馈'),h('textarea',{'aria-label':'生产 / 客户反馈',rows:3,value:draft.feedback,disabled:busy,onChange:e=>update('feedback',e.target.value)})),
         h('p',{className:'stage1-edit-note'},'图像分析只读：'+asset.analysis.layerCount+' 个色层，平均色 '+asset.analysis.averageHex+'。编辑资料不会修改原图、分色或算法参考配方。'),
-        error&&h('p',{role:'alert'},error),h('div',{className:'stage1-edit-actions'},h(ui.Button,{type:'button',variant:'outline',disabled:busy,onClick:()=>S.closeEdit()},'取消'),h(ui.Button,{type:'submit',disabled:busy},busy?'正在保存…':'保存样例信息')));
+        error&&h('p',{role:'alert'},error),h('div',{className:'stage1-edit-actions'},h(ui.Button,{type:'button',variant:'outline',disabled:busy,onClick:()=>S.closeEdit()},'取消'),h(ui.Button,{type:'submit',disabled:busy||changed},busy?'正在保存…':'保存样例信息')));
     };
-    S.EditDialog=function(){S.useStore();const asset=S.assets.find(a=>a.id===S.editingAssetId);return h(ui.Dialog,{open:!!asset,onOpenChange:open=>{if(!open)S.closeEdit()}},h(ui.Content,{className:'sample-detail-dialog stage1-edit-dialog'},h(ui.Header,null,h(ui.Title,null,'编辑样例信息'),h(ui.Description,null,'补充自己的样例资料，保存后会更新档案，并随样例包导出。')),asset&&h(S.EditForm,{key:asset.id+':'+S.editSession,asset})));};
+    S.EditDialog=function(){S.useStore();const asset=S.editingAssetId?S.editingAssetSnapshot:null;return h(ui.Dialog,{open:!!asset,onOpenChange:open=>{if(!open)S.closeEdit()}},h(ui.Content,{className:'sample-detail-dialog stage1-edit-dialog'},h(ui.Header,null,h(ui.Title,null,'编辑样例信息'),h(ui.Description,null,'补充自己的样例资料，保存后会更新档案，并随样例包导出。')),asset&&h(S.EditForm,{key:asset.id+':'+S.editSession,asset})));};
     S.showPackage=()=>{S.packageOpen=true;emit()};
     S.LibraryActions=function({importIcon}){S.useStore();return h('div',{className:'stage1-library-actions'},
       h(ui.Button,{type:'button',variant:'outline',disabled:!S.assets.length||S.operations.package?.state==='busy',onClick:()=>S.exportPackage()},'导出本地样例包'),
@@ -559,7 +614,7 @@
           h('p',null,'image 必须对应包里的真实文件，例如 images/oak.jpg。多张图片就在 samples 中添加多条记录，用英文逗号分隔，编号不要重复。'),
           h('h3',null,'3. 制作并导入'),
           h('ol',null,h('li',null,'把自己的图片放入 images 文件夹，按示例编辑 manifest.json，并保存为 UTF-8 编码。'),h('li',null,'选中 manifest.json 和 images 文件夹一起压缩为 ZIP，避免在外面再套一层文件夹。'),h('li',null,'点击“选择 ZIP 样例包”，查看有效、重复及错误记录，最后确认导入。重复编号默认跳过。')),
-          h('p',null,'限制：ZIP 不超过 100 MB；解压内容不超过 150 MB；最多 500 条样例；单张图片不超过 30 MB、4000 万像素。'),
+          h('p',null,'限制：ZIP 不超过 100 MB；解压内容不超过 150 MB；单张图片不超过 30 MB、4000 万像素。'),
           h('p',null,'人员字段：designer（设计）、colorist（调墨）、operator（操作）、reviewer（审核）。生产记录字段：batchNo（批次，填写记录时必填）、stage、date（YYYY-MM-DD）、equipment、quantity（含单位的文字）、substrate、deltaE（非负实测值）、result、operator。'),
           h('p',null,'缺失的业务资料显示“未填写”，不由大模型补造。分色与算法参考配方始终根据图片计算；生产记录中的实测色差是用户提供值，与算法指标分开保存。编号重复仍默认跳过，修改现有样例请使用“编辑信息”。')));
     };
