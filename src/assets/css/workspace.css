@@ -1,0 +1,445 @@
+/* Vue component adapters for the original Dilong visual system. */
+:root {
+  --page: #e9eeee;
+  --soft: #f3f7f7;
+  --surface-2: #f3f7f7;
+  --title: #1c292c;
+  --text: #233b3d;
+  --primary-soft: #e6f1f1;
+  --shadow: none;
+  color-scheme: light
+}
+:root[data-theme="dark"] {
+  --page: #172629;
+  --canvas: #172629;
+  --surface: #203538;
+  --card: #203538;
+  --surface-2: #294044;
+  --soft: #294044;
+  --ink: #e0e9e8;
+  --text: #d2dfde;
+  --title: #edf5f4;
+  --muted: #adbfbd;
+  --line: #405456;
+  --line-strong: #526668;
+  --border: #405456;
+  --foreground: #e0e9e8;
+  --card-foreground: #e0e9e8;
+  --teal: #83c9ca;
+  --primary: #83c9ca;
+  --primary-soft: #29484a;
+  color-scheme: dark
+}
+:root[data-theme="dark"] .platform-shell {
+  background: var(--page)
+}
+:root[data-theme="dark"] .platform-topbar,:root[data-theme="dark"] .platform-page .panel,:root[data-theme="dark"] .dashboard-panel,:root[data-theme="dark"] .capability-card {
+  background: var(--surface);
+  color: var(--text)
+}
+button,a,input,select,textarea {
+  -webkit-tap-highlight-color: transparent
+}
+button:disabled {
+  opacity: .45;
+  cursor: not-allowed
+}
+button {
+  cursor: pointer
+}
+button,a {
+  touch-action: manipulation
+}
+select,textarea {
+  font: inherit
+}
+input,select,textarea {
+  @apply max-w-[100%];
+  color: inherit
+}
+button:focus-visible,a:focus-visible {
+  outline: 2px solid #438e93;
+  outline-offset: 3px
+}
+svg {
+  @apply shrink-[0]
+}
+button {
+  color: inherit
+}
+button,a {
+  text-decoration: none
+}
+img {
+  @apply max-w-[100%]
+}
+figure {
+  @apply m-[0]
+}
+h1,h2,h3,p {
+  @apply wrap-anywhere
+}
+.platform-sidebar nav a {
+  font: inherit;
+  text-decoration: none
+}
+.platform-sidebar nav a span {
+  @apply flex;
+  @apply flex-col;
+  @apply gap-[4px]
+}
+.platform-topbar .topbar-status {
+  @apply flex;
+  @apply gap-[7px]
+}
+.theme-toggle {
+  @apply grid;
+  place-items: center;
+  @apply w-[25px];
+  @apply h-[25px];
+  @apply ml-[8px];
+  @apply [border:0];
+  background: none;
+  color: #748b8d
+}
+.theme-toggle svg {
+  @apply w-[15px];
+  @apply h-[15px]
+}
+.muted {
+  color: var(--muted)
+}
+.text-sm {
+  @apply text-[12px]
+}
+.text-link {
+  color: var(--teal);
+  background: none;
+  @apply [border:0];
+  @apply text-[11px];
+  @apply inline-flex;
+  @apply items-center;
+  @apply gap-[5px];
+  cursor: pointer
+}
+.button-row,.toolbar-actions {
+  @apply flex;
+  @apply items-center;
+  @apply gap-[8px];
+  @apply flex-wrap
+}
+.btn {
+  @apply inline-flex;
+  @apply items-center;
+  @apply justify-center;
+  @apply gap-[7px];
+  @apply [border:1px_solid_var(--line-strong)];
+  @apply rounded-[2px];
+  @apply [padding:8px_12px];
+  @apply text-[12px];
+  @apply leading-[1.5];
+  background: var(--surface);
+  color: var(--ink);
+  @apply min-h-[34px];
+  cursor: pointer
+}
+.btn-primary {
+  background: #145f65;
+  color: #fff;
+  @apply [border-color:#145f65]
+}
+.btn-secondary {
+  background: #f4f8f8;
+  color: #19474b
+}
+.btn-danger {
+  color: #a13e24;
+  @apply [border-color:#d6b9a9]
+}
+.badge {
+  @apply inline-flex;
+  @apply items-center;
+  @apply gap-[5px];
+  background: #eff5f5;
+  @apply [border:1px_solid_#d0dddd];
+  color: #386c71;
+  @apply [padding:5px_8px];
+  @apply text-[10px];
+  @apply rounded-[0]
+}
+.form-control {
+  @apply w-[100%];
+  @apply [padding:10px_12px];
+  @apply [border:1px_solid_var(--line-strong)];
+  background: var(--surface);
+  color: var(--ink);
+  @apply rounded-[0];
+  @apply min-w-[0];
+  @apply text-[12px]
+}
+.icon-button {
+  @apply inline-flex;
+  @apply items-center;
+  @apply justify-center;
+  @apply [border:1px_solid_var(--line)];
+  background: var(--surface);
+  @apply p-[7px];
+  cursor: pointer
+}
+.panel {
+  @apply min-w-[0];
+  @apply rounded-[0]
+}
+.panel-content {
+  @apply p-[16px]
+}
+.panel-heading,.panel-header {
+  @apply flex;
+  @apply justify-between;
+  @apply items-center;
+  @apply gap-[12px]
+}
+.panel-heading>div,.panel-header>div {
+  @apply min-w-[0]
+}
+.panel-footer {
+  @apply [padding:14px_16px];
+  @apply [border-top:1px_solid_var(--line)]
+}
+.panel-header .step-no {
+  flex: none
+}
+.panel-header .step-title {
+  @apply block
+}
+.panel-header .step-title p {
+  @apply [margin:3px_0_0]
+}
+.panel-header>div:first-child {
+  @apply flex;
+  @apply gap-[12px]
+}
+.panel-header h2 {
+  @apply text-[14px]
+}
+.module-toolbar {
+  @apply flex;
+  @apply justify-between;
+  @apply items-center;
+  @apply gap-[14px];
+  @apply flex-wrap
+}
+.operation-message,.error-banner {
+  @apply text-[12px];
+  @apply leading-[1.7];
+  @apply [padding:12px_14px];
+  @apply [border:1px_solid_var(--line)];
+  background: #f3f8f8
+}
+.error-banner {
+  color: #a13e24;
+  @apply [border-color:#e3c4ad];
+  background: #fff9f1
+}
+.empty-state {
+  @apply flex;
+  @apply flex-col;
+  @apply items-center;
+  @apply justify-center;
+  @apply gap-[12px];
+  color: var(--muted);
+  @apply text-[12px];
+  @apply min-h-[180px]
+}
+.empty-state h3 {
+  color: var(--ink)
+}
+.swatch {
+  @apply inline-block;
+  @apply w-[13px];
+  @apply h-[13px];
+  @apply mr-[5px];
+  @apply [border:1px_solid_#aebfbc];
+  vertical-align: middle
+}
+.table-scroll {
+  @apply overflow-auto
+}
+table {
+  @apply w-[100%];
+  border-collapse: collapse;
+  @apply text-left;
+  @apply text-[11px]
+}
+th,td {
+  @apply p-[9px];
+  @apply [border-bottom:1px_solid_var(--line)]
+}
+th {
+  color: var(--muted);
+  background: #f2f6f5
+}
+.preserve-lines {
+  @apply whitespace-pre-wrap
+}
+.spin {
+  animation: spin 1s linear infinite
+}@keyframes spin{
+to {
+  transform: rotate(360deg)
+}}
+.ant-modal-content {
+  @apply [border:1px_solid_var(--line-strong)];
+  @apply rounded-[2px]!
+}
+.ant-modal .ant-modal-title {
+  @apply text-[18px]
+}
+.ant-modal .ant-modal-header {
+  @apply [border-bottom:1px_solid_var(--line)];
+  @apply pb-[14px]
+}
+.ant-modal .ant-modal-close {
+  @apply rounded-[0]
+}
+.ant-modal-mask {
+  background: #102b2e99!important
+}
+.ant-modal-confirm .ant-btn-primary {
+  background: #145f65
+}
+.ant-message-notice-content {
+  @apply rounded-[2px]!
+}
+@media(max-width:760px){
+.platform-sidebar nav {
+  @apply grid-cols-[repeat(6,minmax(0,1fr))]
+}
+.platform-sidebar nav a {
+  @apply flex;
+  @apply justify-center;
+  @apply min-h-[48px];
+  @apply p-[7px]
+}
+.platform-sidebar nav a span {
+  @apply hidden
+}
+.platform-topbar {
+  @apply [padding:0_14px]
+}
+.panel-content {
+  @apply p-[14px]
+}
+.module-title-row {
+  @apply gap-[14px];
+  @apply flex-wrap
+}
+.module-title-row h1 {
+  @apply text-[24px]
+}
+.module-title-row p {
+  @apply leading-[1.8]
+}
+.button-row {
+  @apply gap-[6px]
+}
+.btn {
+  @apply text-[11px];
+  @apply [padding:7px_10px]
+}
+.ant-modal {
+  @apply max-w-[calc(100vw_-_20px)];
+  @apply [margin:10px_auto]
+}}
+@media(prefers-reduced-motion:reduce){
+.spin {
+  animation: none
+}}
+.library-search input {
+  @apply block;
+  @apply w-[100%];
+  @apply [border:1px_solid_#c5ced0];
+  @apply text-[16px];
+  @apply pr-[12px]
+}
+.pc-link-bar>span {
+  @apply text-[11px];
+  color: #7b9396;
+  @apply leading-[1.8]
+}
+.sample-card-body {
+  @apply min-w-[0]
+}
+.sample-card-body h2 {
+  @apply font-[400]
+}
+.sample-card-body p {
+  @apply leading-[1.5]
+}
+.sample-inspector .stage1-inspector-actions {
+  @apply flex;
+  @apply gap-[8px];
+  @apply mb-[12px]
+}
+.sample-inspector dd {
+  @apply wrap-anywhere;
+  @apply text-right;
+  @apply max-w-[68%]
+}
+.sample-inspector h2 {
+  @apply wrap-anywhere
+}
+
+/* The original light UI remains the default; keep the existing Vue dark option usable. */
+[data-theme="dark"] .platform-content :is(.library-toolbar,.sample-card,.sample-inspector,.design-mode-grid>button,.layer-row,.stack-layer,.recipe-card,.recipe-card-head,.comparison-grid figure,.target-card,.formula-tabs-list,.source-tabs button.active,.pc-controls,.pc-metric,[class*="_queryPanel_"],[class*="_radarResults_"],[class*="_tracePanel_"],[class*="_researchForm_"],[class*="_report_"],[class*="_forecastTop_"],[class*="_chartPanel_"],[class*="_judgement_"],[class*="_translateHead_"],[class*="_paletteCard_"],[class*="_specCard_"],[class*="_matches_"],[class*="_taskBrief_"],[class*="_trendCard_"],[class*="_metricGrid_"]>div) {
+  background: var(--surface);
+  @apply [border-color:var(--line)];
+  color: var(--ink)
+}
+[data-theme="dark"] .platform-content :is(.filter-tabs button,.form-control,input,select,textarea,.btn-secondary,.source-tabs,.config-note,.result-waiting,.comparison-grid,.pc-viewer,.comparison-stage,.weight-setting,.ink-algorithm-note,.demo-data-note,.feedback-box,.local-note,.recipe-grid,.reconstruction-body>div>.ink-preview-tabs) {
+  background: var(--soft);
+  color: var(--text);
+  @apply [border-color:var(--line)]
+}
+[data-theme="dark"] .platform-content :is(h1,h2,h3,h4,.layer-values strong,.candidate-title strong,.source-panel dd,.source-heading strong,.file-info strong,.target-card>strong,.task-list b,[class*="_forecastTop_"] b,[class*="_judgement_"] dd) {
+  color: var(--ink)
+}
+[data-theme="dark"] .platform-content :is(.design-field,.source-note,.result-truth,.direction-extra,.trend-extra-search,.pc-link-bar,.pc-reference-note) {
+  background: var(--soft);
+  color: var(--muted)
+}
+[data-theme="dark"] .platform-topbar b {
+  color: var(--ink)
+}
+[data-theme="dark"] .filter-tabs button.active {
+  background: #145f65;
+  color: white
+}
+[data-theme="dark"] .research-results>div {
+  background: var(--soft);
+  color: var(--ink)
+}
+[data-theme="dark"] .research-results>div.report-evidence {
+  background: #13282b
+}
+[data-theme="dark"] .platform-content .layer-row.active {
+  background: #284448;
+  @apply [border-color:#83c9ca]
+}
+[data-theme="dark"] .platform-content :is(.truth-chip,.loop-flow>div,[class*="_forecastText_"],[class*="_traceSummary_"],[class*="_dataNote_"],[class*="_platforms_"],[class*="_tabList_"],[class*="_tags_"] em) {
+  background: var(--soft)!important;
+  @apply [border-color:var(--line)];
+  color: var(--ink)
+}
+[data-theme="dark"] .platform-content :is([class*="_metricGrid_"] strong,[class*="_trendCard_"] aside>b,[class*="_forecastText_"] b,.layer-pager button.active) {
+  color: #91d4d6!important
+}
+[data-theme="dark"] .platform-content [class*="_trendCard_"] aside strong {
+  color: #83d4b6
+}
+[data-theme="dark"] .platform-content p:not([role="alert"]):not(.warning-text):not(.error-banner):not(.error-message):not(.design-error) {
+  color: var(--muted)
+}
+[data-theme="dark"] .platform-content .loop-flow b {
+  color: var(--ink)
+}

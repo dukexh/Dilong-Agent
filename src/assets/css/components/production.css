@@ -1,0 +1,1201 @@
+/* Dilong production: Tailwind compositions retain the established page geometry. */
+.production-compare .pc-coordinates {
+  @apply [padding:0px_16px_14px];
+  @apply text-[10px];
+  color: rgb(112, 129, 133);
+}
+.production-compare .pc-coordinates summary {
+  cursor: pointer;
+  @apply [padding:4px_0px];
+}
+.production-compare .pc-coordinate-grid {
+  @apply grid;
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  @apply gap-[7px];
+  @apply mt-[8px];
+}
+.production-compare .pc-coordinate-row {
+  @apply flex;
+  @apply items-center;
+  @apply gap-[6px];
+  @apply flex-wrap;
+}
+.production-compare .pc-coordinate-row label {
+  @apply inline-flex;
+  @apply items-center;
+  @apply gap-[3px];
+}
+.production-compare .pc-coordinate-row input {
+  @apply w-[57px];
+  @apply min-w-[0px];
+  @apply [border:1px_solid_rgb(189,_205,_206)];
+  @apply p-[4px];
+  color: rgb(20, 95, 101);
+  background: rgb(255, 255, 255);
+  @apply rounded-[2px];
+  @apply text-[10px];
+}
+@media (max-width: 760px) {
+.platform-shell:has(.production-compare) .platform-sidebar nav {
+  @apply grid-cols-[repeat(6,_minmax(0px,_1fr))];
+}
+}
+.production-compare {
+  --pc-teal: #145f65;
+  --pc-dark: #253639;
+  --pc-muted: #708185;
+  --pc-line: #d7e0e0;
+  --pc-amber: #ca8e3b;
+  color: rgb(38, 56, 59);
+  @apply min-h-[0px];
+}
+.production-compare *, .production-compare ::before, .production-compare ::after {
+  @apply box-border;
+}
+.production-compare .workspace {
+  @apply w-[100%];
+  @apply max-w-[1460px];
+  @apply [margin:0px_auto];
+  @apply [padding:28px_30px_40px];
+}
+.production-compare .page-heading {
+  @apply gap-[22px];
+  @apply mt-[0px];
+  @apply mb-[18px];
+}
+.production-compare .page-heading h1 {
+  @apply text-[25px];
+  @apply leading-[1.3];
+}
+.production-compare .page-heading p {
+  @apply max-w-[780px];
+  @apply text-[12px];
+  @apply leading-[1.7];
+}
+.production-compare .breadcrumb {
+  @apply tracking-[0.13em];
+  @apply text-[9px];
+}
+.production-compare .export-button {
+  flex: 0 0 auto;
+  @apply w-[auto];
+  @apply m-[0px];
+  @apply text-[12px];
+}
+.production-compare .pc-heading-actions {
+  @apply flex;
+  @apply flex-wrap;
+  @apply items-center;
+  @apply justify-end;
+  @apply gap-[8px];
+}
+.production-compare button, .production-compare input, .production-compare select, .production-compare textarea {
+  font: inherit;
+}
+.production-compare button:focus-visible, .production-compare input:focus-visible, .production-compare select:focus-visible, .production-compare textarea:focus-visible, .production-compare [tabindex]:focus-visible {
+  outline: rgb(137, 198, 201) solid 3px;
+  outline-offset: 3px;
+}
+.production-compare button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.production-compare .panel {
+  @apply min-w-[0px];
+  @apply mb-[14px];
+  background: rgb(255, 255, 255);
+  @apply [border:1px_solid_rgb(199,_211,_212)];
+  @apply rounded-[2px];
+  box-shadow: rgba(17, 37, 40, 0.03) 0px 1px 2px;
+}
+.production-compare .panel-header {
+  @apply min-h-[70px];
+  @apply gap-[14px];
+  @apply [padding:14px_17px];
+}
+.production-compare .panel-header h2 {
+  @apply text-[14px];
+  @apply leading-[1.45];
+}
+.production-compare .panel-header p {
+  @apply text-[11px];
+  @apply leading-[1.6];
+}
+.production-compare .step-no {
+  flex: 0 0 auto;
+  @apply w-[30px];
+  @apply h-[30px];
+  @apply rounded-[1px];
+  background: var(--pc-teal);
+}
+.production-compare .pc-task-fields {
+  @apply grid;
+  @apply grid-cols-[1fr_1fr];
+  @apply gap-[14px];
+  @apply mb-[15px];
+}
+.production-compare .pc-task-fields label, .production-compare .pc-field {
+  @apply flex;
+  @apply flex-col;
+  @apply gap-[7px];
+  color: rgb(98, 119, 123);
+  @apply text-[11px];
+}
+.production-compare .pc-task-fields input, .production-compare .pc-field input, .production-compare .pc-field select, .production-compare .pc-field textarea {
+  @apply w-[100%];
+  @apply min-w-[0px];
+  @apply [border:1px_solid_rgb(199,_211,_212)];
+  @apply rounded-[2px];
+  background: rgb(255, 255, 255);
+  color: rgb(38, 56, 59);
+  @apply [padding:10px_11px];
+  @apply text-[12px];
+  @apply leading-[1.5];
+}
+.production-compare input::placeholder, .production-compare textarea::placeholder {
+  color: rgb(148, 161, 164);
+}
+.production-compare .summary-strip {
+  @apply grid-cols-[repeat(6,_minmax(0px,_1fr))];
+  @apply min-h-[78px];
+  @apply mb-[16px];
+}
+.production-compare .summary-strip > div {
+  @apply min-w-[0px];
+  @apply [padding:16px_18px];
+  @apply gap-[8px];
+}
+.production-compare .summary-strip > div:last-child {
+  grid-column: auto;
+}
+.production-compare .summary-strip span {
+  @apply text-[10px];
+  @apply tracking-[0.04em];
+}
+.production-compare .summary-strip strong {
+  @apply text-[15px];
+  @apply leading-[1.4];
+  @apply wrap-anywhere;
+}
+.production-compare .pc-upload-grid {
+  @apply grid;
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  @apply items-stretch;
+  @apply gap-[14px];
+}
+.production-compare .pc-source-panel {
+  @apply flex;
+  @apply flex-col;
+}
+.production-compare .pc-stage {
+  @apply relative;
+  @apply flex;
+  @apply items-center;
+  @apply justify-center;
+  @apply min-h-[330px];
+  @apply h-[340px];
+  @apply p-[16px];
+  @apply overflow-hidden;
+  background-color: rgb(242, 246, 246);
+  background-image: linear-gradient(45deg, rgb(233, 239, 239) 25%, transparent 25%), linear-gradient(-45deg, rgb(233, 239, 239) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgb(233, 239, 239) 75%), linear-gradient(-45deg, transparent 75%, rgb(233, 239, 239) 75%);
+  background-size: 20px 20px;
+  background-position: 0px 0px, 0px 10px, 10px -10px, -10px 0px;
+}
+.production-compare .pc-stage.dragging, .production-compare .pc-stage.drag-over, .production-compare .pc-stage.is-drag-over {
+  outline: 2px dashed var(--pc-teal);
+  outline-offset: -8px;
+  background-color: rgb(232, 244, 242);
+}
+.production-compare .pc-stage.has-image {
+  @apply min-h-[0px];
+  @apply h-[auto];
+  @apply p-[0px];
+  flex: 0 0 auto;
+  @apply overflow-visible;
+}
+.production-compare .pc-image-frame {
+  @apply relative;
+  @apply inline-block;
+  flex: 0 1 auto;
+  @apply w-[100%];
+  @apply h-[auto];
+  @apply max-w-[100%];
+  @apply leading-[0];
+  user-select: none;
+}
+.production-compare .pc-image {
+  @apply block;
+  @apply w-[100%];
+  @apply h-[100%];
+  @apply max-w-[100%];
+  object-fit: fill;
+  -webkit-user-drag: none;
+}
+.production-compare .pc-loading-cover {
+  @apply absolute;
+  @apply inset-[0px];
+  @apply z-[3];
+  @apply grid;
+  place-items: center;
+  @apply p-[25px];
+  background: rgba(242, 246, 246, 0.93);
+  color: var(--pc-teal);
+  @apply text-[13px];
+  @apply font-[600];
+}
+.production-compare .format-note {
+  flex: 0 0 auto;
+  color: rgb(138, 157, 160);
+  font: 9px ui-monospace, monospace;
+  @apply tracking-[0.04em];
+}
+.production-compare .pc-selection {
+  @apply absolute;
+  @apply inset-[0px];
+  @apply block;
+  @apply w-[100%];
+  @apply h-[100%];
+  @apply overflow-visible;
+  cursor: crosshair;
+  touch-action: none;
+}
+.production-compare .pc-selection rect, .production-compare .pc-selection polygon {
+  fill: rgba(20, 95, 101, 0.153);
+  stroke: rgb(249, 213, 136);
+  stroke-width: 0.7;
+  stroke-dasharray: 2, 1;
+}
+.production-compare .pc-selection circle {
+  fill: rgb(255, 255, 255);
+  stroke: var(--pc-teal);
+  stroke-width: 0.6;
+  cursor: grab;
+  pointer-events: all;
+}
+.production-compare .pc-selection circle:active {
+  cursor: grabbing;
+  fill: rgb(249, 213, 136);
+}
+.production-compare .pc-selection.is-readonly, .production-compare .pc-selection.is-readonly circle {
+  cursor: default !important;
+}
+.production-compare .pc-link-bar {
+  @apply flex;
+  @apply items-center;
+  @apply flex-wrap;
+  @apply gap-[10px_20px];
+  @apply mb-[14px];
+  @apply [padding:13px_16px];
+  @apply [border:1px_solid_rgb(199,_211,_212)];
+  background: rgb(255, 255, 255);
+}
+.production-compare .pc-link-bar > strong {
+  flex: 0 0 auto;
+  color: var(--pc-teal);
+  @apply text-[12px];
+}
+.production-compare .pc-link-bar p {
+  flex: 1 1 260px;
+  @apply min-w-[0px];
+  @apply m-[0px];
+  color: rgb(112, 129, 133);
+  @apply text-[11px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-resolution-note {
+  @apply [padding:12px_16px];
+  @apply mb-[14px];
+  @apply [border-left:3px_solid_var(--pc-teal)];
+  background: rgb(244, 249, 248);
+}
+.production-compare .pc-resolution-note strong {
+  @apply text-[12px];
+  color: var(--pc-teal);
+}
+.production-compare .pc-resolution-note p {
+  @apply [margin:5px_0px_0px];
+  @apply text-[11px];
+  @apply leading-[1.8];
+  color: rgb(101, 123, 125);
+  @apply wrap-anywhere;
+}
+.production-compare progress {
+  @apply w-[min(300px,_85%)];
+  accent-color: var(--pc-teal);
+}
+.production-compare .pc-selection line, .production-compare .pc-selection polyline {
+  stroke: rgb(249, 213, 136);
+  stroke-width: 0.6;
+  fill: none;
+}
+.production-compare .pc-selection text {
+  fill: rgb(22, 60, 64);
+  @apply text-[3.3px];
+  font-family: ui-monospace, monospace;
+  paint-order: stroke;
+  stroke: rgb(255, 255, 255);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.production-compare .pc-upload-empty {
+  @apply flex;
+  @apply flex-col;
+  @apply items-center;
+  @apply justify-center;
+  @apply gap-[12px];
+  @apply w-[100%];
+  @apply min-h-[240px];
+  @apply p-[25px];
+  @apply text-center;
+}
+.production-compare .pc-upload-empty > svg {
+  @apply w-[35px];
+  @apply h-[35px];
+  color: rgb(109, 154, 159);
+  stroke-width: 1.4;
+}
+.production-compare .pc-upload-empty > strong {
+  color: rgb(56, 88, 92);
+  @apply text-[14px];
+  @apply font-[600];
+}
+.production-compare .pc-upload-empty > span {
+  @apply max-w-[320px];
+  color: rgb(124, 142, 146);
+  @apply text-[11px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-upload-empty .pc-button {
+  @apply mt-[4px];
+  @apply min-w-[124px];
+}
+.production-compare .pc-file-row {
+  @apply flex;
+  @apply justify-between;
+  @apply items-center;
+  @apply gap-[12px];
+  @apply [padding:12px_16px];
+  @apply [border-top:1px_solid_rgb(226,_232,_232)];
+}
+.production-compare .pc-file-info {
+  @apply min-w-[0px];
+  @apply flex;
+  @apply flex-col;
+  @apply gap-[5px];
+  @apply text-[12px];
+  @apply leading-[1.5];
+  @apply wrap-anywhere;
+}
+.production-compare .pc-file-info small {
+  color: rgb(124, 142, 145);
+  @apply text-[10px];
+}
+.production-compare .pc-note {
+  @apply m-[0px];
+  @apply [padding:0px_16px_14px];
+  color: rgb(123, 140, 143);
+  @apply text-[11px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-source-panel .pc-note {
+  @apply mt-[auto];
+}
+.production-compare .pc-toolbar {
+  @apply flex;
+  @apply flex-wrap;
+  @apply items-center;
+  @apply gap-[8px];
+  @apply [padding:12px_16px];
+}
+.production-compare .pc-button {
+  @apply inline-flex;
+  @apply justify-center;
+  @apply items-center;
+  @apply gap-[7px];
+  @apply min-h-[35px];
+  @apply [padding:8px_12px];
+  @apply [border:1px_solid_rgb(189,_205,_206)];
+  @apply rounded-[2px];
+  background: rgb(255, 255, 255);
+  color: rgb(56, 87, 91);
+  cursor: pointer;
+  @apply text-[11px];
+  @apply font-[500];
+  @apply leading-[1.4];
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.production-compare .pc-button svg {
+  flex: 0 0 auto;
+  @apply w-[15px];
+  @apply h-[15px];
+}
+.production-compare .pc-button:hover:not(:disabled) {
+  background: rgb(238, 245, 245);
+  @apply [border-color:rgb(109,_157,_161)];
+}
+.production-compare .pc-button.primary {
+  background: var(--pc-teal);
+  @apply [border-color:var(--pc-teal)];
+  color: rgb(255, 255, 255);
+}
+.production-compare .pc-button.primary:hover:not(:disabled) {
+  background: rgb(16, 78, 83);
+  @apply [border-color:rgb(16,_78,_83)];
+}
+.production-compare .pc-button.ghost {
+  background: transparent;
+  @apply [border-color:transparent];
+  color: rgb(83, 124, 129);
+}
+.production-compare .pc-button.danger {
+  color: rgb(163, 77, 61);
+  @apply [border-color:rgb(223,_200,_194)];
+}
+.production-compare .pc-button.active {
+  color: var(--pc-teal);
+  @apply [border-color:var(--pc-teal)];
+  background: rgb(234, 244, 243);
+}
+.production-compare .pc-button.small {
+  @apply min-h-[29px];
+  @apply [padding:5px_9px];
+  @apply text-[10px];
+}
+.production-compare .pc-error {
+  @apply flex;
+  @apply gap-[8px];
+  @apply [margin:12px_0px_15px];
+  @apply [padding:12px_14px];
+  @apply [border-width:1px_1px_1px_3px];
+  @apply [border-style:solid];
+  @apply [border-color:rgb(230,_192,_180)_rgb(230,_192,_180)_rgb(230,_192,_180)_rgb(182,_94,_64)];
+  border-image: none;
+  background: rgb(255, 246, 242);
+  color: rgb(148, 77, 55);
+  @apply text-[12px];
+  @apply leading-[1.7];
+}
+.production-compare .pc-error svg {
+  flex: 0 0 auto;
+  @apply mt-[2px];
+}
+.production-compare .pc-example-note {
+  @apply [margin:0px_0px_15px];
+  @apply [padding:11px_14px];
+  @apply [border-left:3px_solid_var(--pc-amber)];
+  background: rgb(252, 246, 235);
+  color: rgb(138, 121, 91);
+  @apply text-[11px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-inline-state {
+  color: rgb(85, 123, 114);
+  background: rgb(237, 245, 241);
+  @apply [padding:7px_9px];
+  @apply text-[10px];
+  @apply leading-[1.6];
+}
+.production-compare .pc-badge {
+  @apply inline-flex;
+  @apply items-center;
+  flex: 0 0 auto;
+  @apply gap-[5px];
+  @apply [border:1px_solid_rgb(203,_220,_218)];
+  background: rgb(241, 247, 245);
+  @apply [padding:4px_7px];
+  color: rgb(82, 121, 111);
+  @apply text-[10px];
+  @apply leading-[1.5];
+}
+.production-compare .pc-view-body {
+  @apply grid;
+  @apply grid-cols-[minmax(0px,_1fr)_275px];
+  @apply min-w-[0px];
+}
+.production-compare .pc-view-body > div:first-child {
+  @apply min-w-[0px];
+}
+.production-compare .pc-view-main {
+  @apply flex;
+  @apply flex-col;
+  @apply min-w-[0px];
+}
+.production-compare .pc-tabs {
+  @apply flex;
+  @apply flex-wrap;
+  @apply gap-[4px];
+  @apply [border-bottom:1px_solid_rgb(220,_228,_228)];
+  @apply [padding:10px_13px];
+  background: rgb(255, 255, 255);
+}
+.production-compare .pc-tabs button {
+  @apply flex;
+  @apply items-center;
+  @apply justify-center;
+  @apply gap-[7px];
+  @apply min-h-[34px];
+  @apply [padding:8px_13px];
+  background: transparent;
+  @apply [border:1px_solid_transparent];
+  @apply rounded-[2px];
+  color: rgb(119, 137, 141);
+  @apply text-[11px];
+  cursor: pointer;
+}
+.production-compare .pc-tabs button.active {
+  background: rgb(234, 243, 243);
+  @apply [border-color:rgb(208,_224,_223)];
+  color: var(--pc-teal);
+  @apply font-[600];
+}
+.production-compare .pc-tabs button:hover:not(:disabled) {
+  background: rgb(242, 247, 247);
+}
+.production-compare .pc-tabs svg {
+  @apply w-[14px];
+  @apply h-[14px];
+}
+.production-compare .pc-viewer {
+  @apply flex;
+  flex: 1 1 0%;
+  @apply items-center;
+  @apply justify-center;
+  @apply min-h-[335px];
+  @apply p-[18px];
+  background: rgb(242, 245, 245);
+  @apply overflow-hidden;
+}
+.production-compare .pc-pair {
+  @apply grid;
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  align-items: start;
+  @apply gap-[14px];
+  @apply w-[100%];
+}
+.production-compare .pc-pair figure, .production-compare .pc-single figure {
+  @apply min-w-[0px];
+  @apply m-[0px];
+}
+.production-compare .pc-pair img, .production-compare .pc-pair canvas {
+  @apply block;
+  @apply w-[100%];
+  @apply h-[100%];
+  object-fit: fill;
+  background: rgb(225, 232, 232);
+}
+.production-compare .pc-pair figcaption, .production-compare .pc-single figcaption {
+  @apply flex;
+  @apply justify-between;
+  @apply gap-[10px];
+  @apply pb-[9px];
+  color: rgb(106, 128, 132);
+  @apply text-[10px];
+  @apply leading-[1.6];
+}
+.production-compare .pc-single {
+  @apply relative;
+  @apply w-[100%];
+  @apply max-w-[760px];
+  @apply [margin:0px_auto];
+  @apply leading-[0];
+  cursor: crosshair;
+}
+.production-compare .pc-single figure {
+  @apply w-[100%];
+}
+.production-compare .pc-image-inspect {
+  @apply relative;
+  @apply w-[100%];
+  @apply max-w-[100%];
+  @apply h-[auto];
+  @apply [margin:0px_auto];
+  @apply leading-[0];
+  cursor: crosshair;
+}
+.production-compare .pc-image-inspect img {
+  @apply block;
+  @apply w-[100%];
+  @apply h-[100%];
+  object-fit: fill;
+}
+.production-compare .pc-location-marker {
+  @apply absolute;
+  @apply z-[2];
+  @apply w-[15px];
+  @apply h-[15px];
+  @apply [border:2px_solid_rgb(255,_255,_255)];
+  @apply rounded-[50%];
+  background: rgba(20, 95, 101, 0.5);
+  box-shadow: rgb(20, 95, 101) 0px 0px 0px 1px, rgba(23, 47, 59, 0.25) 0px 1px 5px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.production-compare .pc-location-marker::before, .production-compare .pc-location-marker::after {
+  content: "";
+  @apply absolute;
+  background: rgb(255, 255, 255);
+}
+.production-compare .pc-location-marker::before {
+  @apply w-[1px];
+  @apply h-[21px];
+  @apply left-[5px];
+  @apply top-[-5px];
+}
+.production-compare .pc-location-marker::after {
+  @apply w-[21px];
+  @apply h-[1px];
+  @apply left-[-5px];
+  @apply top-[5px];
+}
+.production-compare .pc-single > img, .production-compare .pc-single > canvas {
+  @apply block;
+  @apply w-[auto];
+  @apply h-[auto];
+  @apply max-w-[100%];
+  @apply max-h-[430px];
+  @apply object-contain;
+}
+.production-compare .pc-overlay {
+  @apply relative;
+  @apply w-[100%];
+  @apply max-w-[100%];
+  @apply h-[auto];
+  @apply [margin:0px_auto];
+  @apply leading-[0];
+  cursor: crosshair;
+}
+.production-compare .pc-overlay img {
+  @apply block;
+  @apply w-[100%];
+  @apply h-[auto];
+  object-fit: fill;
+}
+.production-compare .pc-overlay img:nth-of-type(2) {
+  @apply absolute;
+  @apply inset-[0px];
+  @apply w-[100%];
+  @apply h-[100%];
+  pointer-events: none;
+}
+.production-compare .pc-view-main > .pc-note {
+  @apply pt-[11px];
+  @apply [border-top:1px_solid_rgb(220,_228,_228)];
+  background: rgb(255, 255, 255);
+}
+.production-compare .pc-empty-view {
+  @apply flex;
+  @apply flex-col;
+  @apply items-center;
+  @apply gap-[10px];
+  @apply max-w-[390px];
+  @apply [padding:40px_16px];
+  color: rgb(125, 146, 149);
+  @apply text-center;
+  @apply text-[11px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-empty-view svg {
+  @apply w-[36px];
+  @apply h-[36px];
+  @apply mb-[5px];
+  color: rgb(139, 166, 169);
+  stroke-width: 1.3;
+}
+.production-compare .pc-empty-view strong {
+  color: rgb(80, 110, 115);
+  @apply text-[13px];
+  @apply font-[600];
+}
+.production-compare .pc-legend {
+  @apply flex;
+  @apply items-center;
+  @apply gap-[10px];
+  @apply [padding:11px_16px];
+  @apply [border-top:1px_solid_rgb(220,_228,_228)];
+  color: rgb(113, 134, 138);
+  background: rgb(255, 255, 255);
+  @apply text-[10px];
+  @apply leading-[1.7];
+}
+.production-compare .pc-legend .gradient, .production-compare .pc-legend-gradient {
+  flex: 1 1 0%;
+  @apply min-w-[80px];
+  @apply max-w-[260px];
+  @apply h-[8px];
+  @apply rounded-[1px];
+  background: linear-gradient(90deg, rgb(39, 104, 112), rgb(240, 194, 81) 50%, rgb(197, 69, 46));
+}
+.production-compare .pc-legend small {
+  @apply text-[10px];
+}
+.production-compare .pc-controls {
+  @apply flex;
+  @apply flex-col;
+  @apply gap-[17px];
+  @apply min-w-[0px];
+  @apply [padding:18px_17px];
+  @apply [border-left:1px_solid_rgb(220,_228,_228)];
+  background: rgb(251, 252, 252);
+}
+.production-compare .pc-controls > label, .production-compare .pc-control-group {
+  @apply flex;
+  @apply flex-col;
+  @apply gap-[9px];
+  color: rgb(101, 126, 130);
+  @apply text-[11px];
+  @apply leading-[1.7];
+}
+.production-compare .pc-control-group > strong {
+  color: rgb(56, 91, 96);
+  @apply text-[12px];
+}
+.production-compare .pc-control-group > p {
+  @apply [margin:0px_0px_5px];
+  color: rgb(124, 144, 148);
+  @apply text-[10px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-control-group > label {
+  @apply grid;
+  @apply grid-cols-[minmax(0px,_1fr)_auto];
+  @apply items-center;
+  @apply gap-[9px];
+  @apply mt-[4px];
+  color: rgb(101, 126, 130);
+  @apply text-[11px];
+}
+.production-compare .pc-control-group > label > input {
+  grid-column: 1 / -1;
+}
+.production-compare .pc-controls label > span, .production-compare .pc-controls .pc-control-heading {
+  @apply flex;
+  @apply items-center;
+  @apply justify-between;
+  @apply gap-[10px];
+}
+.production-compare .pc-controls input[type="range"] {
+  @apply w-[100%];
+  @apply h-[18px];
+  @apply m-[0px];
+  accent-color: var(--pc-teal);
+  cursor: pointer;
+}
+.production-compare .pc-controls input[type="number"] {
+  @apply w-[75px];
+  @apply [padding:5px_7px];
+  @apply [border:1px_solid_rgb(199,_211,_212)];
+  @apply rounded-[2px];
+  background: rgb(255, 255, 255);
+  color: var(--pc-teal);
+  @apply text-[11px];
+}
+.production-compare .pc-controls small {
+  color: rgb(136, 153, 156);
+  @apply text-[10px];
+  @apply leading-[1.75];
+}
+.production-compare .pc-controls .pc-value {
+  color: var(--pc-teal);
+  font: 600 12px ui-monospace, monospace;
+}
+.production-compare .pc-controls .pc-toolbar {
+  @apply p-[0px];
+}
+.production-compare .pc-run {
+  @apply w-[100%];
+  @apply min-h-[41px];
+  @apply mt-[auto];
+}
+.production-compare .pc-controls .pc-note {
+  @apply p-[0px];
+  @apply text-[10px];
+}
+.production-compare .pc-result-grid {
+  @apply grid;
+  @apply grid-cols-[repeat(4,_minmax(0px,_1fr))];
+  @apply gap-[12px];
+  @apply p-[17px];
+}
+.production-compare .pc-metric {
+  @apply min-w-[0px];
+  @apply w-[100%];
+  @apply p-[16px];
+  @apply [border:1px_solid_rgb(220,_229,_229)];
+  background: rgb(247, 250, 250);
+  @apply text-left;
+  cursor: pointer;
+}
+.production-compare .pc-metric:hover {
+  @apply [border-color:var(--pc-teal)];
+}
+.production-compare .pc-metric:focus-visible {
+  outline: 2px solid var(--pc-teal);
+  outline-offset: 3px;
+}
+.production-compare .pc-metric > span {
+  @apply block;
+  @apply mb-[10px];
+  color: rgb(112, 136, 139);
+  @apply text-[11px];
+}
+.production-compare .pc-metric strong {
+  @apply block;
+  color: var(--pc-teal);
+  font: 600 26px / 1.2 ui-monospace, monospace;
+  @apply wrap-anywhere;
+}
+.production-compare .pc-metric strong small {
+  @apply text-[12px];
+}
+.production-compare .pc-metric strong.pc-bias-text {
+  font-family: inherit;
+  @apply text-[17px];
+  @apply leading-[1.7];
+}
+.production-compare .pc-metric .pc-metric-description {
+  @apply [margin:11px_0px_0px];
+  color: rgb(117, 139, 142);
+  @apply text-[10px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-metric .pc-metric-link {
+  @apply block;
+  @apply mt-[12px];
+  color: var(--pc-teal);
+  @apply text-[10px];
+}
+.pc-metric-dialog {
+  @apply fixed;
+  @apply inset-[0px];
+  @apply m-[auto];
+  @apply w-[min(800px,_-32px_+_100vw)];
+  @apply max-w-[none];
+  @apply max-h-[90vh];
+  @apply h-[fit-content];
+  @apply overflow-auto;
+  @apply p-[22px];
+  @apply [border:1px_solid_rgb(198,_213,_213)];
+  @apply rounded-[2px];
+  background: rgb(255, 255, 255);
+  color: rgb(35, 59, 61);
+  font: 13px / 1.8 system-ui, sans-serif;
+}
+.pc-metric-dialog::backdrop {
+  background: rgba(16, 42, 46, 0.5);
+}
+.pc-metric-dialog-heading {
+  @apply flex;
+  @apply justify-between;
+  @apply items-start;
+  @apply gap-[16px];
+  @apply [border-bottom:1px_solid_rgb(220,_229,_229)];
+  @apply pb-[12px];
+}
+.pc-metric-dialog h2 {
+  @apply m-[0px];
+  @apply text-[18px];
+  @apply font-[600];
+}
+.pc-metric-dialog p {
+  @apply [margin:12px_0px];
+}
+.pc-metric-context {
+  color: rgb(96, 119, 123);
+}
+.pc-metric-dialog pre {
+  @apply [margin:12px_0px];
+  @apply p-[14px];
+  background: rgb(244, 248, 248);
+  @apply [border:1px_solid_rgb(220,_229,_229)];
+  font: 12px / 1.9 ui-monospace, monospace;
+  @apply whitespace-pre-wrap;
+  @apply wrap-anywhere;
+}
+.pc-calculation-values {
+  @apply [margin:14px_0px];
+}
+.pc-calculation-values > div {
+  @apply flex;
+  @apply justify-between;
+  @apply flex-wrap;
+  @apply gap-[8px_20px];
+  @apply [padding:9px_0px];
+  @apply [border-bottom:1px_solid_rgb(228,_236,_236)];
+}
+.pc-calculation-values dt {
+  color: rgb(96, 119, 123);
+}
+.pc-calculation-values dd {
+  @apply m-[0px];
+  color: rgb(20, 95, 101);
+  @apply font-[600];
+}
+.pc-formula-more {
+  @apply [margin:14px_0px];
+}
+.pc-formula-more summary {
+  color: rgb(20, 95, 101);
+  cursor: pointer;
+}
+.pc-metric-footnote {
+  @apply text-[11px];
+  color: rgb(112, 136, 139);
+}
+@media (max-width: 600px) {
+.pc-metric-dialog {
+  @apply p-[16px];
+}
+.pc-metric-dialog h2 {
+  @apply text-[16px];
+}
+}
+.production-compare .pc-review-grid {
+  @apply grid;
+  @apply grid-cols-[minmax(180px,_0.65fr)_minmax(0px,_1.6fr)];
+  align-items: start;
+  @apply gap-[16px];
+  @apply [padding:0px_17px_17px];
+}
+.production-compare .pc-review-grid textarea {
+  @apply min-h-[84px];
+  resize: vertical;
+}
+.production-compare .pc-reference-note {
+  @apply [margin:0px_17px_17px];
+  @apply [padding:11px_13px];
+  @apply [border-left:3px_solid_rgb(198,_154,_91)];
+  background: rgb(250, 247, 241);
+  color: rgb(138, 124, 101);
+  @apply text-[10px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-reference-note {
+  @apply flex;
+  @apply items-start;
+  @apply gap-[9px];
+}
+.production-compare .pc-reference-note > svg {
+  flex: 0 0 auto;
+  @apply mt-[2px];
+}
+.production-compare .pc-reference-note strong {
+  color: rgb(131, 112, 85);
+  @apply text-[11px];
+}
+.production-compare .pc-reference-note p {
+  @apply [margin:4px_0px_0px];
+}
+.production-compare .pc-field small {
+  color: rgb(132, 151, 155);
+  @apply text-[10px];
+  @apply leading-[1.7];
+}
+.production-compare .pc-local-info {
+  @apply flex;
+  @apply items-center;
+  @apply gap-[7px];
+  @apply [padding:11px_17px];
+  @apply [border-top:1px_solid_rgb(224,_231,_231)];
+  color: rgb(134, 152, 155);
+  @apply text-[10px];
+  @apply leading-[1.7];
+}
+.production-compare .pc-controls .pc-local-info {
+  @apply flex-col;
+  @apply items-start;
+  @apply gap-[4px];
+  @apply p-[11px];
+  @apply [border-top:0px];
+  @apply [border-left:3px_solid_rgb(117,_164,_159)];
+  background: rgb(237, 245, 243);
+  color: rgb(105, 143, 138);
+}
+.production-compare .pc-controls .pc-local-info strong {
+  color: var(--pc-teal);
+  @apply text-[12px];
+}
+.production-compare .pc-local-info svg {
+  flex: 0 0 auto;
+  @apply w-[13px];
+  @apply h-[13px];
+  color: rgb(126, 158, 159);
+}
+.production-compare .pc-local-footer {
+  @apply flex;
+  @apply items-start;
+  @apply gap-[7px];
+  @apply [margin:6px_0px_0px];
+  color: rgb(139, 155, 158);
+  @apply text-[10px];
+  @apply leading-[1.8];
+}
+.production-compare .pc-local-footer svg {
+  flex: 0 0 auto;
+  @apply mt-[2px];
+  color: rgb(123, 153, 156);
+}
+.production-compare .pc-local-detail {
+  @apply [padding:12px_16px];
+  @apply [border-top:1px_solid_rgb(220,_228,_228)];
+  @apply text-[11px];
+  @apply leading-[1.8];
+  background: rgb(255, 255, 255);
+  color: rgb(89, 119, 124);
+}
+.production-compare .pc-local-detail strong {
+  color: var(--pc-teal);
+}
+.production-compare .pc-local-pair {
+  @apply flex;
+  @apply gap-[8px];
+  @apply mt-[8px];
+}
+.production-compare .pc-local-pair img, .production-compare .pc-local-pair canvas {
+  @apply w-[68px];
+  @apply h-[68px];
+  @apply object-contain;
+  @apply [border:1px_solid_rgb(212,_223,_223)];
+  image-rendering: pixelated;
+}
+@media (max-width: 1100px) {
+.production-compare .summary-strip {
+  @apply grid-cols-[repeat(3,_minmax(0px,_1fr))];
+}
+.production-compare .pc-result-grid {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.production-compare .workspace {
+  @apply [padding:23px_20px_32px];
+}
+.production-compare .pc-view-body {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.production-compare .pc-controls {
+  @apply grid;
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  @apply gap-[16px_22px];
+  @apply [border-top:1px_solid_rgb(220,_228,_228)];
+  @apply [border-left:0px];
+}
+.production-compare .pc-controls .pc-run {
+  align-self: end;
+  @apply mt-[0px];
+}
+.production-compare .pc-controls > .pc-note {
+  grid-column: 1 / -1;
+}
+.production-compare .summary-strip > div {
+  @apply [padding:14px_12px];
+}
+}
+@media (max-width: 760px) {
+.production-compare .workspace {
+  @apply [padding:20px_14px_28px];
+}
+.production-compare .page-heading {
+  @apply flex;
+  @apply flex-col;
+  @apply items-stretch;
+  @apply gap-[14px];
+}
+.production-compare .page-heading h1 {
+  @apply text-[21px];
+}
+.production-compare .export-button {
+  @apply w-[100%];
+}
+.production-compare .pc-task-fields, .production-compare .pc-upload-grid, .production-compare .pc-pair, .production-compare .pc-result-grid, .production-compare .pc-review-grid {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.production-compare .summary-strip {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.production-compare .summary-strip > div {
+  @apply [padding:13px_14px];
+  @apply [border-bottom:1px_solid_rgb(67,_82,_85)];
+}
+.production-compare .summary-strip > div:nth-child(2n) {
+  @apply [border-right:0px];
+}
+.production-compare .summary-strip > div:last-child {
+  grid-column: auto;
+  @apply [border-bottom:0px];
+}
+.production-compare .summary-strip strong {
+  @apply text-[15px];
+}
+.production-compare .panel-header {
+  @apply items-start;
+  @apply p-[13px];
+}
+.production-compare .panel-header > div:first-child {
+  @apply items-start;
+  @apply gap-[10px];
+}
+.production-compare .panel-header h2 {
+  @apply text-[13px];
+}
+.production-compare .panel-header p {
+  @apply text-[10px];
+}
+.production-compare .panel-header > .pc-badge {
+  @apply hidden;
+}
+.production-compare .pc-stage {
+  @apply min-h-[330px];
+  @apply h-[340px];
+  @apply p-[16px];
+}
+.production-compare .pc-heading-actions {
+  @apply justify-start;
+}
+.production-compare .pc-heading-actions .pc-button {
+  flex: 1 1 0%;
+}
+.production-compare .format-note {
+  @apply hidden;
+}
+.production-compare .pc-viewer {
+  @apply min-h-[280px];
+  @apply p-[13px];
+}
+.production-compare .pc-controls {
+  @apply flex;
+  @apply p-[16px];
+}
+.production-compare .pc-tabs {
+  @apply gap-[3px];
+  @apply p-[9px];
+}
+.production-compare .pc-tabs button {
+  flex: 1 1 0%;
+  @apply [padding:8px_5px];
+  @apply text-[10px];
+  @apply whitespace-nowrap;
+}
+.production-compare .pc-legend {
+  @apply flex-wrap;
+  @apply [padding:10px_13px];
+  @apply gap-[7px];
+}
+.production-compare .pc-metric {
+  @apply p-[14px];
+}
+.production-compare .pc-result-grid {
+  @apply p-[13px];
+  @apply gap-[10px];
+}
+.production-compare .pc-review-grid {
+  @apply [padding:0px_13px_13px];
+}
+.production-compare .pc-reference-note {
+  @apply [margin:0px_13px_13px];
+}
+}
+@media (prefers-reduced-motion: reduce) {
+.production-compare *, .production-compare ::before, .production-compare ::after {
+  transition: none !important;
+  animation: auto ease 0s 1 normal none running none !important;
+}
+}

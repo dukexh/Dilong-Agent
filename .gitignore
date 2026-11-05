@@ -1,5 +1,9 @@
 # Local dependencies, editor settings and credentials
 node_modules/
+/dist/
+/verification/
+/cleanup-verification/
+/src/core/*.generated.txt
 __pycache__/
 *.py[cod]
 .DS_Store

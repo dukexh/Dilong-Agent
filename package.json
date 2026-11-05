@@ -1,13 +1,58 @@
 {
-  "name": "dilong-offline-workflow-tests",
+  "name": "dilong-agent-vue",
   "version": "1.0.0",
   "private": true,
-  "description": "仅用于自动验收；运行网页不需要安装这些依赖",
-  "scripts": {
-    "test": "node --test tests/*.test.cjs",
-    "test:browser": "node tests/run-browser.cjs",
-    "test:images": "node tests/image-workflows-browser.cjs",
-    "test:http": "node tests/http-compat-browser.cjs"
+  "description": "帝龙智能体，Vue 3 + TypeScript + Vite + Tailwind CSS",
+  "type": "module",
+  "engines": {
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0",
+    "npm": ">=10"
   },
-  "devDependencies": { "playwright": "1.64.1" }
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 51458 --strictPort",
+    "type-check": "vue-tsc --build",
+    "build": "run-p type-check \"build-only {@}\" --",
+    "preview": "vite preview --host 127.0.0.1 --port 51459 --strictPort",
+    "build:textures": "tsx scripts/build-public-textures.ts",
+    "test": "node --require tsx/cjs --test tests/unit/*.test.cjs",
+    "test:browser": "node tests/vue/browser.cjs",
+    "test:images": "node tests/vue/images.cjs",
+    "test:http": "node tests/vue/http.cjs",
+    "test:dist": "node tests/vue/dist.cjs",
+    "build-only": "vite build",
+    "test:ecosystem": "node tests/unit/template-ecosystem.test.cjs",
+    "dev:tools": "vite --mode tools --host 127.0.0.1 --port 51458 --strictPort"
+  },
+  "devDependencies": {
+    "@babel/generator": "^8.1.0",
+    "@babel/parser": "^8.1.0",
+    "@babel/traverse": "^8.1.0",
+    "@babel/types": "^8.1.0",
+    "@vitejs/plugin-vue": "6.0.8",
+    "playwright": "1.64.1",
+    "typescript": "5.9.3",
+    "vite": "8.2.0",
+    "vue-tsc": "3.3.8",
+    "tailwindcss": "4.3.3",
+    "@tailwindcss/vite": "4.3.3",
+    "@tailwindcss/forms": "0.5.11",
+    "@types/node": "26.1.2",
+    "@vue/compiler-sfc": "3.5.40",
+    "tsx": "^4.20.0",
+    "@vue/tsconfig": "0.9.1",
+    "@vitejs/plugin-vue-jsx": "5.1.6",
+    "vite-plugin-vue-devtools": "8.2.1",
+    "npm-run-all2": "9.0.3",
+    "postcss": "8.5.25",
+    "postcss-cli": "11.0.1",
+    "autoprefixer": "10.5.4"
+  },
+  "dependencies": {
+    "vue": "3.5.40",
+    "vue-router": "5.2.0",
+    "pinia": "4.0.2",
+    "ant-design-vue": "4.2.6",
+    "preline": "4.2.0",
+    "lucide-vue-next": "1.0.0"
+  }
 }

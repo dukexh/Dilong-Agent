@@ -1,26 +1,30 @@
 # 帝龙装饰纸智能设计平台
 
-装饰纸设计与生产评估的本地前端工作台，包含首页、样例库、设计智能体、配墨智能体、生产比对和趋势洞察六个模块。
+装饰纸设计与生产评估的前端工作台，包含首页、样例库、设计智能体、配墨智能体、生产比对和趋势洞察六个模块。Vue 3 + TypeScript + Vite + Tailwind CSS 4，对齐用户提供模板的技术生态，页面保留原版的布局、配色和交互；组件生态为 Ant Design Vue、Preline、Vue Router 和 Pinia。
 
 ## 启动
 
-需要 Python 3，运行网页无需安装 Node.js 或 npm 依赖。
+开发使用 Node.js 22.22.2+（22系）、24.15+（24系）或26+，npm 10+；这是模板锁定的构建工具要求。本地验证环境为Node 24.19。安装依赖后运行：
 
-Windows：在项目文件夹中打开终端，执行：
+```bash
+npm ci
+npm run dev
+```
 
-```powershell
+Vue 版本地址为 <http://127.0.0.1:51458/>。迁移期间原 React 目录保持原样，可在 <http://127.0.0.1:51455/index.html> 作为对照；两个地址的浏览器存储互相隔离。
+
+共同依赖按所提供 `vue.zip` 的锁文件精确固定：Vue 3.5.40、Vite 8.2.0、Tailwind 4.3.3、TypeScript 5.9.3、Vue Router 5.2.0、Pinia 4.0.2等，完整清单见 [模板版本契约](config/template-ecosystem.json)。可运行 `npm run test:ecosystem` 检查清单、锁文件和实际安装版本是否一致。
+
+Vite包含Vue、Vue JSX、Vue Devtools、Tailwind四个模板插件。正常开发页面保留产品外观；需要可视化开发工具时，先停止普通开发服务，再运行 `npm run dev:tools`。开发工具不会进入正式构建，存储受限时不影响工作台启动。
+
+构建与查看独立静态版本：
+
+```bash
+npm run build
 python start-local.py
 ```
 
-如果系统使用 Python Launcher，也可执行 `py -3 start-local.py`。
-
-macOS / Linux：
-
-```bash
-python3 start-local.py
-```
-
-程序会自动打开 <http://127.0.0.1:51455/index.html>。保持终端运行，按 `Ctrl+C` 关闭服务。端口被占用时会明确报错，请先确认是否已有本项目服务正在运行。
+也可运行 `npm run preview`（端口51459）。Python 脚本只提供 `dist`，不会暴露工程源码；`--port` 可指定端口，`--no-browser` 可禁止自动开浏览器。访问者和正式静态服务器不需要 Node.js，构建后的 `dist` 包含完整网页图片。
 
 通过静态服务部署后，也支持普通 HTTP 的公网 IP 或域名访问。ID 生成兼容普通 HTTP，无需手工修改发布页面。普通 HTTP 下浏览器不提供 Web Locks，刷新后的未完成任务仍按原有规则显示“状态待确认”，需确认其他窗口状态后再重试；支持 Web Locks 的环境保留原有运行归属检测。
 
@@ -38,7 +42,7 @@ python3 start-local.py
 
 样例包导入不设 500 条数量上限，仍保留 ZIP 100 MB、解压内容 150 MB 及单图 30 MB / 4000 万像素限制。导出保持现有行为，不新增数量或体积限制。
 
-样例包准备方式见 [样例包格式说明](样例包格式说明.txt) 和 [制作自己的样例包](制作自己的样例包.txt)。仓库提供可导入的 [示例样例包](示例样例包.zip)；`demo-pair/` 提供模拟设计图与实物图，便于体验生产比对。
+样例包准备方式见 [样例包格式说明](public/样例包格式说明.txt) 和 [制作自己的样例包](public/制作自己的样例包.txt)。仓库提供可导入的 [示例样例包](public/示例样例包.zip)；`public/demo-pair/` 提供模拟设计图与实物图，便于体验生产比对。
 
 ## 数据与当前能力
 
@@ -61,53 +65,77 @@ python3 start-local.py
 
 | 文件 | 用途 |
 | --- | --- |
-| `index.html` | 原页面打包代码、内置样例与界面 |
-| `stage1.js` | 样例包、任务、候选评价、配墨历史及本地存储流程 |
-| `design-images.js` | 全分辨率风格迁移与补全、缩略图、候选结构相似度 |
-| `sample-metadata.js` | 样例业务字段和校验 |
-| `sample-library.js`、`sample-library.css` | 公共纹理合并去重、材质检索、分页和公共素材档案 |
-| `public-textures/` | 公共素材索引、来源、展示图与缩略图，部署必须完整同步 |
-| `scripts/build-public-textures.cjs` | 开发时从网页素材包生成公共资源和实际图像特征；运行网站不需要执行 |
-| `production-compare-core.js` | 逐像素色差、RGB 偏差、SSIM 与选区映射 |
-| `production-compare.js` | 生产比对界面、交互与报告 |
-| `stage1.css`、`workspace-layout.css`、`production-compare.css` | 页面样式 |
-| `start-local.py` | 固定地址的本地启动服务 |
-| `tests/` | 单元与浏览器回归测试 |
+| `src/pages/`、`src/components/` | 六模块、完整档案、ZIP、编辑、历史、大图与候选评价 |
+| `src/layouts/`、`src/router/`、`src/data/sidebar.ts` | 模板工程组织方式下的原版导航、顶栏、路由与菜单 |
+| `src/stores/` | Pinia 工作区、独立主题/布局和样例筛选状态 |
+| `src/types/`、`src/composables/`、`src/plugins/` | 模板路由/菜单契约、布局与Preline组合函数、统一插件注册 |
+| `src/services/workflows.ts`、`types.ts` | 类型化 IndexedDB、原子事务、同步、任务、ZIP及完整配墨快照 |
+| `src/core/` | 原配墨公式、全分辨率补全/迁移、SSIM、色差、选区映射、元数据校验及HTML报告 |
+| `src/data/` | 原100条样例、2,890条公共特征索引、四条演示趋势 |
+| `src/assets/css/style.css`、`components/`、`workspace.css` | Tailwind 4主题与入口、按用途拆分的组件样式、深浅色与Ant适配；Vue局部样式通过`@reference`和`@apply`复用Tailwind |
+| `tsconfig*.json`、`env.d.ts` | 按模板拆分根引用、浏览器应用、Node工具配置和环境类型 |
+| `public/` | 原样例、公共展示图/缩略图、来源许可、演示图片和示例ZIP |
+| `scripts/build-public-textures.ts` | 开发时从网页素材包生成公共资源和真实特征；网站运行无需执行 |
+| `dist/` | `npm run build` 生成的独立静态发布包，不提交Git |
+| `tests/unit/`、`tests/vue/` | 算法/业务单测、正式Vue页面与旧数据兼容回归 |
 
 ## 测试
 
-测试需要 Node.js 20 或更新版本和 npm。浏览器测试默认使用已安装的 Google Chrome。
+浏览器测试默认使用已安装的 Google Chrome。全部浏览器数据使用独立上下文，不操作日常浏览器的个人样例和历史。
 
 ```bash
 npm ci
 npm test
 npm run test:browser
 npm run test:images
+npm run build
 npm run test:http
+npm run test:dist
 ```
 
-`npm test` 运行单元测试，`npm run test:browser` 顺序运行 `tests/` 中所有 `*-browser.cjs` 回归脚本。也可单独运行，例如：
+`npm test` 运行类型化算法、业务和模板版本契约单测。`npm run test:browser` 自动启动临时 Vite 服务，运行设计、存储、配墨生产、样例首页趋势、迁移修复、旧数据兼容、原版外观、文字显示和模板生态九套回归，结束后关闭服务；不占用日常开发端口。
+
+也可对已运行的开发服务执行单套测试，例如：
 
 ```bash
-node tests/design-task-isolation-browser.cjs
-node tests/ink-history-browser.cjs
-node tests/dashboard-details-browser.cjs
-node tests/trial-fixes-browser.cjs
+node tests/vue/design.cjs
+node tests/vue/storage.cjs
+node tests/vue/ink-production.cjs
+node tests/vue/library-home-trends.cjs
+node tests/vue/migration-fixes.cjs
+node tests/vue/legacy-compat.cjs
+node tests/vue/original-appearance.cjs
+node tests/vue/text-display.cjs
+node tests/vue/template-ecosystem.cjs
 ```
 
-`npm run test:images` 验证图片保存与导入的解码次数、原图像素和分析配方、独立缩略图、PNG 原字节导出、旧格式兼容及 IndexedDB 恢复。
+`npm run test:images` 启动临时服务，验证完整PNG与原图像素、缩略图、大图查看、SSIM、透明度、配墨快照与生产选区/报告。
 
-`npm run test:http` 使用隔离浏览器和本地资源拦截，分别验证非回环 IP 的普通 HTTP、HTTPS 与本机 HTTP 来源，不访问真实公网服务器；覆盖启动、UUID、任务与样例保存、配墨历史恢复，以及缺少 Web Locks 时的保守处理。
+`npm run test:http` 验证已经构建的 `dist`，通过本地资源拦截模拟非回环 IP 普通 HTTP、HTTPS 与本机 HTTP，不访问真实公网；覆盖原生能力、候选/任务/配墨持久化、缺少 Web Locks 时的保守恢复，以及主题存储读取/写入/访问被拒绝时的启动与页面操作。
 
 测试创建临时服务与独立浏览器上下文，不使用日常浏览器中的个人样例和历史记录。
 
 ## 静态部署资源
 
-部署者需要同步本次代码以及完整的 `public-textures/`、`sample-library.js`、`sample-library.css`。仅更新HTML或只上传图片都不能完成接入。清理旧缓存后验证公共记录数为2,990，分类、分页及用于设计/配墨正常。无需新增服务端数据库。
+部署者执行 `npm ci && npm run build`，再将 `dist` 中全部内容同步至原网站根目录。不要仅上传源码的 `index.html`，也不要漏掉图片和 `assets`。浏览器直接刷新 `/samples` 等页面时，静态服务器需要回退至 `index.html`；Nginx 可使用 `try_files $uri $uri/ /index.html;`。无需新增服务端数据库或 Node 常驻进程。
 
-如需从本地网页素材包重建资源，先保留现有目录备份，再在不存在输出目录 `public-textures/` 的工作副本执行 `node scripts/build-public-textures.cjs <素材包目录>`；该工具需要测试依赖中的Playwright和Chrome，沿用项目图像特征算法。
+若部署在 `/dilong/` 等子目录，构建前设置 `DILONG_BASE=/dilong/`，路由与图片会使用同一基路径；服务器回退目标也应为 `/dilong/index.html`。不要机械照搬模板的 `/vue/`。
 
-## 本版验证
+保留同一域名、协议、端口以及原 IndexedDB 名称/版本，可读取旧版个人数据；换地址时不会自动带走数据。样例ZIP只备份样例，不包含设计任务和配墨历史。
+
+开发时如需重建公共素材，运行 `npm run build:textures -- <网页素材包目录>`。默认输出目录已存在时会拒绝覆盖；可用 `--output <临时素材目录> --catalog <临时索引.json>` 先生成并核对。该工具使用 Chrome 和现有图像算法，生成独立展示图、缩略图、来源以及两种兼容索引，不访问原React目录。
+
+## Vue 迁移验收（2026-11-05）
+
+70项单元测试、82组真实浏览器流程及92个文字显示状态全部通过。82组包含原79组及新增3组模板JSX/Devtools验证；92个状态覆盖1440、1024、390、320px的六页、长名称、档案、ZIP、大图和历史弹窗。另通过独立 `dist` 根路径与 `/dilong/` 子目录各六路由直接刷新、图片/配墨/生产计算与390px布局，以及HTTP IP、HTTPS、本机HTTP三种原生安全上下文和构建版三种主题存储受限环境验证。
+
+原整份 `original.css` 已移除，布局、间距、字号、边框和响应式规则改为Tailwind组合，特殊图像效果、动画和组件适配仍使用必要CSS。33个桌面/中屏/手机外观状态对照通过；有意保留的差异仅为长文件名完整显示和中屏配方表内部滚动。样例缩略图不显示状态角标，“放大查看”始终位于图片上方。
+
+原React应用实际生成的v2测试数据可恢复候选评价、上传任务原图与参数、TypedArray配墨快照、重量和色层设置，不重复计算或增加记录。5,985个素材文件已对照原目录核对：图片SHA256完全相同，三个文本清单在换行标准化后内容相同。
+
+保存候选真正入库成功后显示“已将候选内容保存到样例库中”；失败保留重试入口，不显示成功提示。详细范围和修复记录见 [迁移说明](MIGRATION.md)。
+
+## 迁移前 React 版验证记录
 
 2026-11-04 公共纹理本地接入：53项单元测试、全部21个Chrome浏览器脚本通过。新增6组公共样例专项验证，包括2,990条去重合并、首屏不下载公共图片、24条分页/跳页/尾页、四类筛选、公共档案、放大查看、设计检索与保存、配墨及导出、个人样例与旧演示兼容、三种窗口宽度。5,780个新图片文件与网页素材包逐字节一致。代码与网页图片一起交付，线上站点仍需单独部署更新。
 

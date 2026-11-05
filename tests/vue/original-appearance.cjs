@@ -1,0 +1,26 @@
+/* Original UI layout contracts, verified on the actual Vue routes. */
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path')
+const base=process.env.DILONG_URL||'http://127.0.0.1:51458',output=path.resolve('verification/original-appearance'),results=[]
+fs.mkdirSync(output,{recursive:true})
+const routes=[['/','home','装饰纸智能设计工作台'],['/samples','samples','样例库'],['/design','design','设计智能体'],['/ink','ink','样例分色、色层还原与配墨建议'],['/production','production','设计与实物还原评估'],['/trends','trends','趋势洞察']]
+;(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true})
+try{for(const width of [1440,390]){const context=await browser.newContext({viewport:{width,height:1000}}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(20000)
+try{for(const [route,name,title] of routes){
+ await page.goto(base+route,{waitUntil:'networkidle'});await page.locator('h1').waitFor();assert.equal(await page.locator('h1').textContent(),title)
+ assert.equal(await page.locator('.platform-sidebar .brand-mark').count(),1);assert.equal(await page.locator('.platform-sidebar nav a').count(),6)
+ assert.equal(await page.locator('.two-col-sidebar').count(),0);assert.equal(await page.locator('.welcome-banner').count(),0)
+ const styles=await page.evaluate(()=>({sidebar:getComputedStyle(document.querySelector('.platform-sidebar')).backgroundColor,header:document.querySelector('.platform-topbar').getBoundingClientRect().height,sidebarWidth:document.querySelector('.platform-sidebar').getBoundingClientRect().width,overflow:document.documentElement.scrollWidth>innerWidth+1,react:typeof window.React}))
+ assert.equal(styles.sidebar,'rgb(23, 38, 41)');assert.equal(styles.header,55);if(width===1440)assert.equal(styles.sidebarWidth,238);assert.equal(styles.overflow,false);assert.equal(styles.react,'undefined')
+ if(name==='home'){assert.equal(await page.locator('.capability-card').count(),5);assert.equal(await page.locator('.dashboard-lower>.dashboard-panel').count(),2);assert.equal(await page.locator('.command-strip .dashboard-stat-button').count(),4)}
+ if(name==='samples'){assert.equal(await page.locator('.sample-card').count(),24);assert.equal(await page.locator('.sample-inspector .inspector-empty').count(),1);assert.equal(await page.locator('.sample-archive').count(),0);if(width===1440)assert.equal(await page.locator('.sample-grid').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),3)}
+ if(name==='design'){assert.equal(await page.locator('[data-design-mode]').count(),4);assert.equal(await page.locator('.design-workspace>.panel').count(),3);if(width===1440)assert.equal(await page.locator('.design-workspace').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),3)}
+ if(name==='ink'){await page.locator('.layer-card').first().waitFor();assert.equal(await page.locator('.workspace>.main-grid>.panel').count(),2);assert.equal(await page.locator('.reconstruction-panel').count(),1);assert.equal(await page.locator('.formula-panel').count(),1);assert.equal(await page.locator('.summary-strip>.ink-metric').count(),5);assert.equal(await page.locator('.recipe-grid>.recipe-card').count(),await page.locator('.layer-card').count())}
+ if(name==='production'){await page.locator('.source-frame img').nth(1).waitFor();assert.equal(await page.locator('.pc-upload-grid>.pc-source-panel').count(),2);assert.equal(await page.locator('.pc-summary>div').count(),6);assert.equal(await page.locator('.pc-comparison-panel').count(),1);assert.equal(await page.locator('.pc-results-panel .pc-metric').count(),4);assert.equal(await page.getByRole('button',{name:'载入演示样本',exact:true}).count(),0)}
+ if(name==='trends'){assert.equal(await page.getByRole('tab').count(),4);assert.equal(await page.locator('.trend-layout>section').count(),2);assert.equal(await page.locator('.trend-layout>aside').count(),1);assert.equal(await page.locator('.trend-card').count(),4)}
+ await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:path.join(output,`${name}-${width}.png`)})
+ if(name==='ink'){await page.getByRole('tab',{name:'单层配方详情',exact:true}).click();assert.equal(await page.locator('.layer-pager button').count(),await page.locator('.layer-card').count());await page.locator('.layer-pager button').last().click();assert.equal(await page.locator('.layer-pager button').last().getAttribute('aria-pressed'),'true');assert.equal(await page.locator('.target-card>strong').textContent(),await page.locator('.layer-row.active .current-layer-hex').textContent())}
+ if(name==='trends'){for(const label of ['定向研究','趋势预测','趋势转化']){await page.getByRole('tab',{name:label,exact:true}).click();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:path.join(output,`trends-${label}-${width}.png`)})}}
+ results.push({name,width,styles});console.log(`PASS 原版外观 ${name} ${width}px`)
+}assert.deepEqual(errors,[])}finally{await context.close()}}
+fs.writeFileSync(path.join(output,'results.json'),JSON.stringify({results},null,2));console.log('Original appearance: 12 route/viewport groups passed.')
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1})

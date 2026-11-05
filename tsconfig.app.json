@@ -1,0 +1,28 @@
+{
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "include": [
+    "env.d.ts",
+    "src/**/*",
+    "src/**/*.vue"
+  ],
+  "exclude": [
+    "src/**/__tests__/*"
+  ],
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@dilong/vue-devtools-api": [
+        "./node_modules/@vue/devtools-api/dist/index.d.ts"
+      ]
+    },
+    "strict": true,
+    "isolatedModules": true,
+    "types": [
+      "vite/client"
+    ]
+  }
+}

@@ -1,0 +1,1173 @@
+/* Dilong shell: Tailwind compositions retain the established page geometry. */
+.dashboard-page {
+  @apply box-border;
+  @apply w-[100%];
+  @apply max-w-[1760px];
+  @apply [margin:0px_auto];
+  @apply p-[32px];
+}
+.dashboard-page * {
+  @apply min-w-[0px];
+}
+.dashboard-page .page-kicker {
+  @apply text-[10px];
+  @apply mb-[12px];
+}
+.dashboard-page .dashboard-title {
+  @apply gap-[20px];
+  @apply mb-[24px];
+}
+.dashboard-page .dashboard-title h1 {
+  @apply text-[30px];
+  @apply leading-[1.4];
+}
+.dashboard-page .dashboard-title p {
+  @apply text-[14px];
+  @apply leading-[1.75];
+}
+.dashboard-page .truth-chip {
+  @apply text-[12px];
+  @apply [padding:12px_14px];
+}
+.dashboard-page .command-strip {
+  @apply min-h-[104px];
+  @apply mb-[20px];
+}
+.dashboard-page .command-strip > div {
+  @apply grid-cols-[minmax(0px,_1fr)_auto];
+  @apply gap-[6px_12px];
+  @apply [padding:18px_20px];
+}
+.dashboard-page .command-strip span {
+  @apply text-[12px];
+  @apply leading-[1.5];
+}
+.dashboard-page .command-strip strong {
+  @apply text-[30px];
+}
+.dashboard-page .command-strip small {
+  @apply text-[11px];
+  @apply leading-[1.5];
+}
+.dashboard-page .command-strip > .dashboard-stat-cell {
+  @apply block;
+  @apply p-[0px];
+}
+.dashboard-stat-button {
+  @apply grid;
+  @apply grid-cols-[minmax(0px,_1fr)_auto];
+  align-content: center;
+  @apply gap-[6px_12px];
+  @apply w-[100%];
+  @apply h-[100%];
+  @apply [padding:18px_20px];
+  @apply [border:0px];
+  background: transparent;
+  color: inherit;
+  @apply text-left;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.dashboard-stat-button:hover {
+  background: rgba(255, 255, 255, 0.047);
+}
+.dashboard-stat-button:hover > span {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.dashboard-stat-button:focus-visible {
+  outline: rgb(236, 186, 116) solid 2px;
+  outline-offset: -4px;
+  background: rgba(255, 255, 255, 0.047);
+}
+.dashboard-page .capability-grid {
+  @apply gap-[16px];
+  @apply mb-[20px];
+}
+.dashboard-page .capability-card {
+  @apply min-h-[270px];
+  @apply p-[20px];
+}
+.dashboard-page .capability-top span {
+  @apply text-[12px];
+}
+.dashboard-page .capability-top svg {
+  @apply w-[30px];
+  @apply h-[30px];
+}
+.dashboard-page .capability-card h2 {
+  @apply text-[19px];
+  @apply leading-[1.5];
+  @apply [margin:28px_0px_10px];
+}
+.dashboard-page .capability-card p {
+  @apply text-[13px];
+  @apply leading-[1.85];
+  @apply mb-[20px];
+}
+.dashboard-page .capability-card > div:last-child {
+  @apply text-[12px];
+  @apply leading-[1.6];
+  @apply pt-[16px];
+  @apply gap-[8px];
+}
+.dashboard-page .capability-card > div:last-child svg {
+  @apply w-[18px];
+  flex: 0 0 auto;
+}
+.dashboard-page .dashboard-lower {
+  @apply gap-[16px];
+}
+.dashboard-page .dashboard-panel {
+  @apply p-[20px];
+}
+.dashboard-page .section-heading {
+  @apply gap-[12px];
+  @apply pb-[15px];
+}
+.dashboard-page .section-heading span {
+  @apply text-[11px];
+  @apply leading-[1.5];
+}
+.dashboard-page .section-heading h2 {
+  @apply text-[17px];
+  @apply leading-[1.5];
+  @apply mt-[5px];
+}
+.dashboard-page .section-heading button {
+  @apply text-[12px];
+  @apply leading-[1.6];
+  @apply shrink-[0];
+}
+.dashboard-page .section-heading button svg {
+  @apply w-[16px];
+}
+.dashboard-page .task-list > div {
+  @apply grid-cols-[38px_minmax(0px,_1fr)_auto];
+  @apply gap-[12px];
+  @apply min-h-[74px];
+}
+.dashboard-page .task-list b {
+  @apply text-[13px];
+  @apply leading-[1.6];
+  @apply wrap-anywhere;
+}
+.dashboard-page .task-list small {
+  @apply text-[11px];
+  @apply leading-[1.5];
+}
+.dashboard-page .task-list em {
+  @apply text-[11px];
+  @apply leading-[1.5];
+}
+.dashboard-page .task-icon {
+  @apply w-[36px];
+  @apply h-[36px];
+}
+.dashboard-page .task-icon svg {
+  @apply w-[19px];
+  @apply h-[19px];
+}
+.dashboard-page .loop-flow {
+  @apply gap-[8px];
+}
+.dashboard-page .loop-flow > div {
+  @apply h-[84px];
+  @apply gap-[8px];
+}
+.dashboard-page .loop-flow > div svg {
+  @apply w-[24px];
+  @apply h-[24px];
+}
+.dashboard-page .loop-flow > div b {
+  @apply text-[12px];
+}
+.dashboard-page .data-loop > p {
+  @apply text-[12px];
+  @apply leading-[1.8];
+  @apply mt-[16px];
+}
+@media (max-width: 1200px) {
+.dashboard-page {
+  @apply p-[24px];
+}
+}
+@media (max-width: 700px) {
+.dashboard-page {
+  @apply [padding:20px_14px];
+}
+.dashboard-page .dashboard-title h1 {
+  @apply text-[25px];
+}
+.dashboard-page .command-strip > div {
+  @apply [padding:14px_12px];
+  @apply gap-[5px_8px];
+}
+.dashboard-stat-button {
+  @apply [padding:14px_12px];
+  @apply gap-[5px_8px];
+}
+.dashboard-page .command-strip strong {
+  @apply text-[27px];
+}
+.dashboard-page .capability-card {
+  @apply min-h-[240px];
+}
+.dashboard-page .section-heading {
+  @apply flex-wrap;
+}
+.dashboard-page .loop-flow {
+  @apply gap-[4px];
+}
+.dashboard-page .loop-flow > div b {
+  @apply text-[11px];
+}
+}
+.design-page, .trend-page {
+  @apply box-border;
+  @apply w-[100%];
+  @apply max-w-[1760px];
+  @apply [margin:0px_auto];
+  @apply p-[32px];
+  color: rgb(35, 56, 59);
+}
+.design-page *, .trend-page * {
+  @apply min-w-[0px];
+}
+.design-page .module-title-row, .trend-page ._header_1w9oj_1 {
+  @apply items-center;
+  @apply gap-[24px];
+  @apply mb-[24px];
+}
+.design-page .module-title-row h1, .trend-page ._header_1w9oj_1 h1 {
+  @apply text-[28px];
+  @apply leading-[1.35];
+}
+.design-page .module-title-row p, .trend-page ._header_1w9oj_1 p {
+  @apply text-[14px];
+  @apply leading-[1.75];
+  @apply mt-[8px];
+}
+.design-page .page-kicker, .trend-page ._kicker_1w9oj_1 {
+  @apply text-[10px];
+  @apply mb-[12px];
+}
+.design-page .truth-chip, .trend-page ._demoState_1w9oj_1 {
+  @apply shrink-[0];
+  @apply text-[12px];
+  @apply [padding:12px_14px];
+}
+.trend-page ._demoState_1w9oj_1 b {
+  @apply text-[12px];
+}
+.trend-page ._demoState_1w9oj_1 small {
+  @apply text-[11px];
+}
+.design-page .design-mode-grid {
+  @apply gap-[12px];
+  @apply mb-[20px];
+}
+.design-page .design-mode-grid button {
+  @apply grid;
+  @apply grid-cols-[22px_minmax(0px,_1fr)_14px];
+  @apply p-[16px];
+  @apply min-h-[80px];
+  @apply gap-[12px];
+}
+.design-page .design-mode-grid button > svg:first-child {
+  @apply w-[22px];
+  @apply h-[22px];
+}
+.design-page .design-mode-grid button > svg:last-child {
+  @apply w-[14px];
+  @apply h-[14px];
+}
+.design-page .design-mode-grid b {
+  @apply text-[14px];
+  @apply leading-[1.5];
+}
+.design-page .design-mode-grid small {
+  @apply text-[12px];
+  @apply leading-[1.5];
+}
+.design-page .design-workspace {
+  @apply grid;
+  @apply grid-cols-[280px_320px_minmax(0px,_1fr)];
+  @apply grid-rows-[auto];
+  align-items: start;
+  @apply gap-[16px];
+}
+.design-page .design-source {
+  grid-area: 1 / 1;
+}
+.design-page .design-config {
+  grid-area: 1 / 2;
+}
+.design-page .design-results {
+  grid-area: 1 / 3;
+}
+.design-page .design-source, .design-page .design-config, .design-page .design-results {
+  @apply min-h-[600px];
+  @apply p-[18px];
+}
+.design-page .work-panel-title {
+  @apply gap-[10px];
+  @apply pb-[14px];
+  @apply mb-[16px];
+}
+.design-page .work-panel-title > span {
+  @apply w-[32px];
+  @apply h-[32px];
+  @apply text-[11px];
+}
+.design-page .work-panel-title b {
+  @apply text-[15px];
+  @apply leading-[1.5];
+}
+.design-page .work-panel-title small {
+  @apply text-[12px];
+  @apply leading-[1.5];
+}
+.design-page .source-input-tabs button {
+  @apply text-[12px];
+  @apply min-h-[36px];
+}
+.design-page .design-source select, .design-page .design-config select {
+  @apply h-[40px];
+  @apply text-[13px];
+  @apply [padding:0px_10px];
+}
+.design-page .source-preview {
+  @apply h-[220px];
+  aspect-ratio: auto;
+  @apply mt-[10px];
+  background: rgb(231, 237, 237);
+}
+.design-page .source-preview img {
+  @apply w-[100%];
+  @apply h-[100%];
+  @apply object-contain;
+}
+.design-page .source-preview > span {
+  @apply z-[2];
+  @apply text-[11px];
+  @apply max-w-[calc(100%_-_14px)];
+  @apply overflow-hidden;
+  @apply text-ellipsis;
+  @apply whitespace-nowrap;
+}
+.design-page .design-source dl {
+  @apply block;
+  @apply [margin:14px_0px];
+}
+.design-page .design-source dl > div {
+  @apply flex;
+  @apply justify-between;
+  @apply items-center;
+  @apply gap-[10px];
+  @apply min-h-[42px];
+  @apply [border-bottom:1px_solid_rgb(237,_240,_240)];
+  @apply text-[12px];
+}
+.design-page .design-source dt, .design-page .design-source dd {
+  @apply text-[12px];
+  @apply leading-[1.6];
+}
+.design-page .design-source dd {
+  @apply mt-[0px];
+  @apply text-right;
+  @apply wrap-anywhere;
+}
+.design-page .source-authenticity, .design-page .source-error {
+  @apply text-[12px];
+  @apply leading-[1.65];
+  @apply p-[10px];
+}
+.design-page .source-authenticity {
+  background: rgb(237, 246, 243);
+  @apply p-[10px];
+  @apply mt-[12px];
+  @apply text-[12px];
+}
+.design-page .upload-source-control button {
+  @apply min-h-[38px];
+  @apply text-[13px];
+}
+.design-page .upload-source-control small {
+  @apply text-[12px];
+}
+.design-page .design-config label {
+  @apply text-[13px];
+  @apply leading-[1.6];
+}
+.design-page .design-config textarea {
+  @apply text-[14px];
+  @apply leading-[1.7];
+  @apply min-h-[110px];
+  @apply p-[10px];
+}
+.design-page .config-note {
+  @apply text-[12px];
+  @apply leading-[1.7];
+  @apply p-[10px];
+}
+.design-page .design-config > button {
+  @apply min-h-[42px];
+  @apply text-[14px];
+}
+.design-page .execution-label {
+  @apply items-center;
+  @apply text-[11px];
+  @apply leading-[1.6];
+  @apply mt-[10px];
+}
+.design-page .execution-label svg {
+  @apply w-[12px];
+  @apply h-[12px];
+  flex: 0 0 auto;
+}
+.design-page .result-cards {
+  @apply grid;
+  @apply grid-cols-[repeat(3,_minmax(0px,_1fr))];
+  @apply gap-[14px];
+}
+.design-page .result-cards article {
+  @apply flex;
+  @apply flex-col;
+  @apply overflow-hidden;
+}
+.design-page .result-image {
+  @apply w-[100%];
+  @apply h-[auto];
+  aspect-ratio: 4 / 3;
+  background: rgb(231, 237, 237);
+}
+.design-page .result-image > span {
+  @apply z-[3];
+  @apply text-[12px];
+  @apply p-[7px];
+  pointer-events: none;
+}
+.design-page .result-copy {
+  @apply flex;
+  flex: 1 1 0%;
+  @apply flex-col;
+  @apply p-[12px];
+}
+.design-page .result-copy > div {
+  @apply items-baseline;
+  @apply gap-[8px];
+  @apply flex-wrap;
+}
+.design-page .result-copy b {
+  @apply text-[14px];
+  @apply leading-[1.5];
+}
+.design-page .result-copy em {
+  @apply text-[11px];
+}
+.design-page .result-copy p {
+  @apply text-[12px];
+  @apply leading-[1.7];
+  @apply [margin:6px_0px_12px];
+}
+.design-page .result-copy > button {
+  @apply flex;
+  @apply items-center;
+  @apply justify-center;
+  @apply gap-[7px];
+  @apply text-[12px];
+  @apply min-h-[36px];
+  @apply mt-[auto];
+}
+.design-page .result-copy > button:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+.design-page .result-copy > button.saved:disabled {
+  opacity: 1;
+}
+.design-page .result-copy .candidate-save-error {
+  color: rgb(161, 62, 36);
+  @apply text-[12px];
+  @apply [margin:8px_0px_0px];
+  @apply wrap-anywhere;
+}
+.design-page .design-empty-results {
+  @apply min-h-[300px];
+  @apply text-[14px];
+}
+.design-page .design-empty-results span {
+  @apply text-[13px];
+  @apply leading-[1.7];
+}
+.design-page .result-truth {
+  @apply p-[14px];
+  @apply mt-[16px];
+  @apply text-[12px];
+  @apply leading-[1.7];
+}
+.design-page .result-truth b {
+  @apply text-[13px];
+}
+.design-page .result-truth span {
+  @apply text-[12px];
+}
+.candidate-preview-trigger {
+  @apply block;
+  @apply relative;
+  @apply w-[100%];
+  @apply h-[100%];
+  @apply p-[0px];
+  @apply [border:0px];
+  background: transparent;
+  cursor: zoom-in;
+}
+.candidate-preview-trigger img {
+  @apply w-[100%];
+  @apply h-[100%];
+  @apply object-contain;
+}
+.candidate-preview-trigger:focus-visible {
+  outline: rgb(20, 95, 101) solid 3px;
+  outline-offset: -3px;
+}
+.design-page .candidate-preview-trigger .candidate-preview-hint {
+  @apply absolute;
+  @apply z-[2];
+  @apply inset-[auto_8px_8px_auto];
+  @apply w-[auto];
+  @apply h-[auto];
+  @apply [padding:5px_8px];
+  @apply text-[11px];
+  @apply leading-[1.4];
+  color: rgb(21, 94, 99);
+  background: rgba(255, 255, 255, 0.94);
+  @apply [border:1px_solid_rgb(199,_212,_213)];
+  pointer-events: none;
+}
+.candidate-preview-dialog {
+  @apply w-[min(1120px,_-32px_+_100vw)]!;
+  @apply p-[24px]!;
+}
+.candidate-preview-dialog > img {
+  @apply block;
+  @apply w-[100%];
+  @apply max-h-[72vh];
+  @apply object-contain;
+  background: rgb(237, 242, 242);
+}
+.trend-page ._tabList_1w9oj_1 {
+  @apply mb-[20px];
+  @apply gap-[4px];
+  @apply h-[56px]!;
+}
+.trend-page ._tabList_1w9oj_1 button {
+  @apply min-h-[44px];
+  @apply gap-[8px];
+  @apply text-[14px]!;
+}
+.trend-page ._tabList_1w9oj_1 svg {
+  @apply w-[18px];
+  @apply h-[18px];
+}
+.trend-page ._content_1w9oj_1 {
+  @apply grid;
+  @apply grid-cols-[260px_minmax(0px,_1fr)_280px];
+  align-items: start;
+  @apply gap-[16px];
+}
+.trend-page [role="tabpanel"][data-state="inactive"] {
+  @apply hidden;
+}
+.trend-page ._queryPanel_1w9oj_1 {
+  grid-area: 1 / 1;
+  @apply block;
+  @apply min-h-[600px];
+  @apply p-[18px];
+}
+.trend-page ._queryPanel_1w9oj_1 ._panelTitle_1w9oj_1 {
+  @apply mb-[18px];
+}
+.trend-page ._queryPanel_1w9oj_1 label {
+  @apply [margin:0px_0px_18px];
+  @apply text-[12px];
+  @apply leading-[1.6];
+  @apply gap-[7px];
+}
+.trend-page ._queryPanel_1w9oj_1 select {
+  @apply h-[40px];
+  @apply text-[13px];
+}
+.trend-page ._platforms_1w9oj_1 {
+  @apply [margin:0px_0px_18px];
+  @apply min-h-[40px];
+}
+.trend-page ._platforms_1w9oj_1 button {
+  @apply text-[13px];
+  @apply min-h-[34px];
+}
+.trend-page ._queryPanel_1w9oj_1 > button {
+  @apply w-[100%];
+  @apply min-w-[0px];
+  @apply min-h-[40px];
+  @apply text-[13px];
+}
+.trend-page ._dataNote_1w9oj_1 {
+  @apply text-[12px];
+  @apply leading-[1.65];
+  @apply mt-[14px];
+  @apply p-[10px];
+}
+.trend-page ._dataNote_1w9oj_1 svg {
+  @apply w-[15px];
+  @apply h-[15px];
+}
+.trend-page ._radarResults_1w9oj_1 {
+  grid-area: 1 / 2;
+  @apply min-h-[600px];
+  @apply p-[18px];
+}
+.trend-page ._tracePanel_1w9oj_1 {
+  grid-area: 1 / 3;
+  @apply min-h-[600px];
+  @apply p-[18px];
+}
+.trend-page ._panelTitle_1w9oj_1 {
+  @apply gap-[10px];
+  @apply pb-[14px];
+  @apply mb-[14px];
+}
+.trend-page ._panelTitle_1w9oj_1 > span {
+  @apply w-[32px];
+  @apply h-[32px];
+  @apply text-[11px];
+}
+.trend-page ._panelTitle_1w9oj_1 b {
+  @apply text-[15px];
+  @apply leading-[1.5];
+}
+.trend-page ._panelTitle_1w9oj_1 small {
+  @apply text-[12px];
+  @apply leading-[1.5];
+}
+.trend-page ._resultHead_1w9oj_1 {
+  @apply gap-[12px];
+  @apply pb-[14px];
+}
+.trend-page ._resultHead_1w9oj_1 span {
+  @apply text-[10px];
+}
+.trend-page ._resultHead_1w9oj_1 h2 {
+  @apply text-[17px];
+  @apply leading-[1.6];
+}
+.trend-page ._resultHead_1w9oj_1 > span {
+  @apply text-[12px];
+}
+.trend-page ._trendGrid_1w9oj_1 {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  @apply gap-[12px];
+  @apply mt-[16px];
+}
+.trend-page ._trendCard_1w9oj_1 {
+  @apply grid-cols-[20px_36px_minmax(0px,_1fr)_54px];
+  @apply gap-[10px];
+  @apply p-[16px];
+  @apply min-h-[190px];
+  align-content: start;
+}
+.trend-page ._rank_1w9oj_1 {
+  @apply text-[10px];
+}
+.trend-page ._trendCard_1w9oj_1 > i {
+  @apply w-[36px];
+  @apply h-[36px];
+}
+.trend-page ._trendCard_1w9oj_1 > div:nth-of-type(2) > span {
+  @apply text-[11px];
+}
+.trend-page ._trendCard_1w9oj_1 h3 {
+  @apply text-[17px];
+  @apply leading-[1.5];
+  @apply [margin:5px_0px_8px];
+}
+.trend-page ._trendCard_1w9oj_1 p {
+  @apply text-[12px];
+  @apply leading-[1.75];
+}
+.trend-page ._tags_1w9oj_1 {
+  @apply gap-[5px];
+  @apply mt-[10px];
+}
+.trend-page ._tags_1w9oj_1 em {
+  @apply text-[11px];
+  @apply [padding:4px_6px];
+}
+.trend-page ._trendCard_1w9oj_1 aside > b {
+  @apply text-[24px];
+}
+.trend-page ._trendCard_1w9oj_1 aside strong {
+  @apply text-[12px];
+}
+.trend-page ._trendCard_1w9oj_1 aside span {
+  @apply text-[10px];
+}
+.trend-page ._trendCard_1w9oj_1 aside small {
+  @apply text-[10px];
+}
+.trend-page ._sourceRow_1w9oj_1 {
+  @apply text-[12px];
+  @apply gap-[8px];
+  @apply min-h-[52px];
+}
+.trend-page ._sourceRow_1w9oj_1 b {
+  @apply text-[12px];
+}
+.trend-page ._sourceRow_1w9oj_1 em {
+  @apply text-[11px];
+}
+.trend-page ._traceSummary_1w9oj_1 {
+  @apply text-[12px];
+  @apply leading-[1.7];
+  @apply p-[12px];
+}
+.trend-page ._researchForm_1w9oj_1 {
+  @apply p-[20px];
+  @apply gap-[16px];
+}
+.trend-page ._researchForm_1w9oj_1 textarea {
+  @apply text-[14px];
+  @apply leading-[1.8];
+  @apply min-h-[120px];
+}
+.trend-page ._presets_1w9oj_1 {
+  @apply gap-[8px];
+  @apply flex-wrap;
+}
+.trend-page ._presets_1w9oj_1 button {
+  @apply text-[12px];
+  @apply min-h-[32px];
+  @apply [padding:6px_10px];
+}
+.trend-page ._researchOptions_1w9oj_1 {
+  @apply gap-[14px];
+  @apply flex-wrap;
+  @apply text-[12px];
+}
+.trend-page ._researchOptions_1w9oj_1 label {
+  @apply text-[12px];
+}
+.trend-page ._researchForm_1w9oj_1 > button {
+  @apply min-h-[40px];
+  @apply text-[14px];
+}
+.trend-page ._report_1w9oj_1 {
+  @apply p-[20px];
+  @apply min-h-[0px];
+  @apply mt-[16px];
+}
+.trend-page ._reportLead_1w9oj_1 h2 {
+  @apply text-[18px];
+}
+.trend-page ._reportLead_1w9oj_1 p {
+  @apply text-[14px];
+  @apply leading-[1.8];
+}
+.trend-page ._reportGrid_1w9oj_1 {
+  @apply grid-cols-[repeat(4,_minmax(0px,_1fr))];
+  @apply gap-[12px];
+}
+.trend-page ._reportGrid_1w9oj_1 > div {
+  @apply p-[14px];
+}
+.trend-page ._reportGrid_1w9oj_1 span {
+  @apply text-[12px];
+}
+.trend-page ._reportGrid_1w9oj_1 p {
+  @apply text-[13px];
+  @apply leading-[1.8];
+}
+.trend-page ._reportGrid_1w9oj_1 b {
+  @apply text-[13px];
+  @apply leading-[1.8];
+  @apply font-[500];
+  @apply wrap-anywhere;
+}
+.trend-page ._evidence_1w9oj_1 {
+  @apply flex-wrap;
+  @apply gap-[12px];
+  @apply [padding:12px_14px];
+}
+.trend-page ._evidence_1w9oj_1 b, .trend-page ._evidence_1w9oj_1 span {
+  @apply text-[12px];
+  @apply leading-[1.6];
+}
+.trend-page ._forecastTop_1w9oj_1, .trend-page ._translateHead_1w9oj_1 {
+  @apply p-[18px];
+  @apply gap-[18px];
+}
+.trend-page ._forecastTop_1w9oj_1 {
+  @apply grid-cols-[minmax(180px,_0.6fr)_minmax(180px,_0.6fr)_minmax(0px,_1fr)];
+}
+.trend-page ._translateHead_1w9oj_1 {
+  @apply grid-cols-[minmax(180px,_0.6fr)_minmax(0px,_1fr)_auto];
+}
+.trend-page ._forecastTop_1w9oj_1 select, .trend-page ._translateHead_1w9oj_1 select {
+  @apply h-[40px];
+  @apply text-[14px];
+}
+.trend-page ._forecastTop_1w9oj_1 span, .trend-page ._translateHead_1w9oj_1 > div:first-child > span {
+  @apply text-[12px];
+}
+.trend-page ._forecastTop_1w9oj_1 b, .trend-page ._translateHead_1w9oj_1 b {
+  @apply text-[15px];
+}
+.trend-page ._lifecycle_1w9oj_1 {
+  @apply h-[auto];
+  @apply min-h-[60px];
+  @apply pl-[18px];
+  @apply gap-[6px];
+}
+.trend-page ._lifecycle_1w9oj_1 b {
+  @apply text-[16px];
+}
+.trend-page ._metricGrid_1w9oj_1 {
+  @apply grid-cols-[repeat(4,_minmax(0px,_1fr))];
+  @apply gap-[12px];
+  @apply [margin:16px_0px];
+}
+.trend-page ._metricGrid_1w9oj_1 > div {
+  @apply min-h-[110px];
+  @apply p-[18px];
+}
+.trend-page ._metricGrid_1w9oj_1 span {
+  @apply text-[12px];
+}
+.trend-page ._metricGrid_1w9oj_1 strong {
+  @apply text-[28px];
+}
+.trend-page ._metricGrid_1w9oj_1 small {
+  @apply text-[12px];
+  @apply leading-[1.6];
+}
+.trend-page ._forecastLayout_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1.3fr)_minmax(260px,_0.7fr)];
+  @apply gap-[16px];
+}
+.trend-page ._chartPanel_1w9oj_1, .trend-page ._judgement_1w9oj_1 {
+  @apply p-[20px];
+}
+.trend-page ._chartPanel_1w9oj_1 h2, .trend-page ._judgement_1w9oj_1 h2 {
+  @apply text-[16px];
+}
+.trend-page ._chartPanel_1w9oj_1 p, .trend-page ._judgement_1w9oj_1 p {
+  @apply text-[13px];
+  @apply leading-[1.8];
+}
+.trend-page ._barChart_1w9oj_1 {
+  @apply h-[280px];
+  @apply gap-[12px];
+  @apply [padding:28px_16px_0px];
+}
+.trend-page ._barChart_1w9oj_1 > div {
+  @apply h-[100%];
+  @apply min-h-[0px];
+}
+.trend-page .trend-bar-track {
+  @apply flex;
+  @apply items-end;
+  @apply justify-center;
+  @apply w-[100%];
+  @apply h-[calc(100%_-_26px)];
+}
+.trend-page .trend-bar-track i {
+  @apply block;
+  @apply relative;
+  flex: 0 0 auto;
+}
+.trend-page ._barChart_1w9oj_1 b {
+  @apply absolute;
+  @apply bottom-[100%];
+  @apply left-[50%];
+  transform: translateX(-50%);
+  @apply mb-[5px];
+  @apply text-[12px];
+  font-style: normal;
+  @apply leading-[16px];
+  color: rgb(35, 56, 59);
+}
+.trend-page ._barChart_1w9oj_1 span {
+  @apply text-[12px];
+  @apply leading-[18px];
+  flex: 0 0 auto;
+  @apply mt-[8px];
+}
+.trend-page ._judgementLead_1w9oj_1 span {
+  @apply text-[12px];
+}
+.trend-page ._judgement_1w9oj_1 dt, .trend-page ._judgement_1w9oj_1 dd {
+  @apply text-[12px];
+  @apply leading-[1.6];
+}
+.trend-page ._translateGrid_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_0.75fr)_minmax(0px,_1.1fr)_minmax(0px,_0.8fr)];
+  @apply gap-[16px];
+  @apply mt-[16px];
+}
+.trend-page ._paletteCard_1w9oj_1, .trend-page ._specCard_1w9oj_1, .trend-page ._matches_1w9oj_1 {
+  @apply p-[20px];
+  @apply min-h-[0px];
+}
+.trend-page ._paletteCard_1w9oj_1 > span, .trend-page ._matches_1w9oj_1 > span {
+  @apply text-[12px];
+}
+.trend-page ._paletteCard_1w9oj_1 em {
+  @apply text-[11px];
+}
+.trend-page ._specCard_1w9oj_1 > div {
+  @apply grid-cols-[88px_minmax(0px,_1fr)];
+  @apply gap-[10px];
+  @apply min-h-[54px];
+}
+.trend-page ._specCard_1w9oj_1 span {
+  @apply text-[12px];
+}
+.trend-page ._specCard_1w9oj_1 b {
+  @apply text-[13px];
+  @apply leading-[1.7];
+}
+.trend-page ._matches_1w9oj_1 > button {
+  @apply text-[13px];
+  @apply min-h-[54px];
+  @apply grid-cols-[24px_minmax(0px,_1fr)_16px];
+}
+.trend-page ._matches_1w9oj_1 > button span {
+  @apply text-[12px];
+}
+.trend-page ._matches_1w9oj_1 > button b {
+  @apply text-[13px];
+}
+.trend-page ._translateHead_1w9oj_1 > button {
+  @apply min-h-[40px];
+  @apply text-[13px];
+}
+.trend-page ._translateTitle_1w9oj_1 span {
+  @apply text-[11px];
+}
+.trend-page ._translateTitle_1w9oj_1 h2 {
+  @apply text-[16px];
+  @apply leading-[1.6];
+}
+.trend-page ._taskBrief_1w9oj_1 {
+  @apply p-[20px];
+  @apply mt-[16px];
+}
+.trend-page ._taskBrief_1w9oj_1 p {
+  @apply text-[14px];
+  @apply leading-[1.9];
+}
+.trend-page ._taskBrief_1w9oj_1 > div:last-child {
+  @apply flex-wrap;
+  @apply gap-[8px];
+}
+.trend-page ._taskBrief_1w9oj_1 > div:last-child span {
+  @apply text-[11px];
+}
+@media (max-width: 1700px) {
+.design-page .design-workspace {
+  @apply grid-cols-[260px_280px_minmax(0px,_1fr)];
+}
+.design-page .result-cards {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.design-page .result-cards article {
+  @apply grid;
+  @apply grid-cols-[minmax(140px,_0.8fr)_minmax(0px,_1.2fr)];
+}
+.design-page .result-image {
+  @apply h-[100%];
+  @apply min-h-[180px];
+  aspect-ratio: auto;
+}
+.trend-page ._content_1w9oj_1 {
+  @apply grid-cols-[240px_minmax(0px,_1fr)_250px];
+}
+.trend-page ._trendGrid_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+}
+@media (max-width: 1200px) {
+.design-page, .trend-page {
+  @apply p-[24px];
+}
+.design-page .design-mode-grid {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.design-page .design-workspace {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  @apply grid-rows-[auto_auto];
+}
+.design-page .design-source {
+  grid-area: 1 / 1;
+}
+.design-page .design-config {
+  grid-area: 1 / 2;
+}
+.design-page .design-results {
+  grid-area: 2 / 1 / auto / -1;
+}
+.design-page .design-source, .design-page .design-config, .design-page .design-results {
+  @apply min-h-[0px];
+}
+.design-page .module-title-row, .trend-page ._header_1w9oj_1 {
+  align-items: start;
+  @apply flex-wrap;
+}
+.trend-page ._content_1w9oj_1 {
+  @apply grid-cols-[240px_minmax(0px,_1fr)];
+}
+.trend-page ._tracePanel_1w9oj_1 {
+  grid-area: 2 / 1 / auto / -1;
+  @apply min-h-[0px];
+}
+.trend-page ._queryPanel_1w9oj_1, .trend-page ._radarResults_1w9oj_1 {
+  @apply min-h-[0px];
+}
+.trend-page ._reportGrid_1w9oj_1 {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.trend-page ._forecastLayout_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.trend-page ._translateGrid_1w9oj_1 {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.trend-page ._matches_1w9oj_1 {
+  grid-column: 1 / -1;
+}
+}
+@media (max-width: 900px) {
+.design-page .design-mode-grid {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.design-page .result-cards {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.trend-page ._forecastTop_1w9oj_1, .trend-page ._translateHead_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.trend-page ._lifecycle_1w9oj_1 {
+  @apply p-[0px];
+  @apply [border-left:0px];
+}
+.trend-page ._metricGrid_1w9oj_1 {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+}
+.trend-page ._tabList_1w9oj_1 {
+  @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
+  @apply h-[auto]!;
+}
+.trend-page ._researchForm_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.trend-page ._presets_1w9oj_1, .trend-page ._researchOptions_1w9oj_1 {
+  grid-column: 1;
+}
+.trend-page ._content_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.trend-page ._queryPanel_1w9oj_1 {
+  grid-area: 1 / 1;
+}
+.trend-page ._radarResults_1w9oj_1 {
+  grid-area: 2 / 1;
+}
+.trend-page ._tracePanel_1w9oj_1 {
+  grid-area: 3 / 1;
+}
+}
+@media (max-width: 700px) {
+.design-page, .trend-page {
+  @apply [padding:20px_14px];
+}
+.design-page .module-title-row, .trend-page ._header_1w9oj_1 {
+  @apply flex;
+  @apply flex-col;
+  @apply gap-[14px];
+}
+.design-page .module-title-row h1, .trend-page ._header_1w9oj_1 h1 {
+  @apply text-[24px];
+}
+.design-page .truth-chip, .trend-page ._demoState_1w9oj_1 {
+  @apply mt-[0px];
+  @apply max-w-[100%];
+}
+.design-page .design-workspace {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.design-page .design-source {
+  grid-area: 1 / 1;
+}
+.design-page .design-config {
+  grid-area: 2 / 1;
+}
+.design-page .design-results {
+  grid-area: 3 / 1;
+}
+.design-page .design-mode-grid button {
+  @apply p-[12px];
+  @apply gap-[8px];
+}
+.design-page .design-mode-grid b {
+  @apply text-[13px];
+}
+.design-page .design-mode-grid small {
+  @apply text-[11px];
+}
+.design-page .result-cards {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.design-page .result-cards article {
+  @apply flex;
+}
+.design-page .result-image {
+  @apply h-[auto];
+  @apply min-h-[0px];
+  aspect-ratio: 4 / 3;
+}
+.trend-page ._trendGrid_1w9oj_1, .trend-page ._translateGrid_1w9oj_1, .trend-page ._reportGrid_1w9oj_1 {
+  @apply grid-cols-[minmax(0px,_1fr)];
+}
+.trend-page ._queryPanel_1w9oj_1 {
+  @apply p-[16px];
+}
+.trend-page ._trendCard_1w9oj_1 {
+  @apply grid-cols-[18px_32px_minmax(0px,_1fr)];
+  @apply p-[12px];
+  @apply min-h-[0px];
+}
+.trend-page ._trendCard_1w9oj_1 aside {
+  grid-column: 3;
+  @apply flex-row;
+  @apply items-center;
+  @apply gap-[8px];
+}
+.trend-page ._trendCard_1w9oj_1 aside strong {
+  @apply text-[12px];
+}
+.trend-page ._matches_1w9oj_1 {
+  grid-column: 1;
+}
+.trend-page ._barChart_1w9oj_1 {
+  @apply gap-[7px];
+  @apply [padding:16px_5px_0px];
+}
+.trend-page ._barChart_1w9oj_1 span, .trend-page ._barChart_1w9oj_1 b {
+  @apply text-[10px];
+}
+.candidate-preview-dialog {
+  @apply p-[18px]!;
+}
+}

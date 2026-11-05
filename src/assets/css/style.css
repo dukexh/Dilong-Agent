@@ -1,0 +1,17 @@
+/* Template Tailwind entry; Dilong's established palette and geometry are intentional. */
+@import "tailwindcss";
+@import "../../../node_modules/preline/variants.css";
+@import "./components/business.css";
+@import "./components/production.css";
+@import "./components/dialogs.css";
+@import "./components/shell.css";
+@import "./components/library.css";
+@import "./workspace.css";
+@plugin "@tailwindcss/forms" { strategy: "class"; }
+@source "../../**/*.{vue,ts,tsx}";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@theme {
+  --color-primary: #145f65;
+  --font-sans: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+  --font-mono: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+}
