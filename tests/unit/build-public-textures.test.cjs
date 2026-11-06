@@ -1,6 +1,7 @@
 const test = require('node:test'), assert = require('node:assert/strict')
 const fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os')
-const { tsImport } = require('tsx/esm/api')
+// The ESM entry avoids tsx's incorrect CommonJS async-loader path on Node 22.
+const tsImport = (...args) => import('tsx/esm/api').then(api => api.tsImport(...args))
 const tool = tsImport('../../scripts/build-public-textures.ts', __filename)
 const row = (id, patch = {}) => ({ id, name: id, category: 'wood', tags: ['wood'], source: 'fixture', source_id: id, imageUrl: 'image.png', thumbnail: 'thumb.png', width: 32, height: 24, source_url: 'https://example.invalid/' + id, license: 'CC0', license_url: 'https://example.invalid/license', ...patch })
 async function temporary(t) {

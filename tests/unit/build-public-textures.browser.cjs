@@ -1,6 +1,7 @@
 /** Explicit integration check: node tests/unit/build-public-textures.browser.cjs. Uses only a temporary directory/context. */
 const assert = require('node:assert/strict'), fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os'), vm = require('node:vm'), zlib = require('node:zlib')
-const { tsImport } = require('tsx/esm/api')
+// The ESM entry avoids tsx's incorrect CommonJS async-loader path on Node 22.
+const tsImport = (...args) => import('tsx/esm/api').then(api => api.tsImport(...args))
 const { chromium } = require('playwright')
 function crc(bytes) { let value = -1; for (const byte of bytes) { value ^= byte; for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ (0xedb88320 & -(value & 1)) }; return (value ^ -1) >>> 0 }
 function png(pixel, width = 32, height = 24) {
