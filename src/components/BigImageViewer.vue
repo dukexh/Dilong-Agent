@@ -4,7 +4,7 @@ import { Download, Maximize2, Minus, Plus, X } from 'lucide-vue-next'
 import { DesignImages } from '../core/design-images'
 
 defineOptions({ inheritAttrs: false })
-const props = withDefaults(defineProps<{ src: string; previewSrc?: string; alt: string; eager?: boolean }>(), { previewSrc: '', eager: false })
+const props = withDefaults(defineProps<{ src: string; previewSrc?: string; alt: string; eager?: boolean; buttonOnly?: boolean; description?: string; resetKey?: number; downloadLabel?: string }>(), { previewSrc: '', eager: false, buttonOnly: false, description: '', downloadLabel: '下载完整图片' })
 const trigger = ref<HTMLButtonElement | null>(null)
 const dialog = ref<HTMLDialogElement | null>(null)
 const viewport = ref<HTMLDivElement | null>(null)
@@ -23,11 +23,12 @@ watch(() => [props.src, props.previewSrc], async () => {
   const revision = ++thumbnailRevision
   thumbnail.value = ''
   if (opened.value) close()
-  if (props.src && !props.previewSrc) {
+  if (props.src && !props.previewSrc && !props.buttonOnly) {
     try { const url = await DesignImages.thumbnail(props.src); if (revision === thumbnailRevision) thumbnail.value = url }
     catch { /* The original remains available when thumbnail creation is unavailable. */ }
   }
 }, { immediate: true })
+watch(() => props.resetKey, () => { if(opened.value)close() })
 async function open() {
   if (!props.src) return
   zoom.value = null; size.value = null; error.value = ''; opened.value = true
@@ -84,19 +85,19 @@ onBeforeUnmount(() => { observer?.disconnect(); thumbnailRevision++; dialog.valu
 </script>
 
 <template>
-  <button v-bind="$attrs" ref="trigger" type="button" class="big-image-trigger" :disabled="!src" :aria-label="`放大查看${alt}`" title="点击查看完整分辨率" @click="open">
-    <img v-if="src" :src="previewSrc || thumbnail || src" :alt="alt" :loading="eager ? 'eager' : 'lazy'" />
+  <button v-bind="$attrs" ref="trigger" type="button" class="big-image-trigger" :class="{'button-only':buttonOnly}" :disabled="!src" :aria-label="`放大查看${alt}`" :title="description || '点击查看完整分辨率'" @click="open">
+    <template v-if="buttonOnly"><Maximize2 :size="13"/>放大查看</template><img v-else-if="src" :src="previewSrc || thumbnail || src" :alt="alt" :loading="eager ? 'eager' : 'lazy'" />
     <span v-else class="image-unavailable">图片不可用</span>
-    <span v-if="src" class="image-hint"><Maximize2 :size="13" />放大查看</span>
+    <span v-if="src&&!buttonOnly" class="image-hint"><Maximize2 :size="13" />放大查看</span>
   </button>
   <Teleport to="body">
     <dialog v-if="opened" ref="dialog" class="big-image-dialog" :aria-label="alt" @cancel.prevent="close" @click="event => { if (event.target === event.currentTarget) close() }">
-      <header><div><strong>{{ alt }}</strong><p>完整分辨率查看；支持缩放、拖动或滚动，按 Esc 关闭。</p></div><button type="button" aria-label="关闭大图" @click="close"><X :size="20" /></button></header>
+      <header><div><strong>{{ alt }}</strong><p>{{description || '完整分辨率查看；支持缩放、拖动或滚动，按 Esc 关闭。'}}</p></div><button type="button" aria-label="关闭大图" @click="close"><X :size="20" /></button></header>
       <div class="image-tools">
         <button type="button" @click="setZoom(null)">适应窗口</button><button type="button" @click="setZoom(1)">100%</button>
         <button type="button" aria-label="缩小图片" @click="setZoom(scale * .8)"><Minus :size="16" /></button><button type="button" aria-label="放大图片" @click="setZoom(scale * 1.25)"><Plus :size="16" /></button>
         <span aria-live="polite">{{ size ? `${size.width} × ${size.height} · ${Math.round(scale * 100)}%` : '正在加载完整图片' }}</span>
-        <a :href="src" :download="`${alt || '设计结果'}.png`" @click="download"><Download :size="15" />下载完整图片</a>
+        <a :href="src" :download="`${alt || '设计结果'}.png`" @click="download"><Download :size="15" />{{downloadLabel}}</a>
       </div>
       <p v-if="error" class="image-error" role="alert">{{ error }}</p>
       <div ref="viewport" class="image-viewport" tabindex="0" aria-label="完整图片，可滚动查看" @pointerdown="startDrag" @pointermove="moveDrag" @pointerup="drag = null" @pointercancel="drag = null" @lostpointercapture="drag = null">
@@ -262,4 +263,5 @@ header {
 }}
 /* Long names remain readable within the existing layout. */
 header { @apply gap-[12px]; } header>div { @apply min-w-0; flex: 1; } header strong { @apply block wrap-anywhere; } header>button { flex: none; }
+.button-only{@apply w-auto h-auto min-h-[32px] px-[10px] py-[6px] gap-[6px] border border-[#bdcdce] bg-white text-[#145f65] text-[11px];}
 </style>

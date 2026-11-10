@@ -11,7 +11,7 @@ const packageOpen = computed(() => { void store.tick; return S.packageOpen })
 const editOpen = computed(() => { void store.tick; return !!S.editingAssetId })
 const statsOpen = computed(() => { void store.tick; return !!S.statsView })
 const statsSession = computed(() => { void store.tick; return S.statsSession })
-const statsTitle = computed(() => ({ tasks:'设计任务', pending:'待评价方案', ink:'配墨操作记录' } as Record<string,string>)[store.statsView || ''] || '记录明细')
+const statsTitle = computed(() => ({ tasks:'设计任务', pending:'方案评价', ink:'配墨操作记录' } as Record<string,string>)[store.statsView || ''] || '记录明细')
 function closePackage() { if (!packagePanel.value?.busy) { S.packageOpen = false; S.status('package-dialog','ready') } }
 function closeEditor() { if (!editor.value?.busy) S.closeEdit() }
 function closeStats() { if (!historyPanel.value?.cleaning) S.closeStats(S.statsSession) }

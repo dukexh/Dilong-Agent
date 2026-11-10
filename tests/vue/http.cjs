@@ -2,13 +2,7 @@
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict'), fs = require('node:fs/promises'), path = require('node:path')
 const root = path.resolve(__dirname,'../..'), dist = path.join(root,'dist')
-async function records(page, store) {
-  return page.evaluate(async store => {
-    const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('dilong-workflows',2);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})
-    try{return await new Promise((resolve,reject)=>{const r=db.transaction(store).objectStore(store).getAll();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}finally{db.close()}
-  },store)
-}
-async function until(page,store,predicate) { for(let i=0;i<100;i++){const rows=await records(page,store);if(predicate(rows))return rows;await page.waitForTimeout(100)}throw Error('Records not ready: '+store) }
+const { records, untilRecords: until } = require('../helpers/database.cjs')
 async function serve(context) {
   await context.route('**/*',async route=>{
     const url=new URL(route.request().url()), pathname=decodeURIComponent(url.pathname)
@@ -29,9 +23,10 @@ async function serve(context) {
    assert.equal(runtime.secure,scenario.secure);assert.equal(runtime.uuid,scenario.secure?'function':'undefined');assert(runtime.unchanged)
    if(!scenario.secure){
     assert.equal(runtime.locks,'undefined');await page.locator('.text-navigation a[href="/design"]').click();await page.getByRole('button',{name:'开始相似检索',exact:true}).click();let tasks=await until(page,'tasks',rows=>rows.length===1&&rows[0].status==='已处理');const taskId=tasks[0].id
-    await page.getByRole('button',{name:'保存候选方案',exact:true}).first().click();await page.getByText('已将候选内容保存到样例库中',{exact:true}).first().waitFor();const assets=await until(page,'assets',rows=>rows.length===1)
+    await page.getByRole('button',{name:'保存候选方案',exact:true}).first().click();await page.getByText('已保存候选，可在方案评价中查看；采用后进入样例库',{exact:true}).first().waitFor();const assets=await until(page,'assets',rows=>rows.length===1)
     const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
     tasks=await until(page,'tasks',rows=>rows[0].resultIds.length===1);for(const key of ['id','ownerId','runKey'])assert(uuid.test(tasks[0][key]));assert(uuid.test(assets[0].id.slice(6)))
+    await page.getByLabel('候选评价',{exact:true}).selectOption('accepted');await page.getByRole('button',{name:'保存评价',exact:true}).click();await until(page,'assets',rows=>rows[0]?.candidateReview?.status==='accepted');
     await page.locator('.text-navigation a[href="/samples"]').click();await page.getByRole('button',{name:/^我的样例/}).click();await page.locator('.texture-image').first().click();await page.getByRole('button',{name:'查看完整样例档案',exact:false}).click();await page.getByRole('dialog').getByRole('button',{name:'用于配墨',exact:true}).click();const ink=await until(page,'inkRuns',rows=>rows.length===1);assert(ink[0].snapshot.imageUrl.startsWith('data:image/'))
     await page.reload({waitUntil:'networkidle'});assert.equal((await records(page,'assets'))[0].id,assets[0].id);assert.equal((await records(page,'tasks'))[0].id,taskId);assert.equal((await records(page,'inkRuns'))[0].id,ink[0].id)
     await page.evaluate(async id=>{const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('dilong-workflows',2);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});await new Promise((resolve,reject)=>{const tx=db.transaction('tasks','readwrite'),store=tx.objectStore('tasks'),r=store.get(id);r.onsuccess=()=>store.put({...r.result,status:'处理中'});tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()},taskId)

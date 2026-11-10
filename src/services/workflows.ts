@@ -1,3 +1,4 @@
+import { normalize, recipe } from '../core/ink-recipe'
 /** Local workflow service. IndexedDB names and record schemas remain compatible with v0.3. */
 import { analyzeInk, analyzeSummary } from '../core/color-analysis'
 import { DesignImages } from '../core/design-images'
@@ -18,7 +19,7 @@ type TransactionRecords = Partial<Record<StoreName, DatabaseRecord[]>>
 interface ConflictError extends Error { code: 'DATA_CONFLICT' }
 const storeNames: StoreName[] = ['assets', 'tasks', 'inkRuns']
 const candidateSources = ['相似检索', 'completion', 'twin', '示例推荐']
-const savedMessage = '已将候选内容保存到样例库中'
+const savedMessage = '已保存候选，可在方案评价中查看；采用后进入样例库'
 const encoder = new TextEncoder(), decoder = new TextDecoder()
 const candidateSaves = new Map<string, Promise<WorkflowAsset>>()
 const unsavedInkRuns = new Map<string, InkRun>()
@@ -45,7 +46,7 @@ export const S = {
   navigate: (_page: PageKey): void | Promise<unknown> => {},
   analyze: analyzeSummary, analyzeFull: analyzeInk,
   status, subscribe, createId, startDesignRun, checkDesignCancelled, finishDesignRun,
-  isCandidate, stats, showStats, closeStats, all, deleteAsset, confirmDelete, startEdit, closeEdit,
+  isCandidate, isLibraryAsset, formalSamples, stats, showStats, closeStats, all, deleteAsset, confirmDelete, startEdit, closeEdit,
   updateAsset, librarySamples, showImported, save, updateTask, reviewCandidate, captureInkImage,
   canRestoreInkRun, recordInkRun, updateInkRunSettings, openInkRun, deleteHistory, beginDesignTask,
   createTask, openTask, open, recommend, layerDifference, zip, unzip, exportPackage, previewPackage,
@@ -99,11 +100,17 @@ function isCandidate(asset: WorkflowAsset): boolean {
 function resultStatus(resultIds: string[], assets = S.assets): DesignTaskStatus {
   return resultIds.some(key => assets.some(asset => asset.id === key && candidateStatus(asset) === 'pending')) ? '已保存候选' : '已评价'
 }
+// Evaluation may change completed-task summaries, never execution/retry states.
+function evaluatedTaskStatus(task: DesignTask, resultIds: string[], assets = S.assets): DesignTaskStatus {
+  return ['已处理', '已保存候选', '已评价'].includes(task.status) ? resultStatus(resultIds, assets) : task.status
+}
 function stats(): { assets: number; designTasks: number; pendingCandidates: number; inkRuns: number } {
-  return { assets: S.all().length, designTasks: S.tasks.length, pendingCandidates: S.assets.filter(asset => S.isCandidate(asset) && candidateStatus(asset) === 'pending').length, inkRuns: S.inkRuns.length }
+  return { assets: S.formalSamples().length, designTasks: S.tasks.length, pendingCandidates: S.assets.filter(asset => S.isCandidate(asset) && candidateStatus(asset) === 'pending').length, inkRuns: S.inkRuns.length }
 }
 function showStats(kind: string, trigger: HTMLElement | null = null): void { S.statsSession++; S.statsView = kind; S.statsTrigger = trigger; emit() }
 function closeStats(session?: number): void { if (session !== undefined && session !== S.statsSession) return; S.statsView = null; emit() }
+function isLibraryAsset(asset: WorkflowAsset): boolean { return !S.isCandidate(asset) || candidateStatus(asset) === 'accepted' }
+function formalSamples(): WorkflowAsset[] { return S.all().filter(S.isLibraryAsset) }
 function all(): WorkflowAsset[] { return [...S.base, ...S.assets] }
 
 /** Call once at application startup. Repeated calls may replace the public catalog without reopening storage. */
@@ -269,7 +276,7 @@ function updateAsset(assetId: string, patch: Partial<SampleMetadata>, baseline?:
 }
 function librarySamples(samples: WorkflowAsset[]): WorkflowAsset[] {
   const mine = new Set(S.assets.map(asset => asset.id))
-  return [...samples].sort((a, b) => Number(mine.has(b.id)) - Number(mine.has(a.id)) || (mine.has(a.id) && mine.has(b.id) ? String(b.importedAt || b.createdAt || b.date || '').localeCompare(String(a.importedAt || a.createdAt || a.date || '')) : 0))
+  return samples.filter(S.isLibraryAsset).sort((a, b) => Number(mine.has(b.id)) - Number(mine.has(a.id)) || (mine.has(a.id) && mine.has(b.id) ? String(b.importedAt || b.createdAt || b.date || '').localeCompare(String(a.importedAt || a.createdAt || a.date || '')) : 0))
 }
 async function showImported(ids: string[]): Promise<void> {
   S.packageOpen = false; emit(); await S.navigate('samples')
@@ -314,15 +321,41 @@ async function analyzedRecord(input: Partial<WorkflowAsset> & { id: string; name
     },
   }
 }
+/** Deduplicate and link in one IndexedDB transaction, shared by all tabs (including HTTP without Web Locks). */
 function persistCandidate(sample: WorkflowAsset, taskId: string | null | undefined, isNew: boolean): Promise<WorkflowAsset> {
   return withDataWrite(async () => {
-    const task = S.tasks.find(item => item.id === taskId), resultIds = task ? [...new Set([...(task.resultIds || []), sample.id])] : []
-    const assets = isNew ? [...S.assets, sample] : S.assets
-    const nextTask: DesignTask | null = task ? { ...task, resultIds, status: resultStatus(resultIds, assets), updatedAt: new Date().toISOString() } : null
-    await writeLinked({ assets: isNew ? [sample] : [], tasks: nextTask ? [nextTask] : [] }, isNew ? {} : { assets: [sample] })
-    if (isNew) S.assets.push(sample)
-    if (nextTask) S.tasks = S.tasks.map(item => item.id === taskId ? nextTask : item)
-    emit(); return sample
+    const database = await db()
+    let stored!: WorkflowAsset, linked: DesignTask | undefined
+    await new Promise<void>((resolve, reject) => {
+      const tx = database.transaction(['assets', 'tasks'], 'readwrite'), assets = tx.objectStore('assets')
+      let reason: unknown
+      tx.oncomplete = () => resolve()
+      tx.onerror = tx.onabort = () => reject(reason || tx.error || Error('候选保存事务取消'))
+      const request = assets.getAll()
+      request.onsuccess = () => {
+        try {
+          const rows = request.result as WorkflowAsset[]
+          const existing = rows.find(row => row.id === sample.id) || (sample.sourceKey ? rows.find(row => row.sourceKey === sample.sourceKey) : undefined)
+          if (!existing && !isNew) throw conflict(true)
+          stored = existing || { ...sample, _revision: 1 }
+          if (!existing) { assets.put(stored); rows.push(stored) }
+          if (!taskId) return
+          const tasks = tx.objectStore('tasks'), taskRequest = tasks.get(taskId)
+          taskRequest.onsuccess = () => {
+            try {
+              const task = taskRequest.result as DesignTask | undefined
+              if (!task || (task.resultIds || []).includes(stored.id)) return
+              const resultIds = [...(task.resultIds || []), stored.id]
+              linked = { ...task, resultIds, status: evaluatedTaskStatus(task, resultIds, rows), updatedAt: new Date().toISOString(), _revision: revision(task) + 1 }
+              tasks.put(linked)
+            } catch (error) { reason = error; tx.abort() }
+          }
+        } catch (error) { reason = error; tx.abort() }
+      }
+    })
+    S.assets = S.assets.some(row => row.id === stored.id) ? S.assets.map(row => row.id === stored.id ? stored : row) : [...S.assets, stored]
+    if (linked) S.tasks = S.tasks.some(row => row.id === linked!.id) ? S.tasks.map(row => row.id === linked!.id ? linked! : row) : [...S.tasks, linked]
+    notify(); emit(); return stored
   })
 }
 function save(src: string | HTMLImageElement, name: string, source: string, parameters: DesignParameters = {}, sourceKey?: string, taskId: string | null | undefined = S.activeTask): Promise<WorkflowAsset> {
@@ -330,7 +363,7 @@ function save(src: string | HTMLImageElement, name: string, source: string, para
   if (existing) return existing.then(async sample => {
     if (!taskId || S.tasks.find(task => task.id === taskId)?.resultIds?.includes(sample.id)) return sample
     S.status('save', 'busy')
-    try { await persistCandidate(sample, taskId, false); S.status('save', 'ready', savedMessage); return sample }
+    try { const stored = await persistCandidate(sample, taskId, false); S.status('save', 'ready', savedMessage); return stored }
     catch (error) { S.status('save', 'error', '关联失败：' + errorMessage(error)); throw error }
   })
   const pending = (async (): Promise<WorkflowAsset> => {
@@ -338,13 +371,13 @@ function save(src: string | HTMLImageElement, name: string, source: string, para
     try {
       await S.ready
       const old = S.assets.find(asset => sourceKey && asset.sourceKey === sourceKey)
-      if (old) { await persistCandidate(old, taskId, false); S.status('save', 'ready', savedMessage); return old }
+      if (old) { const stored = await persistCandidate(old, taskId, false); S.status('save', 'ready', savedMessage); return stored }
       const url = await dataURL(src)
       const sample = await analyzedRecord({ id: 'LOCAL-' + createId(), schemaVersion: 1, name, source, sourceKey,
         wood: parameters.wood || '自建样例', style: parameters.style || '本地设计', tone: parameters.tone || '自定义',
         customer: '未填写', orderNo: '未填写', status: '本地保存', recordKind: 'design-candidate', candidateReview: { status: 'pending' }, parameters, createdAt: new Date().toISOString(),
       }, url)
-      await persistCandidate(sample, taskId, true); S.status('save', 'ready', savedMessage); return sample
+      const stored = await persistCandidate(sample, taskId, true); S.status('save', 'ready', savedMessage); return stored
     } catch (error) { S.status('save', 'error', '保存失败：' + errorMessage(error)); throw error }
   })()
   if (sourceKey) candidateSaves.set(sourceKey, pending)
@@ -358,16 +391,17 @@ function updateTask(taskId: string, patch: Partial<DesignTask>): Promise<void> {
     await write('tasks', [next]); S.tasks = S.tasks.map(task => task.id === taskId ? next : task); emit()
   })
 }
-function reviewCandidate(assetId: string, reviewStatus: CandidateStatus): Promise<WorkflowAsset> {
+function reviewCandidate(assetId: string, reviewStatus: CandidateStatus, note?: string, expected?: WorkflowAsset): Promise<WorkflowAsset> {
   return withDataWrite(async () => {
     if (!['pending', 'accepted', 'adjust', 'rejected'].includes(reviewStatus)) throw Error('请选择有效的评价状态')
     const old = S.assets.find(asset => asset.id === assetId)
     if (!old || !S.isCandidate(old)) throw Error('只能评价自己保存的设计候选')
+    if (expected && (expected.id !== assetId || revision(expected) !== revision(old))) throw conflict(false)
     S.status('review', 'busy')
     try {
-      const now = new Date().toISOString(), next: WorkflowAsset = { ...old, recordKind: 'design-candidate', candidateReview: { status: reviewStatus, updatedAt: now }, updatedAt: now }
+      const now = new Date().toISOString(), next: WorkflowAsset = { ...old, recordKind: 'design-candidate', candidateReview: { status: reviewStatus, note: note === undefined ? old.candidateReview?.note : note.trim().slice(0, 2000), updatedAt: now }, updatedAt: now }
       const assets = S.assets.map(asset => asset.id === assetId ? next : asset)
-      const tasks: DesignTask[] = S.tasks.filter(task => (task.resultIds || []).includes(assetId)).map(task => ({ ...task, status: task.status === '源样例已删除' ? task.status : resultStatus(task.resultIds, assets), updatedAt: now }))
+      const tasks: DesignTask[] = S.tasks.filter(task => (task.resultIds || []).includes(assetId) && evaluatedTaskStatus(task, task.resultIds, assets) !== task.status).map(task => ({ ...task, status: evaluatedTaskStatus(task, task.resultIds, assets), updatedAt: now }))
       await writeLinked({ assets: [next], tasks }); S.assets = assets; S.tasks = S.tasks.map(task => tasks.find(item => item.id === task.id) || task)
       S.status('review', 'ready'); dispatchAsset('dilong-asset-updated', next); return next
     } catch (error) { S.status('review', 'error', '评价保存失败：' + errorMessage(error)); throw error }
@@ -405,7 +439,7 @@ function updateInkRunSettings(runId: string, settings: InkSettings): Promise<voi
     const old = unsavedInkRuns.get(runId) || S.inkRuns.find(run => run.id === runId)
     if (!S.canRestoreInkRun(old)) return
     if (!unsavedInkRuns.has(runId) && JSON.stringify(old.snapshot.settings) === JSON.stringify(settings)) return
-    const next: InkRun = { ...old, updatedAt: new Date().toISOString(), difference: S.layerDifference(old.snapshot.renderModel, settings.enabled), snapshot: { ...old.snapshot, settings: structuredClone(settings) } }
+    const next: InkRun = { ...old, updatedAt: new Date().toISOString(), difference: S.layerDifference(old.snapshot.renderModel, settings.enabled), snapshot: { ...old.snapshot, settings: structuredClone(settings), layers: normalize(old.snapshot.settings?.selectedInks).join() === normalize(settings.selectedInks).join() ? old.snapshot.layers : old.snapshot.layers.map(layer => ({ ...layer, recipe: recipe(layer.rgb, settings.selectedInks) })) } }
     await persistInkRun(next)
   })
 }
@@ -464,7 +498,7 @@ async function beginDesignTask(request: BeginDesignTaskRequest): Promise<DesignT
   return withDataWrite(async () => {
     const previous = S.tasks.find(task => task.id === request.taskId), reuse = previous && ['待处理', '执行失败', '已中断', '状态待确认', '已取消'].includes(previous.status), now = new Date().toISOString()
     const next: DesignTask = { ...(reuse ? previous : {}), schemaVersion: 2, id: reuse ? previous.id : createId(), source: reuse ? previous.source : '设计智能体', sourceId: reuse ? previous.sourceId : 'design-' + request.runKey,
-      sampleId: input.kind === 'library' ? input.sampleId : null, title: reuse ? previous.title : input.name + ' · ' + S.designModeLabels[request.mode], mode: request.mode, input, parameters: request.parameters,
+      sampleId: input.kind === 'library' ? input.sampleId : null, title: reuse && previous.source !== '设计智能体' ? previous.title : input.name + ' · ' + S.designModeLabels[request.mode], mode: request.mode, input, parameters: request.parameters,
       conditions: describeConditions(request.mode, request.parameters), status: '处理中', resultIds: reuse ? (previous.resultIds || []) : [], attempts: (reuse ? previous.attempts || 0 : 0) + 1,
       createdAt: reuse ? previous.createdAt : now, updatedAt: now, runKey: request.runKey, error: '', ownerId: taskOwner,
     }
@@ -499,11 +533,11 @@ async function open(page: PageKey, sample: WorkflowAsset, task?: DesignTask): Pr
   await S.navigate(page)
   requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('dilong-open', { detail: { page, sample, task } }))))
 }
-function recommend(query: string, count: number, samples = S.all()): WorkflowAsset[] {
+function recommend(query: string, count: number, samples = S.formalSamples()): WorkflowAsset[] {
   const groups = [['橡木', '橡木'], ['胡桃', '胡桃'], ['木纹', '木'], ['石纹', '石'], ['大理石', '石'], ['织物', '织物'], ['皮革', '皮革'], ['浅色', '浅'], ['浅灰', '灰'], ['黑色', '黑'], ['暖灰', '灰'], ['灰色', '灰'], ['自然', '自然'], ['现代', '现代'], ['深色', '深'], ['米色', '米'], ['红棕', '棕']]
   const terms = [...new Set(groups.filter(([term]) => query.includes(term)).map(([, term]) => term))]
   if (!terms.length) return []
-  return samples.filter(asset => terms.every(term => `${asset.name} ${asset.wood} ${asset.style} ${asset.tone}`.includes(term))).slice(0, count)
+  return samples.filter(S.isLibraryAsset).filter(asset => terms.every(term => `${asset.name} ${asset.wood} ${asset.style} ${asset.tone}`.includes(term))).slice(0, count)
 }
 function layerDifference(model: InkRenderModel | null | undefined, enabled: boolean[]): number {
   if (!model?.original) return 0
@@ -625,7 +659,7 @@ function emptyTrend(base: TrendRecord): TrendRecord {
   return { ...base, id: 'empty', name: '暂无匹配资料', stage: '无数据', heat: 0, growth: 0, confidence: 0, saturation: 0, signals: [], sources: [], matches: [], palette: [], material: '—', texture: '—', layers: '—', forecast: '请调整筛选条件' }
 }
 function matchOriginal(record: TrendRecord): WorkflowAsset[] {
-  const assets = S.all(), exact = (record.matches || []).map(name => assets.find(asset => asset.name === name)).filter((asset): asset is WorkflowAsset => !!asset)
+  const assets = S.formalSamples(), exact = (record.matches || []).map(name => assets.find(asset => asset.name === name)).filter((asset): asset is WorkflowAsset => !!asset)
   if (exact.length) return exact
   return assets.filter(asset => record.material?.split(' / ').some(material => asset.wood.includes(material) || asset.name.includes(material))).slice(0, 3)
 }

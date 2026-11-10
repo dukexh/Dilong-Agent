@@ -1,4 +1,4 @@
-import { Home, Database, Sparkles, FlaskConical, Images, ChartColumn } from 'lucide-vue-next'
+import { Home, Database, Sparkles, FlaskConical, Images, Palette, ChartColumn } from 'lucide-vue-next'
 import type { WorkspaceSidebarItem } from '../types/sidebar'
 export const sidebarItems: WorkspaceSidebarItem[] = [
   { to: '/', title: '平台首页', subtitle: '任务与资产总览', icon: Home },
@@ -6,5 +6,6 @@ export const sidebarItems: WorkspaceSidebarItem[] = [
   { to: '/design', title: '设计智能体', subtitle: '比对、补全与生成', icon: Sparkles },
   { to: '/ink', title: '配墨智能体', subtitle: '分色、还原与配方', icon: FlaskConical },
   { to: '/production', title: '生产比对', subtitle: '设计与实物还原评估', icon: Images },
+  { to: '/color-compare', title: '颜色比对', subtitle: '目标配墨与实涂复核', icon: Palette },
   { to: '/trends', title: '趋势洞察', subtitle: '市场风格与色彩趋势', icon: ChartColumn },
 ]

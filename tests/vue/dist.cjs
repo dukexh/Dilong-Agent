@@ -1,5 +1,6 @@
 const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs'),http=require('node:http'),path=require('node:path')
 const root=path.resolve(__dirname,'../..')
+const routes=['','samples','design','ink','production','color-compare','trends']
 const output=path.join(root,'verification/dist-smoke');fs.mkdirSync(output,{recursive:true})
 async function serve(directory,prefix){
  const server=http.createServer((request,response)=>{
@@ -14,7 +15,7 @@ async function check(browser,directory,prefix){
  const{server,base}=await serve(directory,prefix),context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true}),page=await context.newPage(),errors=[],failed=[]
  page.setDefaultTimeout(20000);page.on('pageerror',error=>errors.push(error.message));page.on('response',response=>{if(response.status()>=400)failed.push(response.status()+' '+response.url())})
  try{
-  for(const route of ['','samples','design','ink','production','trends']){
+  for(const route of routes){
    await page.goto(base+route,{waitUntil:'networkidle'});assert.equal(await page.locator('h1').count(),1);assert.equal(await page.evaluate(()=>typeof window.React),'undefined')
    await page.locator('main img').evaluateAll(images=>Promise.all(images.map(image=>image.decode())))
    if(route==='samples')assert.equal(await page.locator('.sample-card').count(),24)
@@ -23,9 +24,9 @@ async function check(browser,directory,prefix){
   }
   await page.goto(base+'production',{waitUntil:'networkidle'});await page.locator('.source-frame img').nth(1).waitFor();await page.getByRole('button',{name:'确认对齐并分析',exact:true}).click();await page.getByRole('button',{name:'导出比对报告',exact:true}).waitFor();await page.waitForFunction(()=>!Array.from(document.querySelectorAll('button')).find(button=>button.textContent===' 导出比对报告')?.disabled&&document.querySelector('.comparison-metric strong')?.textContent!=='—')
   await page.getByRole('button',{name:'导出比对报告',exact:true}).click({trial:true})
-  await page.setViewportSize({width:390,height:844});for(const route of ['','samples','design','ink','production','trends']){await page.goto(base+route,{waitUntil:'networkidle'});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))}
-  assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);console.log('PASS 独立dist '+prefix+'：6路由直接刷新、真实图片/配墨/生产计算、390px布局、无React/资源错误')
-  return{prefix,routes:6,errors,failed}
+  await page.setViewportSize({width:390,height:844});for(const route of routes){await page.goto(base+route,{waitUntil:'networkidle'});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))}
+  assert.deepEqual(errors,[]);assert.deepEqual(failed,[]);console.log('PASS 独立dist '+prefix+'：'+routes.length+'路由直接刷新、真实图片/配墨/生产计算、390px布局、无React/资源错误')
+  return{prefix,routes:routes.length,errors,failed}
  }finally{await context.close();await new Promise(resolve=>server.close(resolve))}
 }
 ;(async()=>{

@@ -15,7 +15,7 @@ defineOptions({ name: 'DesignView' })
 interface RankedResult { sample: WorkflowAsset; score: number; colorScore: number; textureScore: number; brightnessScore: number }
 const tick = ref(0)
 const unsubscribe = S.subscribe(() => tick.value++)
-const samples = computed(() => { tick.value; return S.all() })
+const samples = computed(() => { tick.value; return S.formalSamples() })
 const selected = shallowRef<WorkflowAsset | null>(null)
 const mode = ref<DesignMode>('compare')
 const sourceKind = ref<'library' | 'upload'>('library')
@@ -79,6 +79,8 @@ function resetTask() { currentTaskId.value = null; S.activeTask = null }
 function chooseSourceKind(kind: 'library' | 'upload') {
   if (busy.value || sourceKind.value === kind) return
   invalidate(); clearUpload(); resetTask(); sourceKind.value = kind
+  // 恢复上传任务产生的临时样例不属于样例库；保留真实候选的继续设计入口。
+  if (kind === 'library') selected.value = S.all().find(asset => asset.id === selected.value?.id) || null
 }
 function chooseSample(event: Event) {
   const value = (event.target as HTMLSelectElement).value, sample = samples.value.find(item => item.id === value)
@@ -127,8 +129,8 @@ function onDeleted(event: Event) {
 function onUpdated(event: Event) {
   const asset = (event as CustomEvent<{ asset: WorkflowAsset }>).detail.asset
   if (source.value?.id === asset.id) selected.value = asset
-  recommended.value = recommended.value.map(item => item.id === asset.id ? asset : item)
-  rankedResults.value = rankedResults.value.map(item => item.sample.id === asset.id ? { ...item, sample: asset } : item)
+  recommended.value = recommended.value.map(item => item.id === asset.id ? asset : item).filter(S.isLibraryAsset)
+  rankedResults.value = rankedResults.value.map(item => item.sample.id === asset.id ? { ...item, sample: asset } : item).filter(item => S.isLibraryAsset(item.sample))
 }
 async function run() {
   if (busy.value) return
@@ -154,11 +156,29 @@ async function run() {
     else {
       options.onProgress({ fraction: .1, phase: '检索候选' }); await new Promise<void>(resolve => setTimeout(resolve, 420)); S.checkDesignCancelled(options)
       if (runMode === 'compare') { matches = rankingSnapshot; count = matches.length }
-      else { recommendations = S.recommend(parameters.direction || '', parameters.candidateCount || 3, S.all()); count = recommendations.length }
+      else { recommendations = S.recommend(parameters.direction || '', parameters.candidateCount || 3, S.formalSamples()); count = recommendations.length }
     }
     S.checkDesignCancelled(options); options.onProgress({ fraction: .99, phase: '保存任务状态' })
-    const inputDeleted = startedTask.input?.kind === 'library' && !S.all().some(asset => asset.id === startedTask?.sampleId)
-    await S.updateTask(startedTask.id, { status: inputDeleted ? '源样例已删除' : count ? '已处理' : '无匹配结果', outputCount: count, completedAt: new Date().toISOString(), error: '' })
+    // 保留本次排序及分数，只移除已删除或撤回采用的候选，并读取最新资料。
+    const refreshCandidates = () => {
+      const available = new Map(S.formalSamples().map(asset => [asset.id, asset]))
+      if (runMode === 'compare') {
+        matches = matches.flatMap(item => { const sample = available.get(item.sample.id); return sample ? [{ ...item, sample }] : [] })
+        count = matches.length
+      } else if (runMode === 'generate') {
+        recommendations = recommendations.flatMap(item => { const sample = available.get(item.id); return sample ? [sample] : [] })
+        count = recommendations.length
+      }
+    }
+    const completionStatus = () => startedTask!.input?.kind === 'library' && !S.all().some(asset => asset.id === startedTask!.sampleId) ? '源样例已删除' : count ? '已处理' : '无匹配结果'
+    refreshCandidates()
+    // 保存本身也是异步操作；期间若有候选退出，修正数量后再发布结果。
+    let savedCount: number, savedStatus: ReturnType<typeof completionStatus>
+    do {
+      savedCount = count; savedStatus = completionStatus()
+      await S.updateTask(startedTask.id, { status: savedStatus, outputCount: savedCount, completedAt: new Date().toISOString(), error: '' })
+      refreshCandidates()
+    } while (savedCount !== count || savedStatus !== completionStatus())
     if (isCurrent()) {
       imageResults.value = generated; rankedResults.value = matches; recommended.value = recommendations; executed.value = true
       if (runMode === 'generate') executionError.value = !count ? '没有匹配样例；支持材质、色系及风格关键词，例如浅色橡木、深色胡桃、黑色石纹。' : count < (parameters.candidateCount || 3) ? `匹配不足，实际找到 ${count} 个候选。` : ''
@@ -179,7 +199,12 @@ async function run() {
   }
 }
 function cancel() { const running = progress.value; if (running && running.phase !== '保存任务状态') { running.controller.abort(); syncStatus() } }
-function imageParameters(result: DesignResult): DesignParameters { return { mode: mode.value, sourceId: source.value?.id, completion: completion.value, style: targetStyle.value, strength: strength.value, ...(mode.value === 'twin' ? { structureSimilarity: result.similarity, similarityError: result.similarityError } : {}) } }
+function imageParameters(result: DesignResult): DesignParameters {
+  return { mode: mode.value, sourceKind: sourceKind.value, sourceName: sourceName.value,
+    ...(sourceKind.value === 'library' ? { sourceId: source.value?.id } : {}),
+    completion: completion.value, style: targetStyle.value, strength: strength.value,
+    ...(mode.value === 'twin' ? { structureSimilarity: result.similarity, similarityError: result.similarityError } : {}) }
+}
 function hex(summary: ImageSummary) { return '#' + [summary.averageRgb.r, summary.averageRgb.g, summary.averageRgb.b].map(value => Math.round(value).toString(16).padStart(2, '0')).join('').toUpperCase() }
 onMounted(() => {
   window.addEventListener('dilong-open', onOpen); window.addEventListener('dilong-asset-deleted', onDeleted); window.addEventListener('dilong-asset-updated', onUpdated)
@@ -192,11 +217,11 @@ onBeforeUnmount(() => { unsubscribe(); window.removeEventListener('dilong-open',
   <div class="platform-page design-page">
     <div class="page-kicker">DESIGN AGENT WORKSPACE</div><div class="module-title-row design-heading"><div><h1>设计智能体</h1><p>可从样例库选择或上传客户来样，完成真实图像比对、纹理补全与结构保持风格迁移。</p></div><span class="truth-chip"><CheckCircle2 :size="14"/>当前输出：本地图像算法实算</span></div>
     <div class="design-mode-grid mode-grid"><button v-for="item in modes" :key="item.key" :data-design-mode="item.key" type="button" :class="['mode-card', { active: mode === item.key }]" :disabled="busy" @click="chooseMode(item.key)"><span class="mode-icon"><component :is="item.icon" :size="20" /></span><span><strong>{{ item.name }}</strong><small>{{ item.description }}</small></span><ArrowUpRight :size="16" class="mode-arrow" /></button></div>
-    <div v-if="task || taskDeleted" class="task-info" role="status"><template v-if="task"><div><strong>当前任务：{{ task.title }}</strong><span>{{ task.status }} · {{ task.outputCount ?? 0 }} 个处理结果 · 已保存 {{ task.resultIds.length }} 个候选</span></div><p v-if="missingSource">源样例已删除，仍可查看和评价已保存候选。重新设计请先选择新输入。<button type="button" @click="S.navigate('samples')">选择新样例</button></p><p v-else-if="['已中断', '状态待确认'].includes(task.status)">{{ task.error }} 点击“重新执行”重试。</p></template><span v-else>此任务记录已删除；已保存候选仍在样例库，重新执行会创建新任务。</span></div>
+    <div v-if="sourceKind === 'library' && source?.candidateReview?.status === 'adjust'" class="task-info" role="status"><strong>待调整方案：{{ source.name }}</strong><p>{{ source.candidateReview.note || '尚未填写调整意见，请选择处理方式后继续设计。' }}</p><small>此处以该候选图片继续设计，原方案和评价记录保留。</small></div><div v-if="task || taskDeleted" class="task-info" role="status"><template v-if="task"><div><strong>当前任务：{{ task.title }}</strong><span>{{ task.status }} · {{ task.outputCount ?? 0 }} 个处理结果 · 已保存 {{ task.resultIds.length }} 个候选</span></div><p v-if="missingSource">源样例已删除，仍可查看和评价已保存候选。重新设计请先选择新输入。<button type="button" @click="S.navigate('samples')">选择新样例</button></p><p v-else-if="['已中断', '状态待确认'].includes(task.status)">{{ task.error }} 点击“重新执行”重试。</p></template><span v-else>此任务记录已删除；已保存候选仍在方案评价中，重新执行会创建新任务。</span></div>
     <div class="design-workspace">
       <Panel class="design-source source-panel" title="选择输入样例" eyebrow="STEP 01" description="样例库或本地上传">
         <div class="source-tabs"><button type="button" :class="{ active: sourceKind === 'library' }" :disabled="busy" @click="chooseSourceKind('library')">从样例库选择</button><button type="button" :class="{ active: sourceKind === 'upload' }" :disabled="busy" @click="chooseSourceKind('upload')">上传图片</button></div>
-        <label v-if="sourceKind === 'library'" class="design-field"><select :value="source?.id || ''" :disabled="busy" aria-label="设计输入样例" @change="chooseSample"><option v-if="missingSource" :value="source?.id">{{ sourceName }}（源样例已删除）</option><option v-for="sample in samples" :key="sample.id" :value="sample.id">{{ sample.id }} · {{ sample.name }}</option></select></label>
+        <label v-if="sourceKind === 'library'" class="design-field"><select :value="source?.id || ''" :disabled="busy" aria-label="设计输入样例" @change="chooseSample"><option v-if="missingSource" :value="source?.id">{{ sourceName }}（源样例已删除）</option><option v-if="!missingSource && source && !S.isLibraryAsset(source)" :value="source.id">{{ source.name }}（当前候选 · 未入库）</option><option v-for="sample in samples" :key="sample.id" :value="sample.id">{{ sample.id }} · {{ sample.name }}</option></select></label>
         <div v-else class="upload-box" @dragover.prevent @drop.prevent="event => upload(event.dataTransfer?.files[0])"><Upload :size="21" /><button type="button" :disabled="busy" @click="fileInput?.click()">选择或拖入图片</button><small>{{ reading ? '正在读取图片…' : uploadedName || '支持 PNG、JPG、WebP' }}</small><input ref="fileInput" class="file-hidden" type="file" accept="image/png,image/jpeg,image/webp" :disabled="busy" @change="fileChanged" /></div>
         <div class="source-image"><BigImageViewer v-if="sourceUrl" :src="sourceUrl" :preview-src="sourceKind === 'library' ? source?.thumbnailUrl : undefined" :alt="sourceName" eager /><div v-else class="source-empty"><ImagePlus :size="31" /><span>{{ missingSource ? '源样例已删除' : '等待上传图片' }}</span></div><span class="source-id">{{ sourceKind === 'upload' ? '客户来样' : source?.id }}</span></div>
         <dl v-if="sourceKind === 'library' && source"><div><dt>木种</dt><dd>{{ source.wood }}</dd></div><div><dt>风格</dt><dd>{{ source.style }}</dd></div><div><dt>色系</dt><dd>{{ source.tone }}</dd></div></dl>
@@ -210,7 +235,7 @@ onBeforeUnmount(() => { unsubscribe(); window.removeEventListener('dilong-open',
         <template v-else><label class="design-field">设计方向<textarea v-model="direction" rows="4" :disabled="busy" @input="invalidate" /></label><label class="design-field">候选方案数量<select v-model.number="candidateCount" :disabled="busy" @change="invalidate"><option :value="3">3 个方案</option><option :value="4">4 个方案</option></select></label><div class="config-note">支持材质、色系及风格关键词，例如“浅色自然橡木”。未匹配时不会用无关图片补足数量。</div></template>
         <button type="button" class="run-button" :disabled="busy || reading || missingSource || !sourceUrl" @click="run"><LoaderCircle v-if="busy" :size="16" class="spin" /><Play v-else :size="16" />{{ busy ? '正在执行…' : runLabel }}</button><div class="execution-label"><ShieldCheck :size="13" />{{ executionLabel }}</div><p v-if="executionError" class="design-error" role="alert">{{ executionError }}</p>
       </Panel>
-      <Panel class="design-results results-panel" title="候选结果" eyebrow="STEP 03" :description="busy ? '正在计算图像候选' : showTaskResults ? '已保存的任务结果' : executed ? '选择合适方案保存到样例库' : '完成配置后执行任务'">
+      <Panel class="design-results results-panel" title="候选结果" eyebrow="STEP 03" :description="busy ? '正在计算图像候选' : showTaskResults ? '已保存的任务结果' : executed ? '保存候选供评价，采用后进入样例库' : '完成配置后执行任务'">
         <div v-if="busy" class="result-waiting"><LoaderCircle :size="30" class="spin" /><strong>正在计算图像结果</strong><template v-if="progress"><span role="status">{{ progress.controller.signal.aborted ? '正在取消，等待当前处理步骤结束…' : `${progress.phase} · ${Math.floor(progress.fraction * 100)}%` }}</span><progress aria-label="设计任务进度" :value="progress.fraction" max="1" /><button type="button" :disabled="progress.controller.signal.aborted || progress.phase === '保存任务状态'" @click="cancel">取消任务</button></template></div>
         <TaskSavedResults v-else-if="showTaskResults" :task-id="currentTaskId" />
         <div v-else-if="executed && mode === 'compare'" class="candidate-grid"><article v-for="(result, index) in rankedResults" :key="result.sample.id" class="candidate-card"><div class="candidate-image"><BigImageViewer :src="result.sample.imageUrl" :preview-src="result.sample.thumbnailUrl" :alt="result.sample.name" /><span class="candidate-letter">{{ String.fromCharCode(65 + index) }}</span></div><div class="candidate-copy"><div class="candidate-title"><strong>{{ result.sample.name }}</strong><em>综合 {{ result.score }}%</em></div><div class="score-grid"><span>色彩 <b>{{ result.colorScore }}</b></span><span>纹理 <b>{{ result.textureScore }}</b></span><span>明暗 <b>{{ result.brightnessScore }}</b></span></div><CandidateSaveButton :src="result.sample.imageUrl" :name="`${result.sample.name} · 检索候选`" source="相似检索" :source-key="result.sample.id" :task-id="currentTaskId" :parameters="{ wood: result.sample.wood, style: result.sample.style, tone: result.sample.tone }" /></div></article><p v-if="!rankedResults.length" class="result-empty">没有可比较的样例，请更换输入。</p></div>

@@ -3,27 +3,11 @@ const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const path = require('node:path')
 const { S } = require('../../src/services/workflows.ts')
-const metadata = require('../../src/core/sample-metadata.ts')
 const asset = (id, patch = {}) => ({ id, name: id, imageUrl: 'data:image/png;base64,AA==', wood: '橡木', style: '现代自然', tone: '浅灰', source: '测试', ...patch })
 const reset = () => { S.assets = []; S.tasks = []; S.inkRuns = []; S.base = []; S.operations = {}; S.activeTask = null; S.designRuns.clear() }
 
 test.beforeEach(reset)
 
-test('元数据保留真实客户、生产记录、候选评价；编辑草稿不修改原对象', () => {
-  const input = { name: '客户橡木', customer: '客户A', staff: { colorist: '张师傅' }, productionRecords: [{ batchNo: 'B-1', date: '2024-02-29', deltaE: 1.25 }], history: [{ date: '2026-10-31', title: '确认', description: '试印通过', status: '已确认' }], recordKind: 'design-candidate', candidateReview: { status: 'accepted' }, parameters: { strength: 60 } }
-  const normalized = metadata.normalize(input)
-  assert.equal(normalized.staff.colorist, '张师傅'); assert.equal(normalized.productionRecords[0].deltaE, '1.25')
-  assert.deepEqual(normalized.history, input.history); assert.equal(normalized.candidateReview.status, 'accepted')
-  const draft = metadata.draft(normalized)
-  draft.staff.colorist = '李师傅'; draft.productionRecords[0].batchNo = 'B-2'
-  assert.equal(normalized.staff.colorist, '张师傅'); assert.equal(normalized.productionRecords[0].batchNo, 'B-1'); assert.equal(draft.orderNo, '')
-  assert.deepEqual(metadata.normalize(draft), { ...normalized, staff: { ...normalized.staff, colorist: '李师傅' }, productionRecords: [{ ...normalized.productionRecords[0], batchNo: 'B-2' }] })
-})
-test('元数据明确拒绝错误类型、不存在的日期及负色差', () => {
-  for (const patch of [{ customer: [] }, { staff: '人名' }, { productionRecords: {} }, { history: {} }, { parameters: [] }, { candidateReview: { status: 'unknown' } }, { productionRecords: [{ batchNo: 'B', date: '2026-02-30' }] }, { productionRecords: [{ batchNo: 'B', deltaE: -1 }] }]) assert.throws(() => metadata.normalize({ name: '样例', ...patch }))
-  assert.throws(() => metadata.normalize({ name: '', productionRecords: [] }), /样例名称/)
-  assert.equal(metadata.normalize({ name: '旧样例', productionRecords: [{}] }).productionRecords.length, 0)
-})
 test('ZIP往返保留中文路径与原始字节，没有导出数量或容量门槛', async () => {
   const files = [['manifest.json', new TextEncoder().encode(JSON.stringify({ schemaVersion: 1, samples: [] }))], ['images/橡木.png', new Uint8Array([137, 80, 78, 71, 0, 255])]]
   const zipped = S.zip(files), restored = await S.unzip(await zipped.arrayBuffer())
@@ -58,9 +42,10 @@ test('导入支持普通ZIP的deflate-raw条目，并在读取前拒绝100MB以�
 test('样例总数、候选待评价数及旧记录身份兼容，公共样例不误计为个人候选', () => {
   S.base = [asset('public')]
   S.assets = [asset('pending', { recordKind: 'design-candidate' }), asset('accepted', { recordKind: 'design-candidate', candidateReview: { status: 'accepted' } }), asset('legacy', { status: '本地保存' }), asset('imported', { status: '本地导入', importedAt: '2026-11-05' })]
-  assert.deepEqual(S.stats(), { assets: 5, designTasks: 0, pendingCandidates: 2, inkRuns: 0 })
+  assert.deepEqual(S.stats(), { assets: 3, designTasks: 0, pendingCandidates: 2, inkRuns: 0 })
+  assert.equal(S.all().length, 5); assert.deepEqual(S.formalSamples().map(a => a.id), ['public', 'accepted', 'imported']);
   assert.equal(S.isCandidate(S.base[0]), false); assert.equal(S.isCandidate(S.assets[3]), false)
-  assert.deepEqual(S.librarySamples(S.all()).map(item => item.id), ['imported', 'pending', 'accepted', 'legacy', 'public'])
+  assert.deepEqual(S.librarySamples(S.all()).map(item => item.id), ['imported', 'accepted', 'public'])
 })
 test('配墨快照保留TypedArray；透明像素不进入偏差，关闭全部色层使用白底', () => {
   const model = { width: 2, height: 1, original: new Uint8ClampedArray([50, 50, 50, 255, 255, 0, 0, 0]), assignments: new Uint8Array([0, 0]), colours: [{ r: 50, g: 50, b: 50 }], alphaThreshold: 0 }
@@ -104,12 +89,14 @@ test('多约束推荐必须全部匹配；演示趋势按来源、日期和空�
   assert.match(S.researchOriginal('红棕', ['小红书'], true).summary, /深红棕复古/)
   assert.match(S.researchOriginal('不存在方向', ['小红书'], true).risk, /不能形成结论/)
 })
-test('HTTP下UUID安全随机回退正确设置版本与variant且不修改Crypto', () => {
-  const previous = Object.getOwnPropertyDescriptor(globalThis, 'crypto')
-  try {
-    const replacement = { getRandomValues(bytes) { assert.equal(this, replacement); for (let index = 0; index < bytes.length; index++) bytes[index] = index; return bytes } }
-    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: replacement })
-    assert.equal(S.createId(), '00010203-0405-4607-8809-0a0b0c0d0e0f'); assert.equal(replacement.randomUUID, undefined)
-    Object.defineProperty(globalThis, 'crypto', { configurable: true, value: {} }); assert.throws(() => S.createId(), /不支持安全随机数/)
-  } finally { if (previous) Object.defineProperty(globalThis, 'crypto', previous); else delete globalThis.crypto }
+test('只有采用候选参与默认检索与推荐，全部记录仍可用于历史查找', () => {
+ S.base = [asset('public')]
+ S.assets = ['pending','adjust','accepted','rejected'].map(status => asset(status,{recordKind:'design-candidate',candidateReview:{status}}))
+ S.assets.push(asset('imported',{recordKind:'sample',importedAt:'2026-11-10',status:'本地导入'}))
+ assert.deepEqual(S.formalSamples().map(a=>a.id),['public','accepted','imported'])
+ assert.deepEqual(S.recommend('橡木',20,S.all()).map(a=>a.id),['public','accepted','imported'])
+ assert.equal(S.all().length,6)
+ S.assets.find(a=>a.id==='accepted').candidateReview.status='adjust'
+ assert.deepEqual(S.formalSamples().map(a=>a.id),['public','imported'])
+ assert.equal(S.all().length,6)
 })

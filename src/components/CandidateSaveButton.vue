@@ -20,8 +20,8 @@ async function save() {
   if (busy.value || linked.value && !error.value) return
   error.value = ''; saving.value = true
   try {
-    await S.save(props.src, props.name, props.source, props.parameters, props.sourceKey, taskId.value)
-    message.success('已将候选内容保存到样例库中')
+    const asset = await S.save(props.src, props.name, props.source, props.parameters, props.sourceKey, taskId.value)
+    message.success(asset.candidateReview?.status === 'accepted' ? '已关联采用方案，样例库中已有此方案' : '已保存候选，可在方案评价中查看；采用后进入样例库')
   } catch (reason) { error.value = `保存失败：${reason instanceof Error ? reason.message : '请重试'}` }
   finally { saving.value = false }
 }
@@ -31,7 +31,7 @@ async function save() {
   <div class="candidate-save">
     <button type="button" :class="{ saved: linked && !error }" :disabled="busy || (linked && !error)" @click="save"><LoaderCircle v-if="saving" :size="14" class="spin" /><Check v-else-if="linked && !error" :size="14" /><Save v-else :size="14" />{{ label }}</button>
     <p v-if="error" class="save-error" role="alert">{{ error }}</p>
-    <CandidateReview v-if="saved" :sample="saved" />
+    <p v-if="saved" class="muted">{{ saved.candidateReview?.status === 'accepted' ? '已采用 · 已进入样例库' : '候选已保存 · 尚未进入样例库' }}</p><CandidateReview v-if="saved" :sample="saved" />
   </div>
 </template>
 

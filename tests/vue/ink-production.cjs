@@ -1,6 +1,11 @@
 const { chromium } = require('playwright')
-const fs = require('node:fs'), path = require('node:path'), os = require('node:os'), assert = require('node:assert/strict')
-const root = path.resolve(__dirname, '../..'), base = process.env.DILONG_TEST_BASE || 'http://127.0.0.1:51458'
+const assert = require('node:assert/strict')
+const fs = require('node:fs'), path = require('node:path'), os = require('node:os')
+const base = process.env.DILONG_URL || process.env.DILONG_TEST_BASE || 'http://127.0.0.1:51458'
+
+// inkAndProduction: 独立浏览器上下文，沿用原有场景和断言。
+async function inkAndProduction() {
+const root = path.resolve(__dirname, '../..')
 const output = process.env.DILONG_TEST_OUTPUT || fs.mkdtempSync(path.join(os.tmpdir(), 'dilong-vue-ink-production-'))
 fs.mkdirSync(output, { recursive: true })
 const results = [], errors = []
@@ -30,7 +35,9 @@ const uploadInk = (name, data, mimeType = 'image/png') => page.getByLabel('上�
 async function doneProduction() { await page.waitForFunction(() => document.querySelector('.comparison-metric strong')?.textContent !== '—' && !document.querySelector('.calculation-progress')); assert(await page.getByRole('button', { name: '导出比对报告', exact: true }).isEnabled()) }
 async function runProduction() { await page.getByRole('button', { name: '确认对齐并分析', exact: true }).click(); await doneProduction() }
 async function fileProduction(side, name, data) { await page.getByLabel(side === 0 ? '上传设计原图' : '上传生产实物', { exact: true }).setInputFiles({ name, mimeType: 'image/png', buffer: Buffer.from(data, 'base64') }); await page.waitForFunction(() => !document.querySelector('.source-card .spin')) }
-;(async () => {
+
+try {
+
  console.log('OUTPUT ' + output)
  browser = await chromium.launch({ executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe', headless: true })
  context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, acceptDownloads: true })
@@ -42,7 +49,7 @@ async function fileProduction(side, name, data) { await page.getByLabel(side ===
  await check('上传保存完整原图、typed array模型、色层及参数，自动更新同次快照', async () => {
   await uploadInk('gradient.png', images.gradient); await page.waitForFunction(() => window.__S.inkRuns.length === 1); firstId = await page.evaluate(() => window.__S.inkRuns[0].id); assert.match(firstId, /^ink-[0-9a-f-]{36}-\d+$/)
   assert(await page.evaluate(() => { const run = window.__S.inkRuns[0]; return window.__S.canRestoreInkRun(run) && run.snapshot.renderModel.original instanceof Uint8ClampedArray && run.snapshot.renderModel.assignments instanceof Uint8Array && run.snapshot.layers.every(layer => layer.maskUrl.startsWith('data:image/')) }))
-  await page.locator('#ink-weight').fill('27.5'); await page.locator('.layer-switch input').nth(1).uncheck(); await page.locator('.layer-select').last().click(); await page.getByRole('tab', { name: '单层配方详情', exact: true }).click()
+  await page.locator('#ink-weight').fill('27.5'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.locator('.layer-switch input').nth(1).uncheck(); await page.locator('.layer-select').last().click(); await page.getByRole('tab', { name: '单层配方详情', exact: true }).click()
   await page.waitForFunction(id => { const s = window.__S.inkRuns.find(run => run.id === id).snapshot.settings; return s.weight === 27.5 && !s.enabled[1] && s.selectedLayer >= 1 && s.tab === 'detail' }, firstId)
   assert.equal(await count(), 1)
  })
@@ -57,12 +64,12 @@ async function fileProduction(side, name, data) { await page.getByLabel(side ===
   const text = fs.readFileSync(destination, 'utf8'); assert(text.includes('gradient.png')); assert(text.includes('27.5 kg')); assert(text.includes(await page.evaluate(id => new Date(window.__S.inkRuns.find(run => run.id === id).createdAt).toLocaleString('zh-CN'), firstId))); assert(text.includes('当前合成偏差（白底）'))
  })
  await check('参数修改后刷新仍能恢复，打开历史不新增计数', async () => {
-  await page.locator('#ink-weight').fill('32.5'); await page.getByRole('button', { name: '全部开启', exact: true }).click(); await page.getByRole('tab', { name: '全部色层总览' }).click(); await page.waitForFunction(id => { const s = window.__S.inkRuns.find(run => run.id === id).snapshot.settings; return s.weight === 32.5 && s.enabled.every(Boolean) && s.tab === 'overview' }, firstId)
+  await page.locator('#ink-weight').fill('32.5'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.getByRole('button', { name: '全部开启', exact: true }).click(); await page.getByRole('tab', { name: '全部色层总览' }).click(); await page.waitForFunction(id => { const s = window.__S.inkRuns.find(run => run.id === id).snapshot.settings; return s.weight === 32.5 && s.enabled.every(Boolean) && s.tab === 'overview' }, firstId)
   await page.reload(); await service(); await open(firstId); assert.equal(await page.locator('#ink-weight').inputValue(), '32.5'); assert.equal(await count(), 2)
  })
  await check('保存失败保留持久值，重试保存不重算不重复计数', async () => {
   await page.evaluate(() => { window.__put = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function (...args) { if (this.name === 'inkRuns') throw Error('TEST_HISTORY_SAVE'); return window.__put.apply(this, args) } })
-  await page.locator('#ink-weight').fill('38'); await page.getByRole('button', { name: '重试保存', exact: true }).waitFor(); assert.equal(await page.evaluate(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight, firstId), 32.5)
+  await page.locator('#ink-weight').fill('38'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.getByRole('button', { name: '重试保存', exact: true }).waitFor(); assert.equal(await page.evaluate(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight, firstId), 32.5)
   await page.evaluate(() => { IDBObjectStore.prototype.put = window.__put }); await page.getByRole('button', { name: '重试保存', exact: true }).click(); await page.waitForFunction(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight === 38, firstId); assert.equal(await count(), 2)
  })
  await check('首次记录失败可从当前预览重试，成功后才新增历史', async () => {
@@ -71,13 +78,13 @@ async function fileProduction(side, name, data) { await page.getByLabel(side ===
   await page.evaluate(() => { IDBObjectStore.prototype.put = window.__put }); await page.getByRole('button', { name: '重试保存', exact: true }).click(); await page.waitForFunction(() => window.__S.inkRuns.length === 3)
  })
  await check('删历史后当前预览可导出，修改参数不会复活已删记录', async () => {
-  await page.evaluate(async () => { const run = window.__S.inkRuns.find(run => run.inputName === 'retry-first.png'); window.__deletedRun = run.id; await window.__S.deleteHistory('inkRuns', [run.id]) }); await page.getByText('此次历史已删除。', { exact: false }).waitFor(); await page.locator('#ink-weight').fill('41'); await page.waitForTimeout(250)
+  await page.evaluate(async () => { const run = window.__S.inkRuns.find(run => run.inputName === 'retry-first.png'); window.__deletedRun = run.id; await window.__S.deleteHistory('inkRuns', [run.id]) }); await page.getByText('此次历史已删除。', { exact: false }).waitFor(); await page.locator('#ink-weight').fill('41'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.waitForTimeout(250)
   assert(await page.evaluate(() => !window.__S.inkRuns.some(run => run.id === window.__deletedRun))); assert(await page.getByRole('button', { name: '导出配墨建议单', exact: true }).isEnabled())
  })
  await check('跨标签修改冲突保留预览、阻止覆盖，显式重载后恢复保存', async () => {
   await open(firstId); const other = await context.newPage(); other.on('pageerror', error => errors.push(error.message)); await other.goto(base + '/ink'); await service(other); await open(firstId, other)
-  await other.locator('#ink-weight').fill('17'); await other.waitForFunction(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight === 17, firstId)
-  await page.getByRole('button', { name: '重新加载最新记录', exact: true }).waitFor(); assert.equal(await page.locator('#ink-weight').inputValue(), '38'); await page.locator('#ink-weight').fill('11'); await page.waitForTimeout(250); assert.equal(await other.evaluate(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight, firstId), 17)
+  await other.locator('#ink-weight').fill('17'); await other.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await other.waitForFunction(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight === 17, firstId)
+  await page.getByRole('button', { name: '重新加载最新记录', exact: true }).waitFor(); assert.equal(await page.locator('#ink-weight').inputValue(), '38'); await page.locator('#ink-weight').fill('11'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.waitForTimeout(250); assert.equal(await other.evaluate(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight, firstId), 17)
   await page.getByRole('button', { name: '重新加载最新记录', exact: true }).click(); await page.waitForFunction(() => document.querySelector('#ink-weight')?.value === '17'); await other.close()
  })
  await check('仅完全透明拒绝，极低透明图片仍可分析，失败清除旧结果', async () => {
@@ -98,8 +105,8 @@ async function fileProduction(side, name, data) { await page.getByLabel(side ===
   await uploadInk('late-analysis.png', images.gradient); await open(firstId); await page.waitForTimeout(1400); assert.equal(await page.locator('#ink-weight').inputValue(), '17'); assert.equal(await count(), before)
   await page.evaluate(() => { window.setTimeout = window.__timeout })
  })
- await check('配墨无效重量阻止导出，图像点击可打开原尺寸大图', async () => {
-  await page.locator('#ink-weight').fill('0'); assert(await page.getByRole('button', { name: '导出配墨建议单', exact: true }).isDisabled()); await page.locator('#ink-weight').fill('10')
+ await check('配墨无效草稿阻止确认并保留已确认导出，图像点击可打开原尺寸大图', async () => {
+  await page.locator('#ink-weight').fill('0'); assert(await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).isDisabled()); assert(await page.getByRole('button', { name: '导出配墨建议单', exact: true }).isEnabled()); await page.locator('#ink-weight').fill('10')
   const thumbnail = page.locator('.image-stage').first().locator('button').first(); await thumbnail.click(); await page.getByRole('dialog').waitFor(); await page.keyboard.press('Escape'); await page.getByRole('dialog').waitFor({ state: 'hidden' })
  })
  await check('生产演示自动载入，初始不冒充已完成分析', async () => { await page.goto(base + '/production'); await page.locator('.source-frame img').nth(1).waitFor(); await page.waitForFunction(() => !document.querySelector('.source-card .spin')); assert.equal(await page.locator('.source-frame img').count(), 2); assert.equal(await page.locator('.comparison-metric strong').first().innerText(), '—'); assert.equal(await page.getByRole('button', { name: '载入演示样本', exact: true }).count(), 0); await runProduction() })
@@ -137,9 +144,60 @@ async function fileProduction(side, name, data) { await page.getByLabel(side ===
   await page.getByRole('button', { name: '确认对齐并分析', exact: true }).click(); await page.getByRole('button', { name: '取消计算', exact: true }).click(); await page.getByRole('alert').filter({ hasText: '计算已取消' }).waitFor(); await runProduction(); assert((await page.locator('.visual-footer').innerText()).includes('1,254 × 1,254')); assert.equal(await page.locator('.comparison-metric strong').first().innerText(), '16.19')
  })
  await check('切换模块保留配墨参数、生产结果和人工字段，桌面与390均无横溢', async () => {
-  await service(); await open(firstId); await page.locator('#ink-weight').fill('21.5'); await page.waitForFunction(id => window.__S.inkRuns.find(run=>run.id===id).snapshot.settings.weight===21.5,firstId); await page.evaluate(() => window.__S.navigate('production')); await page.getByRole('button', { name: '导出比对报告', exact: true }).waitFor(); assert.equal(await page.getByPlaceholder('输入样品名称').inputValue(), '样品 <真实>'); assert.equal(await page.locator('.comparison-metric strong').first().innerText(), '16.19')
+  await service(); await open(firstId); await page.locator('#ink-weight').fill('21.5'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.waitForFunction(id => window.__S.inkRuns.find(run=>run.id===id).snapshot.settings.weight===21.5,firstId); await page.evaluate(() => window.__S.navigate('production')); await page.getByRole('button', { name: '导出比对报告', exact: true }).waitFor(); assert.equal(await page.getByPlaceholder('输入样品名称').inputValue(), '样品 <真实>'); assert.equal(await page.locator('.comparison-metric strong').first().innerText(), '16.19')
   for (const width of [1440, 1024, 390]) { await page.setViewportSize({ width, height: 1000 }); await page.screenshot({ path: path.join(output, 'production-' + width + '.png'), fullPage: true, animations: 'disabled' }); assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); await page.evaluate(() => window.__S.navigate('color')); await page.locator('#ink-weight').waitFor(); assert.equal(await page.locator('#ink-weight').inputValue(), '21.5'); await page.screenshot({ path: path.join(output, 'ink-' + width + '.png'), fullPage: true, animations: 'disabled' }); assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)); await page.evaluate(() => window.__S.navigate('production')); await page.locator('.metric-grid').waitFor() }
   assert.deepEqual(errors, [])
  })
+ await check('样例连续重分析保留关联，历史恢复后重分析不改写原记录，新上传不继承关联', async () => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await page.evaluate(() => window.__S.navigate('color')); await page.locator('#ink-weight').waitFor()
+  const before = await count()
+  const sampleId = await page.evaluate(() => { const sample = window.__S.base[0]; window.__S.open('color', sample); return sample.id })
+  await page.waitForFunction(n => window.__S.inkRuns.length === n + 1, before)
+  const original = await page.evaluate(() => JSON.stringify(window.__S.inkRuns.at(-1)))
+  const originalId = JSON.parse(original).id
+  async function reanalyze(expectedId) {
+   const n = await count()
+   await page.getByRole('button', { name: '重新分析当前图片', exact: true }).click()
+   await page.waitForFunction(n => window.__S.inkRuns.length === n + 1, n)
+   assert.equal(await page.evaluate(() => window.__S.inkRuns.at(-1).sampleId), expectedId)
+   assert.equal(await page.evaluate(() => window.__S.inkRuns.at(-1).source), '用户重新分析')
+  }
+  await reanalyze(sampleId); await reanalyze(sampleId)
+  await open(originalId); await reanalyze(sampleId)
+  assert.equal(await page.evaluate(id => JSON.stringify(window.__S.inkRuns.find(run => run.id === id)), originalId), original)
+  const n = await count(); await uploadInk('unlinked-new.png', images.gradient)
+  await page.waitForFunction(n => window.__S.inkRuns.length === n + 1, n)
+  assert.equal(await page.evaluate(() => window.__S.inkRuns.at(-1).sampleId), null)
+  await reanalyze(null)
+  await open(firstId); await reanalyze(null)
+  assert.deepEqual(errors, [])
+ })
  console.log('DONE ' + results.length + ' groups; ' + output)
-})().catch(async error => { console.error('FAILED ' + activeGroup, error); if (page) await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true }).catch(() => {}); fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ results, errors, failed: activeGroup, failure: String(error) }, null, 2)); process.exitCode = 1 }).finally(async () => { if (context) await context.close(); if (browser) await browser.close() })
+
+} catch (error) {
+ console.error('FAILED ' + activeGroup, error); if (page) await page.screenshot({ path: path.join(output, 'failure.png'), fullPage: true }).catch(() => {}); fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ results, errors, failed: activeGroup, failure: String(error) }, null, 2)); throw error
+} finally {
+ if (context) await context.close(); if (browser) await browser.close()
+}
+
+}
+
+// productionPreview: 独立浏览器上下文，沿用原有场景和断言。
+async function productionPreview() {
+const out=fs.mkdtempSync(path.join(os.tmpdir(),'dilong-vue-preview-'))
+const browser=await chromium.launch({channel:'chrome',headless:true}),page=await browser.newPage({viewport:{width:1440,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message))
+try{await page.goto(base+'/production');await page.locator('.source-frame img').nth(1).waitFor();await page.waitForFunction(()=>!document.querySelector('.source-card .spin'))
+const upload=async(w,h)=>{const buffer=Buffer.from(await page.evaluate(({w,h})=>{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#987d60';x.fillRect(0,0,w,h);return c.toDataURL().split(',')[1]},{w,h}),'base64');await page.getByLabel('上传设计原图',{exact:true}).setInputFiles({name:'source.png',mimeType:'image/png',buffer});await page.waitForFunction(({w,h})=>document.querySelector('.source-card small')&&document.querySelector('.source-bottom small')?.textContent.includes(w+' × '+h),{w,h})}
+for(const [w,h] of [[4000,1000],[120,360],[160,160]]){await upload(w,h);for(const width of [1440,1024,768,390]){await page.setViewportSize({width,height:1100});const expected=width>1100?300:width>760?260:220;const box=await page.locator('.source-image').first().boundingBox(),frame=await page.locator('.source-frame').first().boundingBox(),svg=await page.locator('.source-frame svg').first().boundingBox();assert(Math.abs(box.height-expected)<2,JSON.stringify({width,box,expected}));assert(frame.height<=expected+1);assert(Math.abs(frame.width/frame.height-w/h)<.01);assert(Math.abs(frame.x-svg.x)<1&&Math.abs(frame.width-svg.width)<1);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));if(w===160){await page.evaluate(()=>scrollTo({top:0,behavior:'instant'}));await page.screenshot({path:path.join(out,'preview-'+width+'.png'),fullPage:true})}}}
+await page.setViewportSize({width:1440,height:1100});await upload(4000,1000);const button=page.getByRole('button',{name:'放大查看设计原图',exact:true});await button.click();const dialog=page.getByRole('dialog');await dialog.waitFor();await dialog.getByRole('button',{name:'100%',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.image-viewport img')?.getBoundingClientRect().width===4000);await dialog.getByRole('button',{name:'适应窗口',exact:true}).click();await page.keyboard.press('Escape');await dialog.waitFor({state:'hidden'});assert(await button.evaluate(el=>el===document.activeElement))
+// Selection is calculated within the fitted image, excluding the surrounding blank area.
+const svg=page.locator('.source-frame svg').first(),box=await svg.boundingBox();await page.mouse.move(box.x+box.width*.2,box.y+box.height*.2);await page.mouse.down();await page.mouse.move(box.x+box.width*.8,box.y+box.height*.8);await page.mouse.up();assert(Math.abs(Number(await page.getByLabel('原图角点1X百分比').inputValue())-20)<1)
+await page.getByRole('button',{name:'确认对齐并分析',exact:true}).click();await page.locator('.comparison-metric strong').first().filter({hasText:/\d/}).waitFor();const before=await page.locator('.comparison-metric').allTextContents();await page.getByRole('button',{name:'放大查看对齐设计图',exact:true}).click();await dialog.waitFor();assert((await dialog.innerText()).includes('展示图'));assert((await dialog.innerText()).includes('原始计算尺寸'));await page.keyboard.press('Escape');for(const [tab,alt] of [['透明叠加','透明叠加结果'],['色差热图','色差热图']]){await page.getByRole('button',{name:tab,exact:true}).click();await page.getByRole('button',{name:'放大查看'+alt,exact:true}).click();await dialog.waitFor();await page.keyboard.press('Escape')}assert.deepEqual(await page.locator('.comparison-metric').allTextContents(),before);assert.deepEqual(errors,[]);console.log('PASS Vue生产预览四种宽度/三种比例、SVG坐标、4000px原图查看、结果图标识及独立放大、不重算；截图 '+out)
+}finally{await browser.close()}
+}
+
+;(async () => {
+  await inkAndProduction()
+  await productionPreview()
+})().catch(error => { console.error(error); process.exitCode = 1 })

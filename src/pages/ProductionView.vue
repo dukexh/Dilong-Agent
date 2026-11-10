@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { Download, ScanLine, SlidersHorizontal, Layers, Columns2, Activity, LoaderCircle, X, Info, ArrowLeftRight, RotateCcw, ChevronRight, Check } from 'lucide-vue-next'
 import Panel from '../components/Panel.vue'
+import BigImageViewer from '../components/BigImageViewer.vue'
 import ProductionSource, { type ProductionAsset, type Point } from '../components/ProductionSource.vue'
 import { CompareCore } from '../core/production-compare-core'
 import { assetUrl } from '../core/sample-library'
@@ -53,6 +54,13 @@ const heatmap = computed(() => {
     for (let channel = 0; channel < 3; channel++) data[pixel * 4 + channel] = data[pixel * 4 + channel]! * (1 - blend) + (lower[channel]! + (upper[channel]! - lower[channel]!) * position) * blend
   }
   return canvasUrl({ width: current.reference.width, height: current.reference.height, data })
+})
+const resultDescription = computed(() => result.value ? `展示图 ${result.value.reference.width} × ${result.value.reference.height}；原始计算尺寸 ${result.value.width} × ${result.value.height}。100%按展示图像素显示，选区请在主页面调整。` : '')
+const overlayUrl = computed(() => {
+  const r=result.value;if(!r||mode.value!=='overlay')return ''
+  const data=new Uint8ClampedArray(r.reference.data), alpha=opacity.value/100
+  for(let i=0;i<data.length;i+=4){const a=(r.actual.data[i+3]!/255)*alpha,b=data[i+3]!/255,out=a+b*(1-a);for(let k=0;k<3;k++)data[i+k]=out?(r.actual.data[i+k]!*a+data[i+k]!*b*(1-a))/out:0;data[i+3]=out*255}
+  return canvasUrl({width:r.reference.width,height:r.reference.height,data})
 })
 function invalidate() {
   generation++; controller?.abort(); controller = null; busy.value = false; result.value = null; local.value = null
@@ -190,9 +198,9 @@ onBeforeUnmount(() => { alive = false; generation++; sourceVersions[0] = sourceV
 <div class="pc-upload-grid input-grid"><ProductionSource v-for="(asset,index) in sources" :key="index" :asset="asset" :quad="quad" :side="index as 0|1" :busy="selectionBlocked" :loading="loading[index]!" @file="upload($event,index as 0|1)" @quad="changeQuad"/></div>
 <section class="panel pc-comparison-panel"><header class="panel-header"><div><span class="step-no">03</span><div><h2>对齐与差异对照</h2><p>确认同一位置的纹理对应，再查看真实图像差异</p></div></div><span class="pc-badge">{{result?'已完成分析':'待确认选区'}}</span></header><div class="pc-view-body"><div class="pc-view-main"><nav class="pc-tabs view-tabs" aria-label="对比查看模式"><button :class="{active:mode==='pair'}" @click="mode='pair'" title="并排对照">并排对照</button><button :class="{active:mode==='overlay'}" :disabled="!result" @click="mode='overlay'" title="透明叠加">透明叠加</button><button :class="{active:mode==='heat'}" :disabled="!result" @click="mode='heat'" title="色差热图">色差热图</button></nav><div class="pc-viewer">
         <div v-if="result" class="result-viewer">
-          <div v-if="mode==='pair'" class="comparison-stage pair-stage"><figure v-for="(url,index) in [result.referenceUrl,result.actualUrl]" :key="index"><div class="inspect-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="url" :alt="index===0?'设计图对照预览':'实物图对照预览'"><i v-if="marker" class="location-marker" :style="marker"/></div><span>{{index===0?'A · 设计原图':'B · 实物图像'}}</span></figure></div>
-          <div v-else-if="mode==='overlay'" class="comparison-stage single-result"><div class="inspect-image overlay-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="result.referenceUrl" alt="叠加底图"><img :src="result.actualUrl" alt="叠加实物图" :style="{opacity:opacity/100}"><i v-if="marker" class="location-marker" :style="marker"/></div><span class="stage-badge">实物图透明度 {{opacity}}%</span></div>
-          <div v-else class="comparison-stage single-result heat-stage"><div class="inspect-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="heatmap" alt="实际色差热图"><i v-if="marker" class="location-marker" :style="marker"/></div><span class="stage-badge">色差热图 · ΔE00</span></div>
+          <div v-if="mode==='pair'" class="comparison-stage pair-stage"><figure v-for="(url,index) in [result.referenceUrl,result.actualUrl]" :key="index"><div class="inspect-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="url" :alt="index===0?'设计图对照预览':'实物图对照预览'"><i v-if="marker" class="location-marker" :style="marker"/></div><span>{{index===0?'A · 设计原图':'B · 实物图像'}}</span><BigImageViewer button-only :src="url" :alt="index===0?'对齐设计图':'对齐实物图'" :description="resultDescription" download-label="下载展示图"/></figure></div>
+          <div v-else-if="mode==='overlay'" class="comparison-stage single-result"><div class="inspect-image overlay-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="result.referenceUrl" alt="叠加底图"><img :src="result.actualUrl" alt="叠加实物图" :style="{opacity:opacity/100}"><i v-if="marker" class="location-marker" :style="marker"/></div><BigImageViewer button-only :src="overlayUrl" alt="透明叠加结果" :description="resultDescription" download-label="下载展示图"/><span class="stage-badge">实物图透明度 {{opacity}}%</span></div>
+          <div v-else class="comparison-stage single-result heat-stage"><div class="inspect-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="heatmap" alt="实际色差热图"><i v-if="marker" class="location-marker" :style="marker"/></div><BigImageViewer button-only :src="heatmap" alt="色差热图" :description="resultDescription" download-label="下载展示图"/><span class="stage-badge">色差热图 · ΔE00</span></div>
         </div>
         <div v-else class="comparison-stage result-empty empty-state"><LoaderCircle v-if="busy" :size="28" class="spin"/><ScanLine v-else :size="28"/><strong>{{busy?'正在按原始分辨率计算…':'确认选区后开始分析'}}</strong><p>准备两张图，框选相同纹理的位置，确认对齐后查看结果。</p></div>
         <div v-if="mode==='overlay'" class="control-row"><label for="overlay-opacity"><SlidersHorizontal :size="14"/> 实物图透明度</label><input id="overlay-opacity" v-model.number="opacity" type="range" min="0" max="100"><strong>{{opacity}}%</strong></div>
@@ -716,4 +724,7 @@ onBeforeUnmount(() => { alive = false; generation++; sourceVersions[0] = sourceV
 .pc-result-grid {
   @apply gap-[8px]
 }}
+.production-compare{--pc-source-height:300px;--pc-result-height:360px}.inspect-image{width:min(100%,calc(var(--pc-result-height) * var(--image-ratio)));max-height:var(--pc-result-height);height:auto}.pair-stage figure{display:flex;flex-direction:column;align-items:center;gap:8px}.single-result{display:flex;flex-direction:column;align-items:center;gap:8px}.result-viewer .inspect-image img{object-fit:contain}
+@media(max-width:1100px){.production-compare{--pc-source-height:260px;--pc-result-height:320px}}
+@media(max-width:760px){.production-compare{--pc-source-height:220px;--pc-result-height:280px}}
 </style>

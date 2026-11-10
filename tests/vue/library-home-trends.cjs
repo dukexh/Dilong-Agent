@@ -17,17 +17,7 @@ async function ready(page, route = '/') {
   await page.waitForFunction(async () => (await import('/src/services/workflows.ts')).S.base.length === 2990)
 }
 async function navigate(page, route) { await page.locator(`.text-navigation a[href="${route}"]`).click(); await page.waitForURL(origin + route) }
-async function records(page, store) {
-  return page.evaluate(async store => {
-    const database = await new Promise((resolve, reject) => { const request = indexedDB.open('dilong-workflows', 2); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
-    try { return await new Promise((resolve, reject) => { const request = database.transaction(store).objectStore(store).getAll(); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) }) }
-    finally { database.close() }
-  }, store)
-}
-async function untilRecords(page, store, predicate) {
-  for (let attempt = 0; attempt < 100; attempt++) { const rows = await records(page, store); if (predicate(rows)) return rows; await delay(100) }
-  throw Error(`等待 ${store} 状态超时`)
-}
+const { records, untilRecords } = require('../helpers/database.cjs')
 async function closeModal(page) { await page.locator('.ant-modal:visible .ant-modal-close').last().click(); await page.waitForFunction(() => !document.querySelector('.ant-modal-wrap:not([style*="display: none"]) .ant-modal')) }
 async function openArchive(page, id) {
   await page.getByRole('button', { name: '全部', exact: true }).click()
@@ -67,7 +57,7 @@ async function ownSample(page, name = '双页同步纹理') {
   return page.evaluate(async name => {
     const { S } = await import('/src/services/workflows.ts'), canvas = document.createElement('canvas'); canvas.width = canvas.height = 32
     const context = canvas.getContext('2d'); context.fillStyle = '#bc9971'; context.fillRect(0, 0, 32, 32)
-    return (await S.save(canvas.toDataURL(), name, '测试准备', {}, 'ui-own-sample', null)).id
+    const saved = await S.save(canvas.toDataURL(), name, '测试准备', {}, 'ui-own-sample', null); await S.reviewCandidate(saved.id, 'accepted'); return saved.id
   }, name)
 }
 async function prepareHome(page) {
@@ -191,12 +181,12 @@ function stat(page, label) { return page.locator('.dashboard-stat-button').filte
     })
     await check('首页真实统计、任务待评价配墨明细和打开历史不重复计数', '/', async page => {
       const prepared = await prepareHome(page)
-      for (const [label, expected] of [['样例资产', '2992'], ['设计任务', '4'], ['待评价方案', '1'], ['配墨操作', '3']]) assert.equal(await stat(page, label).locator('strong').textContent(), expected)
+      for (const [label, expected] of [['样例资产', '2991'], ['设计任务', '4'], ['待评价方案', '1'], ['配墨操作', '3']]) assert.equal(await stat(page, label).locator('strong').textContent(), expected)
       await stat(page, '设计任务').focus(); await page.keyboard.press('Enter'); await page.locator('.history-dialog').waitFor(); assert.equal(await page.locator('.history-dialog .summary-record').count(), 4)
       const taskRow = page.locator(`.history-dialog .summary-record[data-record-id="${prepared.taskIds[0]}"]`); assert((await taskRow.textContent()).includes('统计任务1')); assert((await taskRow.textContent()).includes('5 个结果；已保存 1 个候选'))
       await taskRow.getByRole('button', { name: '打开任务', exact: true }).click(); await page.locator('.design-page .saved-results').waitFor(); assert.equal((await records(page, 'tasks')).length, 4)
       await navigate(page, '/'); await stat(page, '待评价方案').click(); await page.locator('.history-dialog .summary-candidate').waitFor(); assert.equal(await page.locator('.summary-candidate').count(), 1); assert.equal(await page.locator('.history-dialog').getByRole('button', { name: /删除记录|删除所选/ }).count(), 0)
-      await page.getByLabel('候选评价', { exact: true }).selectOption('accepted'); await page.getByText('暂无待评价方案', { exact: true }).waitFor(); assert.equal((await records(page, 'assets')).length, 2)
+      await page.getByLabel('候选评价', { exact: true }).selectOption('accepted'); await page.getByRole('button', { name: '保存评价', exact: true }).click(); await page.getByText('暂无待评价方案', { exact: true }).waitFor(); assert.equal((await records(page, 'assets')).length, 2)
       await page.keyboard.press('Escape'); await page.locator('.history-dialog').waitFor({ state: 'detached' }); await page.waitForFunction(() => document.activeElement?.classList.contains('dashboard-stat-button')); assert(await stat(page, '待评价方案').evaluate(element => element === document.activeElement)); assert.equal(await stat(page, '待评价方案').locator('strong').textContent(), '0')
       await stat(page, '配墨操作').click(); assert.equal(await page.locator('.history-dialog .summary-record').count(), 3)
       await page.locator(`.summary-record[data-record-id="${prepared.inkIds[0]}"]`).getByRole('button', { name: '打开此次配墨', exact: true }).click(); await page.locator('.ink-run-info').waitFor(); assert.equal(await page.getByLabel('单层配墨重量', { exact: true }).inputValue(), '12'); assert.equal((await records(page, 'inkRuns')).length, 3)

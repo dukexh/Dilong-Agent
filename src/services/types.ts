@@ -12,8 +12,9 @@ export type ProductionKey = 'batchNo' | 'stage' | 'date' | 'equipment' | 'quanti
 export type Staff = Record<StaffKey, string>
 export type ProductionRecord = Record<ProductionKey, string>
 export interface SampleHistory { date: string; title: string; description: string; status: string }
-export interface CandidateReview { status: CandidateStatus; updatedAt?: string }
+export interface CandidateReview { status: CandidateStatus; note?: string; updatedAt?: string }
 export interface DesignParameters {
+  sourceKind?: 'library' | 'upload'; sourceName?: string; sourceId?: string
   sorting?: string; limit?: number; completion?: string; style?: string; strength?: number
   direction?: string; wood?: string; tone?: string; candidateCount?: number
   [key: string]: unknown
@@ -46,7 +47,7 @@ export interface BeginDesignTaskRequest {
   mode: DesignMode; runKey: string; taskId?: string | null; parameters: DesignParameters
   input: { kind: 'library'; sampleId: string; name: string } | { kind: 'upload'; name: string; src: string | HTMLImageElement; summary: ImageSummary }
 }
-export interface InkSettings { weight: number; enabled: boolean[]; selectedLayer: number; tab: 'overview' | 'detail' }
+export interface InkSettings { selectedInks?: string[]; weight: number; enabled: boolean[]; selectedLayer: number; tab: 'overview' | 'detail' }
 export interface InkSnapshot { version: 1; imageUrl: string; layers: InkLayer[]; renderModel: InkRenderModel; settings: InkSettings }
 export interface InkRun extends Revisioned {
   schemaVersion?: number; inputName: string; sampleId?: string | null; source?: string

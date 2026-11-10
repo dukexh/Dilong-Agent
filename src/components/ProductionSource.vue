@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import BigImageViewer from './BigImageViewer.vue'
 import { Upload, LoaderCircle, RotateCcw } from 'lucide-vue-next'
 import type { PixelImage } from '../core/types'
 export interface ProductionAsset { name: string; preview: string; originalUrl: string; pixels: PixelImage; width: number; height: number; example: boolean }
@@ -40,7 +41,7 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
       </div>
       <div v-else class="empty-state"><LoaderCircle v-if="loading" :size="26" class="spin"/><Upload v-else :size="26"/><span>{{loading?'正在读取图片…':'拖入图片或选择本地文件'}}</span></div>
     </div>
-    <div class="pc-file-row source-bottom"><div><strong :title="asset?.name">{{asset?.name || 'JPG · PNG · WebP'}}</strong><small>{{asset ? asset.width+' × '+asset.height+(asset.example?' · 演示样本':' · 本地图片') : (side===0?'拖动框选矩形，或精确输入百分比':'实物选区随设计原图按比例同步')}}</small></div><input ref="input" type="file" class="sr-only" accept=".png,.jpg,.jpeg,.webp" :aria-label="side===0?'上传设计原图':'上传生产实物'" :disabled="busy || loading" @change="selected"><button class="btn btn-secondary" :disabled="busy || loading" @click="input?.click()"><Upload :size="14"/> 更换图片</button></div>
+    <div class="pc-file-row source-bottom"><div><strong :title="asset?.name">{{asset?.name || 'JPG · PNG · WebP'}}</strong><small>{{asset ? asset.width+' × '+asset.height+(asset.example?' · 演示样本':' · 本地图片') : (side===0?'拖动框选矩形，或精确输入百分比':'实物选区随设计原图按比例同步')}}</small></div><input ref="input" type="file" class="sr-only" accept=".png,.jpg,.jpeg,.webp" :aria-label="side===0?'上传设计原图':'上传生产实物'" :disabled="busy || loading" @change="selected"><BigImageViewer v-if="asset" button-only :src="asset.originalUrl" :alt="side===0?'设计原图':'生产实物'" :description="'原始图片 '+asset.width+' × '+asset.height+'；100%按真实原图像素显示。选区请在主页面调整。'"/><button class="btn btn-secondary" :disabled="busy || loading" @click="input?.click()"><Upload :size="14"/> 更换图片</button></div>
     <div v-if="asset && side===0" class="source-tools pc-toolbar"><button class="text-link" :disabled="busy || loading" @click="emit('quad',[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1}])"><RotateCcw :size="13"/> 使用整张图片</button><details><summary>精确调整选区（百分比）</summary><div class="coordinate-grid pc-coordinate-grid"><div v-for="index in [0,2]" :key="index"><span>原图角点 {{index+1}}</span><label v-for="axis in (['x','y'] as const)" :key="axis">{{axis.toUpperCase()}}<input class="form-control" type="number" min="0" max="100" step=".1" :value="Math.round(quad[index]![axis]*1000)/10" :disabled="busy || loading" :aria-label="'原图角点'+(index+1)+axis.toUpperCase()+'百分比'" @change="coordinate(index,axis,$event)"></label></div></div></details></div>
   </section>
 </template>
@@ -213,4 +214,5 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
 .coordinate-grid input {
   @apply w-[58px]
 }}
+.pc-stage.has-image.source-image{height:var(--pc-source-height,300px);min-height:0}.pc-image-frame.source-frame{width:min(100%,calc(var(--pc-source-height,300px) * var(--source-ratio)));flex:none}
 </style>

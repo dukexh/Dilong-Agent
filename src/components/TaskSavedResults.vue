@@ -17,7 +17,7 @@ function similarity(asset: WorkflowAsset) { return scoreLabel(typeof asset.param
 </script>
 
 <template>
-  <div v-if="deleted" class="saved-empty"><strong>任务记录已删除</strong><span>已保存候选仍在样例库中。</span><button type="button" @click="S.navigate('samples')">查看样例库</button></div>
+  <div v-if="deleted" class="saved-empty"><strong>任务记录已删除</strong><span>已保存候选仍在方案评价中，采用后进入样例库。</span><button type="button" @click="S.showStats('pending')">查看方案评价</button></div>
   <div v-else-if="assets.length" class="saved-results">
     <article v-for="asset in assets" :key="asset.id"><div class="saved-image"><BigImageViewer :src="asset.imageUrl" :preview-src="asset.thumbnailUrl" :alt="asset.name" /></div><div class="saved-copy"><strong>{{ asset.name }}</strong><p>此任务已保存的候选</p><p v-if="asset.parameters?.mode === 'twin'" title="原图与候选的全分辨率灰度 SSIM；明暗变化也会影响；负值显示 0%。">{{ similarity(asset) }}</p><CandidateReview :sample="asset" /></div></article>
   </div>

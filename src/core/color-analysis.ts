@@ -1,3 +1,4 @@
+import { recipe as pl } from './ink-recipe'
 import type { RGB, InkRecipe, InkRenderModel, InkResult, ImageSummary } from './types'
 import { DesignImages } from './design-images'
 
@@ -9,36 +10,6 @@ var fl = ({
   g: t,
   b: n
 }: RGB) => `#${[e, t, n].map(e => Math.round(e).toString(16).padStart(2, `0`)).join(``)}`.toUpperCase();
-function pl({
-  r: e,
-  g: t,
-  b: n
-}: RGB): InkRecipe {
-  let r = e / 255,
-    i = t / 255,
-    a = n / 255,
-    o = 1 - Math.max(r, i, a),
-    s = Math.max(r, i, a) - Math.min(r, i, a),
-    c = {
-      red: Math.max(.03, r - i + Math.max(0, r - a) * .35),
-      yellow: Math.max(.03, Math.min(r, i) - a + Math.max(0, i - a) * .3),
-      blue: Math.max(.018, a - Math.min(r, i) + Math.max(0, r + a - 2 * i) * .18),
-      black: Math.max(.025, o * .75 + (1 - s) * o * .35)
-    },
-    l = ll(20 + o * 57 + s * 15, 20, 76),
-    u = Object.values(c).reduce((e, t) => e + t, 0),
-    d = Math.round(c.red / u * l),
-    f = Math.round(c.yellow / u * l),
-    p = Math.round(c.blue / u * l),
-    m = Math.round(c.black / u * l);
-  return {
-    red: d,
-    yellow: f,
-    blue: p,
-    black: m,
-    thinner: 100 - d - f - p - m
-  };
-}
 function ml(e: RGB, t: RGB[]): number {
   let n = 0,
     r = 1 / 0;

@@ -67,6 +67,7 @@ export function normalize(value: unknown): SampleMetadataRecord {
     const review = input.candidateReview
     if (!isRecord(review) || typeof review.status !== 'string' || !['pending', 'accepted', 'adjust', 'rejected'].includes(review.status)) throw Error('候选评价状态无效')
     out.candidateReview = { status: review.status as CandidateStatus }
+    if (review.note != null) out.candidateReview.note = text(review.note, '评价意见').slice(0, 2000)
     if (review.updatedAt) out.candidateReview.updatedAt = text(review.updatedAt, '评价时间')
   }
   return out

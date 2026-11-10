@@ -10,4 +10,4 @@ const layouts: Partial<Record<NonNullable<RouteMeta['layout']>, Component>> = { 
 const layout = computed(() => layouts[route.meta.layout || 'default'] || DefaultLayout)
 const themeConfig = computed(() => ({ algorithm: themeStore.isDark ? theme.darkAlgorithm : theme.defaultAlgorithm, token: { colorPrimary: '#145f65', borderRadius: 2, fontFamily: 'Noto Sans SC, Microsoft YaHei, PingFang SC, Arial, sans-serif' } }))
 </script>
-<template><ConfigProvider :theme="themeConfig"><component :is="layout"><RouterView v-slot="{ Component }"><KeepAlive :include="['DesignView','InkView','ProductionView','TrendsView']"><component :is="Component" /></KeepAlive></RouterView></component><GlobalDialogs /></ConfigProvider></template>
+<template><ConfigProvider :theme="themeConfig"><component :is="layout"><RouterView v-slot="{ Component }"><KeepAlive :include="['DesignView','InkView','ProductionView','ColorCompareView','TrendsView']"><component :is="Component" /></KeepAlive></RouterView></component><GlobalDialogs /></ConfigProvider></template>

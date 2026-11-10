@@ -11,12 +11,26 @@ import { S } from '../services/workflows'
 import type { InkRun, InkSettings, WorkflowOpenDetail } from '../services/types'
 import { useWorkflowStore } from '../stores/workflow'
 
+import { combinations, defaultCombination, normalize, recipe } from '../core/ink-recipe'
+
 type InkRecipe = InkLayer['recipe']
 interface InputOperation { name: string; source: string; sampleId?: string | null }
 const workflow = useWorkflowStore(), router = useRouter()
 const source = ref(assetUrl('sample-oak.png')), sourceName = ref('浅色橡木_样例.png')
+// 图片来源独立于分析结果，重算或分析失败时仍保留其样例关联。
+const sourceSampleId = ref<string | null>(null)
 const result = shallowRef<InkResult | null>(null), activeRun = shallowRef<InkRun | null>(null)
 const selectedLayer = ref(0), enabled = ref<boolean[]>([]), weight = ref<number | string>(10)
+const selectedInks = ref(defaultCombination), draftInks = ref(defaultCombination), draftWeight = ref<number | string>(10)
+const validDraftWeight = computed(() => draftWeight.value !== '' && Number.isFinite(Number(draftWeight.value)) && Number(draftWeight.value) >= .5 && Number(draftWeight.value) <= 500)
+const settingsDirty = computed(() => draftInks.value !== selectedInks.value || !validDraftWeight.value || Number(draftWeight.value) !== Number(weight.value))
+function cancelSettings() { draftInks.value = selectedInks.value; draftWeight.value = weight.value }
+function confirmSettings() {
+  if (!result.value || busy.value || !validDraftWeight.value || !settingsDirty.value) return
+  if (selectedInks.value !== draftInks.value) result.value = { ...result.value, layers: result.value.layers.map(layer => ({ ...layer, recipe: recipe(layer.rgb, draftInks.value) })) }
+  selectedInks.value = draftInks.value; weight.value = Number(draftWeight.value)
+}
+function unused(key: keyof InkRecipe) { return key !== 'thinner' && !selectedInks.value.split(',').includes(key) }
 const tab = ref<'overview' | 'detail'>('overview'), previewTab = ref<'pair' | 'layer'>('pair')
 const busy = ref(false), error = ref(''), localSaveError = ref(''), dragging = ref(false), settingsSaving = ref(false)
 const fileInput = ref<HTMLInputElement>()
@@ -46,7 +60,7 @@ const recordDeleted = computed(() => { void workflow.tick; return !!activeRun.va
 const recordConflict = computed(() => { void workflow.tick; return !!activeRun.value && S.hasInkConflict(activeRun.value.id) })
 const recordStatus = computed(() => { void workflow.tick; return S.inkRecordStatus?.id === activeRun.value?.id ? S.inkRecordStatus : null })
 const analysisDate = computed(() => new Date(activeRun.value?.createdAt || Date.now()).toLocaleString('zh-CN'))
-function settings(): InkSettings { return { weight: Number(weight.value), enabled: [...enabled.value], selectedLayer: selectedLayer.value, tab: tab.value } }
+function settings(): InkSettings { return { selectedInks: normalize(selectedInks.value), weight: Number(weight.value), enabled: [...enabled.value], selectedLayer: selectedLayer.value, tab: tab.value } }
 function clearResult() {
   request++; settingsSaveVersion++; settingsSaving.value = false; activeRun.value = null; result.value = null; enabled.value = []
   busy.value = false; error.value = ''; localSaveError.value = ''; selectedLayer.value = 0
@@ -60,7 +74,7 @@ async function persistSettings() {
   const currentSettings = settings()
   const version = ++settingsSaveVersion
   settingsSaving.value = true
-  activeRun.value = { ...record, difference: difference.value ?? record.difference, snapshot: record.snapshot ? { ...record.snapshot, settings: currentSettings } : undefined }
+  activeRun.value = { ...record, difference: difference.value ?? record.difference, snapshot: record.snapshot ? { ...record.snapshot, layers: result.value.layers, settings: currentSettings } : undefined }
   const current = () => activeRun.value?.id === record.id && settingsSaveVersion === version
   try { await S.updateInkRunSettings(record.id, currentSettings); if (current()) localSaveError.value = '' }
   catch (failure) { if (current()) localSaveError.value = failure instanceof Error ? failure.message : '保存失败，请重试。' }
@@ -71,7 +85,7 @@ async function retrySave() {
   if (!record || recordDeleted.value || recordConflict.value || !validWeight.value) return
   try {
     if (S.inkRuns.some(run => run.id === record.id)) await S.updateInkRunSettings(record.id, settings())
-    else await S.recordInkRun({ ...record, snapshot: record.snapshot ? { ...record.snapshot, settings: settings() } : undefined })
+    else await S.recordInkRun({ ...record, snapshot: record.snapshot ? { ...record.snapshot, layers: result.value?.layers || record.snapshot.layers, settings: settings() } : undefined })
     localSaveError.value = ''
   } catch (failure) { localSaveError.value = failure instanceof Error ? failure.message : '配墨记录保存失败。' }
 }
@@ -80,13 +94,14 @@ async function reloadRecord() {
   if (latest) await S.openInkRun(latest)
 }
 async function analyze(operation?: InputOperation) {
-  clearResult(); const token = request
+  clearResult(); cancelSettings(); const token = request
   busy.value = true; S.status('ink', 'busy')
   try {
     await new Promise(resolve => setTimeout(resolve, 40))
     const image = await loadImage(source.value)
     if (token !== request) return
     const next = analyzeInk(image)
+    next.layers = next.layers.map(layer => ({ ...layer, recipe: recipe(layer.rgb, selectedInks.value) }))
     if (!next) throw new Error('未能读取图片颜色，请更换图片。')
     if (token !== request) return
     result.value = next; selectedLayer.value = 0; enabled.value = next.layers.map(() => true); busy.value = false
@@ -108,7 +123,7 @@ async function analyze(operation?: InputOperation) {
 }
 async function uploadFile(file?: File) {
   if (!file) return
-  clearResult(); source.value = ''; sourceName.value = file.name
+  clearResult(); source.value = ''; sourceName.value = file.name; sourceSampleId.value = null
   const token = request
   if (!file.type.startsWith('image/')) { error.value = '仅支持 JPG、PNG、WEBP 等图片文件。'; S.status('ink', 'error', error.value); return }
   if (file.size > 12 * 1024 * 1024) { error.value = '图片不能超过 12 MB。'; S.status('ink', 'error', error.value); return }
@@ -132,10 +147,10 @@ function amount(percentage: number) { const kg = percentage / 100 * (validWeight
 function exportRecipe() {
   if (!result.value || busy.value || !validWeight.value || error.value) return
   const text = ['帝龙智能配色系统 - 配墨建议单', '样例文件：' + sourceName.value, '分析时间：' + analysisDate.value,
-    '初步识别色层：' + result.value.layers.length + ' 层', ...warnings.value, '单层配墨基准：' + weight.value + ' kg',
+    '基础色墨组合：' + combinations.find(c => c.value === selectedInks.value)!.label, '初步识别色层：' + result.value.layers.length + ' 层', ...warnings.value, '单层配墨基准：' + weight.value + ' kg',
     '当前合成偏差（白底）：' + (difference.value?.toFixed(2) ?? '—') + ' / 255', '',
     ...result.value.layers.flatMap((layer, index) => [`${index + 1}. ${layer.name} / ${layer.hex} / 图像占比 ${layer.share}% / ${enabled.value[index] ? '开启' : '关闭'}`,
-      ...ingredients.map(item => `   ${item.label}：${layer.recipe[item.key]}%（${amount(layer.recipe[item.key])}）`), '']),
+      ...ingredients.map(item => `   ${item.label}${unused(item.key) ? "（未使用）" : ""}：${layer.recipe[item.key]}%（${amount(layer.recipe[item.key])}）`), '']),
     '说明：本结果为基于图像色彩的初始配墨建议，实际生产前需结合纸张、油墨和设备条件试印校正。'].join('\r\n')
   const url = URL.createObjectURL(new Blob(['\uFEFF' + text], { type: 'text/plain;charset=utf-8' })); const anchor = document.createElement('a')
   anchor.href = url; anchor.download = sourceName.value.replace(/\.[^.]+$/, '').replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_') + '_配墨建议.txt'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 30000)
@@ -145,10 +160,11 @@ async function restore(event: Event) {
   if (!S.canRestoreInkRun(run)) return
   restoring = true; clearResult(); const snapshot = run.snapshot, saved: Partial<InkSettings> = snapshot.settings || {}
   const restoredEnabled = Array.isArray(saved.enabled) && saved.enabled.length === snapshot.layers.length ? [...saved.enabled] : snapshot.layers.map(() => true)
-  source.value = snapshot.imageUrl; sourceName.value = run.inputName; activeRun.value = structuredClone(run)
+  source.value = snapshot.imageUrl; sourceName.value = run.inputName; sourceSampleId.value = run.sampleId || null; activeRun.value = structuredClone(run)
   result.value = { layers: snapshot.layers, renderModel: snapshot.renderModel, difference: run.difference, reconstructionUrl: renderInk(snapshot.renderModel, restoredEnabled) }
   enabled.value = restoredEnabled
   weight.value = typeof saved.weight === 'number' && Number.isFinite(saved.weight) ? Math.max(.5, Math.min(500, saved.weight)) : 10
+  selectedInks.value = normalize(saved.selectedInks).join(','); cancelSettings()
   selectedLayer.value = typeof saved.selectedLayer === 'number' && Number.isInteger(saved.selectedLayer) && saved.selectedLayer >= 0 && saved.selectedLayer < snapshot.layers.length ? saved.selectedLayer : 0
   tab.value = saved.tab === 'detail' ? 'detail' : 'overview'; S.status('ink', 'ready'); S.status('ink-restore', 'ready')
   await nextTick(); restoring = false
@@ -156,10 +172,10 @@ async function restore(event: Event) {
 function openSample(event: Event) {
   const detail = (event as CustomEvent<WorkflowOpenDetail>).detail
   if (detail.page !== 'color' || !detail.sample) return
-  source.value = detail.sample.imageUrl; sourceName.value = detail.sample.name + '.png'
+  source.value = detail.sample.imageUrl; sourceName.value = detail.sample.name + '.png'; sourceSampleId.value = detail.sample.id
   void analyze({ name: sourceName.value, sampleId: detail.sample.id, source: '样例库' })
 }
-watch([weight, enabled, selectedLayer, tab], () => { if (!restoring) void persistSettings() }, { deep: true })
+watch([weight, selectedInks, enabled, selectedLayer, tab], () => { if (!restoring) void persistSettings() }, { deep: true })
 onMounted(() => { window.addEventListener('dilong-ink-open', restore); window.addEventListener('dilong-open', openSample); void analyze() })
 onBeforeUnmount(() => { request++; window.removeEventListener('dilong-ink-open', restore); window.removeEventListener('dilong-open', openSample) })
 </script>
@@ -168,21 +184,21 @@ onBeforeUnmount(() => { request++; window.removeEventListener('dilong-ink-open',
 <div class="ink-algorithm-note"><b>本地算法初步分析</b><p>用于演示与人工参考；细密纹理可能识别不足，配方需经试印确认。</p></div>
 <section class="summary-strip ink-summary"><div class="ink-metric"><span>任务状态</span><strong :class="result?'ready':'pending'">{{busy?'分析中…':error?'分析失败':result?'分析完成':'等待图片'}}</strong></div><div class="ink-metric"><span>初步识别色层</span><strong>{{busy?'计算中':result?result.layers.length+' 层':'—'}}</strong></div><div class="ink-metric aggregate-color"><span>综合色值</span><strong class="hex-summary"><i :style="{background:aggregateHex==='—'?'transparent':aggregateHex}"/><b class="hex-value">{{aggregateHex}}</b></strong></div><div class="ink-metric"><span>当前合成偏差（白底）</span><strong>{{busy?'计算中':difference?.toFixed(2) ?? '—'}}<template v-if="!busy && difference!==null"> / 255</template></strong></div><div class="ink-metric"><span>配方基准</span><strong>{{validWeight?Number(weight).toFixed(1)+' kg / 层':'—'}}</strong></div></section>
 <p v-if="error" class="error-banner" role="alert">{{error}}</p>
-    <div v-if="activeRun" class="ink-run-info" :role="recordConflict || localSaveError || recordStatus?.state==='error' ? 'alert' : 'status'">
-      <template v-if="recordDeleted">此次历史已删除。当前预览仍可导出，后续参数调整不再保存到该记录。</template>
-      <template v-else-if="recordConflict">此记录已在其他页面修改，当前预览已保留，参数暂不保存。<button class="btn btn-secondary" @click="reloadRecord">重新加载最新记录</button></template>
-      <template v-else><strong>当前配墨记录：{{activeRun.inputName}}</strong><span>{{settingsSaving || recordStatus?.state==='busy' ? '正在保存…' : localSaveError || recordStatus?.message || '原图、配方和参数已保存在本机浏览器'}}</span><button v-if="localSaveError || recordStatus?.state==='error'" class="btn btn-secondary" @click="retrySave">重试保存</button></template>
-    </div>
 
 <div class="main-grid"><section class="panel image-panel"><header class="panel-header"><div><span class="step-no">01</span><div><h2>上传样例</h2><p>上传后自动完成色层分析</p></div></div><span class="format-note">JPG · PNG · WEBP</span></header><input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,.webp" class="sr-only" aria-label="上传配墨图片" @change="upload"/>
 <div class="image-stage" :class="{dragging}" @dragover.prevent="dragging=true" @dragleave="dragging=false" @drop="drop"><BigImageViewer v-if="source" :src="source" :alt="sourceName" class="ink-large-image" eager/><div v-if="busy" class="analysis-overlay"><LoaderCircle class="spin"/><span>正在识别颜色与色层…</span></div><div v-else-if="!source" class="empty-state">请选择有效图片</div><div class="scan-corners" aria-hidden="true"><i/><i/><i/><i/></div></div><div class="file-row"><div class="file-info"><ImageIcon/><div><strong>{{sourceName}}</strong><span>当前分析样例</span></div></div><button class="btn btn-secondary" @click="fileInput?.click()"><Upload :size="14"/>更换图片</button></div><div class="local-note"><Check :size="14"/>主动选择的图片与配墨记录保存在当前浏览器，不会上传服务器。</div></section>
 <section class="panel layers-panel"><header class="panel-header"><div><span class="step-no">02</span><div><h2>印刷色层建议</h2><p>按实际叠印顺序由浅至深排列</p></div></div><span class="complete-badge"><Check/>{{busy?'计算中':result?'已完成':'待分析'}}</span></header><div class="layer-list"><article v-for="(layer,index) in result?.layers || []" :key="index" class="layer-card" :class="{selected:selectedLayer===index}"><button class="layer-row layer-select" :class="{active:selectedLayer===index}" :aria-pressed="selectedLayer===index" @click="selectedLayer=index"><span class="layer-index">{{String(index+1).padStart(2,'0')}}</span><span class="color-swatch" :style="{background:layer.hex}"/><span class="layer-copy"><strong>{{layer.name}}</strong><small>{{layer.role}}</small></span><span class="layer-values"><strong class="current-layer-hex">{{layer.hex}}</strong><small>覆盖约 {{layer.share}}%</small></span><ChevronRight/></button></article><div v-if="!result" class="empty-state">{{busy?'正在计算色层…':'选择有效图片后开始分析'}}</div></div>
-<div class="weight-setting"><div><FlaskConical/><div><strong><label for="ink-weight">单层配墨重量</label></strong><span>四层配方同步换算用量</span></div></div><div class="weight-input"><input id="ink-weight" v-model.number="weight" class="form-control" type="number" min="0.5" max="500" step="0.5"/><span>kg</span></div></div><p v-if="!validWeight" class="warning-text">请输入0.5至500 kg的配墨重量。</p><div class="ink-secondary-actions"><button class="text-link" aria-label="恢复当前样例" title="保留当前图片和重量，恢复全部色层与默认预览" :disabled="busy || !result" @click="resetCurrentSample"><RotateCcw :size="13"/>恢复当前样例</button><button class="text-link" :disabled="busy || !source" @click="analyze({name:sourceName,source:'用户重新分析'})">重新分析当前图片</button></div></section></div>
+<div class="ink-secondary-actions"><button class="text-link" aria-label="恢复当前样例" title="保留当前图片和重量，恢复全部色层与默认预览" :disabled="busy || !result" @click="resetCurrentSample"><RotateCcw :size="13"/>恢复当前样例</button><button class="text-link" :disabled="busy || !source" @click="analyze({name:sourceName,sampleId:sourceSampleId,source:'用户重新分析'})">重新分析当前图片</button></div></section></div>
 <section class="panel reconstruction-panel"><header class="panel-header"><div><span class="step-no">03</span><div><h2>四色层合成还原</h2><p>还原图仅由识别出的色层重新叠加生成</p></div></div><span class="reconstruction-status"><Layers3/>原样与重建对比</span></header><div class="reconstruction-body"><div><div class="ink-preview-tabs" role="tablist" aria-label="配墨图像预览"><button role="tab" :aria-selected="previewTab==='pair'" :class="{active:previewTab==='pair'}" @click="previewTab='pair'">原图与合成</button><button role="tab" :aria-selected="previewTab==='layer'" :class="{active:previewTab==='layer'}" :disabled="!activeLayer" @click="previewTab='layer'">当前色层</button></div><div v-if="previewTab==='pair'" class="comparison-grid image-pair"><figure><figcaption><span>上传原样</span><small>原始图像</small></figcaption><div class="compare-image"><BigImageViewer v-if="source" :src="source" :alt="sourceName" class="ink-large-image"/></div></figure><figure><figcaption><span>四色层还原样</span><small>{{result?'当前启用 '+activeCount+' / '+result.layers.length+' 层':'等待分析'}}</small></figcaption><div class="compare-image reconstructed"><BigImageViewer v-if="result && reconstructed" :src="reconstructed" alt="色层合成还原图" class="ink-large-image"/><div v-else class="empty-state">{{busy?'正在计算…':'分析后显示还原图'}}</div></div></figure></div><div v-else class="single-layer-preview checker"><BigImageViewer v-if="activeLayer" :src="activeLayer.maskUrl" :alt="activeLayer.name+'分层图'" class="ink-large-image"/></div></div>
-<aside class="layer-stack"><div class="stack-heading"><div><strong>色层叠加控制</strong><span>关闭任意一层，观察该层对还原结果的影响</span></div><button class="btn btn-secondary" :disabled="!result" @click="enabled=result?.layers.map(()=>true) ?? []">全部开启</button></div><div class="stack-list"><label v-for="(layer,index) in result?.layers || []" :key="index" class="stack-layer layer-switch" :class="{disabled:!enabled[index]}"><span class="stack-order">{{index+1}}</span><span class="stack-thumb checker"><img :src="layer.maskUrl" :alt="layer.name+'色层缩略图'"/></span><span class="stack-copy"><b>{{layer.name}}</b><small>{{layer.hex}} · 覆盖约 {{layer.share}}%</small></span><input class="sr-only" type="checkbox" :checked="enabled[index]" :aria-label="'开启'+layer.name" @change="toggle(index)"/><Eye v-if="enabled[index]" :size="15"/><EyeOff v-else :size="15"/></label></div><div class="difference-note"><strong>当前合成偏差（白底）：{{busy?'计算中':difference?.toFixed(2) ?? '—'}}<template v-if="!busy && difference!==null"> / 255</template></strong><span>数值越低，四色层近似效果越接近上传原样。该指标为 RGB 像素平均距离，用于本次快速视觉比较。</span></div></aside></div></section>
-<section class="panel formula-panel"><header class="panel-header"><div><span class="step-no">04</span><div><h2>各色层配墨建议</h2><p>默认同时查看全部色层，也可切换到单层详情称量</p></div></div><span class="formula-status"><Activity :size="15"/> 初始配方建议</span></header><div class="formula-tabs"><div class="formula-tabs-list ink-preview-tabs" role="tablist" aria-label="配方查看方式"><button role="tab" :aria-selected="tab==='overview'" :class="{active:tab==='overview'}" @click="tab='overview'">全部色层总览</button><button role="tab" :aria-selected="tab==='detail'" :class="{active:tab==='detail'}" :disabled="!activeLayer" @click="tab='detail'">单层配方详情</button></div>
-<div v-if="result && tab==='overview'" class="recipe-grid"><article v-for="(layer,index) in result.layers" :key="index" class="recipe-card"><header class="recipe-card-head"><i class="mini-swatch" :style="{background:layer.hex}"/><div><strong>{{String(index+1).padStart(2,'0')}} · {{layer.name}}</strong><small>{{layer.hex}} · {{layer.share}}%</small></div><button @click="showLayer(index)">查看详情</button></header><div class="recipe-components"><div v-for="item in ingredients" :key="item.key"><span><i :style="{background:item.color}"/>{{item.label}}</span><b>{{layer.recipe[item.key]}}%</b></div></div><footer class="recipe-card-total"><span>单层合计</span><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong></footer></article></div>
-<div v-else-if="activeLayer" class="formula-body recipe-panel"><aside class="target-card"><span>{{activeLayer.name}}</span><div class="target-color" :style="{background:activeLayer.hex}"/><strong>{{activeLayer.hex}}</strong><p>RGB {{Math.round(activeLayer.rgb.r)}} / {{Math.round(activeLayer.rgb.g)}} / {{Math.round(activeLayer.rgb.b)}}</p><div class="layer-pager"><button v-for="(layer,index) in result?.layers || []" :key="index" :class="{active:selectedLayer===index}" :aria-label="`查看第${index+1}色层配方`" :aria-pressed="selectedLayer===index" @click="selectedLayer=index">{{String(index+1).padStart(2,'0')}}</button></div><div class="target-meta"><span>当前色层</span><b>{{selectedLayer+1}} / {{result?.layers.length}}</b></div></aside><div class="ink-table-wrap recipe-list"><div class="ink-table-head"><span>油墨组分</span><span>参考占比</span><span>换算用量</span><span>配方比例</span></div><div v-for="item in ingredients" :key="item.key" class="ink-row recipe-row"><span class="ink-name"><i :style="{background:item.color}"/><b>{{item.label}}</b></span><strong>{{activeLayer.recipe[item.key]}}%</strong><strong>{{amount(activeLayer.recipe[item.key])}}</strong><div class="ratio-track"><i :style="{width:activeLayer.recipe[item.key]+'%',background:item.color}"/></div></div><div class="total-row"><b>配方合计</b><strong>100%</strong><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong><span>按单层配墨重量换算</span></div></div></div><div v-else class="empty-state">暂无可用配方</div></div><p v-for="warning in warnings" :key="warning" class="warning-text">{{warning}}</p><div class="industrial-notice"><strong>试印提示</strong><span>该配方由图像色彩近似换算，作为首次调整的参考起点。实际生产前请结合原纸底色、油墨型号与设备状态进行试印校正。</span></div></section>
+<aside class="layer-stack"><div class="stack-heading"><div><strong>色层叠加控制</strong><span>关闭任意一层，观察该层对还原结果的影响</span></div><button class="btn btn-secondary" :disabled="!result" @click="enabled=result?.layers.map(()=>true) ?? []">全部开启</button></div><div class="stack-list"><label v-for="(layer,index) in result?.layers || []" :key="index" class="stack-layer layer-switch" :class="{disabled:!enabled[index]}"><span class="stack-order">{{index+1}}</span><span class="stack-thumb checker"><img :src="layer.maskUrl" :alt="layer.name+'色层缩略图'"/></span><span class="stack-copy"><b>{{layer.name}}</b><small>{{layer.hex}} · 覆盖约 {{layer.share}}%</small></span><input class="sr-only" type="checkbox" :checked="enabled[index]" :aria-label="'开启'+layer.name" @change="toggle(index)"/><Eye v-if="enabled[index]" :size="15"/><EyeOff v-else :size="15"/></label></div><div class="difference-note"><strong>当前合成偏差（白底）：{{busy?'计算中':difference?.toFixed(2) ?? '—'}}<template v-if="!busy && difference!==null"> / 255</template></strong><span>数值越低，四色层近似效果越接近上传原样。该指标为 RGB 像素平均距离，评价分色近似效果，不代表配方的实际涂层效果。</span></div></aside></div></section>
+<section class="panel formula-panel"><header class="panel-header"><div><span class="step-no">04</span><div><h2>各色层配墨建议</h2><p>默认同时查看全部色层，也可切换到单层详情称量</p></div></div><span class="formula-status"><Activity :size="15"/> 初始配方建议</span></header><div class="ink-settings-toolbar"><label>基础色墨组合<select v-model="draftInks" aria-label="配墨色墨组合"><option v-for="c in combinations" :key="c.value" :value="c.value">{{c.label}}</option></select></label><label>单层配墨重量<div class="weight-input"><input id="ink-weight" v-model="draftWeight" aria-label="单层配墨重量" type="number" min="0.5" max="500" step="0.5"/><span>kg</span></div></label><div class="ink-confirm-actions"><button class="btn btn-primary" :disabled="busy || !result || !validDraftWeight || !settingsDirty" @click="confirmSettings">确认组合并更新配方</button><button class="btn btn-secondary" :disabled="!settingsDirty" @click="cancelSettings">取消修改</button></div></div><div class="ink-application-status" :class="{pending:settingsDirty}" role="status"><strong>{{settingsDirty?'待确认：组合或重量尚未应用':'配方已更新，下方总览与单层详情已同步'}}</strong><span>当前配方：{{combinations.find(c=>c.value===selectedInks)?.label}}，{{Number(weight).toFixed(2)}} kg / 层。基础色墨数量与图像色层数量独立，稀释剂单独计算。</span><span v-if="!validDraftWeight">请输入0.5至500 kg的有效重量。</span></div>    <div v-if="activeRun" class="ink-run-info" :role="recordConflict || localSaveError || recordStatus?.state==='error' ? 'alert' : 'status'">
+      <template v-if="recordDeleted">此次历史已删除。当前预览仍可导出，后续参数调整不再保存到该记录。</template>
+      <template v-else-if="recordConflict">此记录已在其他页面修改，当前预览已保留，参数暂不保存。<button class="btn btn-secondary" @click="reloadRecord">重新加载最新记录</button></template>
+      <template v-else><strong>当前配墨记录：{{activeRun.inputName}}</strong><span>{{settingsSaving || recordStatus?.state==='busy' ? '正在保存…' : localSaveError || recordStatus?.message || '原图、配方和参数已保存在本机浏览器'}}</span><button v-if="localSaveError || recordStatus?.state==='error'" class="btn btn-secondary" @click="retrySave">重试保存</button></template>
+    </div>
+<div class="formula-tabs"><div class="formula-tabs-list ink-preview-tabs" role="tablist" aria-label="配方查看方式"><button role="tab" :aria-selected="tab==='overview'" :class="{active:tab==='overview'}" @click="tab='overview'">全部色层总览</button><button role="tab" :aria-selected="tab==='detail'" :class="{active:tab==='detail'}" :disabled="!activeLayer" @click="tab='detail'">单层配方详情</button></div>
+<div v-if="result && tab==='overview'" class="recipe-grid"><article v-for="(layer,index) in result.layers" :key="index" class="recipe-card"><header class="recipe-card-head"><i class="mini-swatch" :style="{background:layer.hex}"/><div><strong>{{String(index+1).padStart(2,'0')}} · {{layer.name}}</strong><small>{{layer.hex}} · {{layer.share}}%</small></div><button @click="showLayer(index)">查看详情</button></header><div class="recipe-components"><div v-for="item in ingredients" :key="item.key"><span><i :style="{background:item.color}"/>{{item.label}}{{unused(item.key)?"（未使用）":""}}</span><b>{{layer.recipe[item.key]}}%</b></div></div><footer class="recipe-card-total"><span>单层合计</span><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong></footer></article></div>
+<div v-else-if="activeLayer" class="formula-body recipe-panel"><aside class="target-card"><span>{{activeLayer.name}}</span><div class="target-color" :style="{background:activeLayer.hex}"/><strong>{{activeLayer.hex}}</strong><p>RGB {{Math.round(activeLayer.rgb.r)}} / {{Math.round(activeLayer.rgb.g)}} / {{Math.round(activeLayer.rgb.b)}}</p><div class="layer-pager"><button v-for="(layer,index) in result?.layers || []" :key="index" :class="{active:selectedLayer===index}" :aria-label="`查看第${index+1}色层配方`" :aria-pressed="selectedLayer===index" @click="selectedLayer=index">{{String(index+1).padStart(2,'0')}}</button></div><div class="target-meta"><span>当前色层</span><b>{{selectedLayer+1}} / {{result?.layers.length}}</b></div></aside><div class="ink-table-wrap recipe-list"><div class="ink-table-head"><span>油墨组分</span><span>参考占比</span><span>换算用量</span><span>配方比例</span></div><div v-for="item in ingredients" :key="item.key" class="ink-row recipe-row"><span class="ink-name"><i :style="{background:item.color}"/><b>{{item.label}}{{unused(item.key)?"（未使用）":""}}</b></span><strong>{{activeLayer.recipe[item.key]}}%</strong><strong>{{amount(activeLayer.recipe[item.key])}}</strong><div class="ratio-track"><i :style="{width:activeLayer.recipe[item.key]+'%',background:item.color}"/></div></div><div class="total-row"><b>配方合计</b><strong>100%</strong><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong><span>按单层配墨重量换算</span></div></div></div><div v-else class="empty-state">暂无可用配方</div></div><p v-for="warning in warnings" :key="warning" class="warning-text">{{warning}}</p><div class="industrial-notice"><strong>试印提示</strong><span>该配方由图像色彩近似换算，作为首次调整的参考起点。实际生产前请结合原纸底色、油墨型号与设备状态进行试印校正。</span></div></section>
 </div></div></template>
 <style scoped>
 @reference "../assets/css/style.css";
@@ -374,4 +390,11 @@ onBeforeUnmount(() => { request++; window.removeEventListener('dilong-ink-open',
 }}
 /* Long names remain readable within the existing layout. */
 .ink-run-info { @apply min-w-0 wrap-anywhere; } .ink-run-info strong { @apply min-w-0; } .file-info { @apply min-w-0; flex: 1; } .file-info strong { @apply whitespace-normal max-w-none overflow-visible wrap-anywhere; } .file-row>button { flex: none; } .ink-table-wrap { @apply min-w-0 overflow-x-auto; }
+.ink-settings-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.55fr);gap:12px;padding:18px;background:#f3f8f7}
+.ink-settings-toolbar label{display:grid;gap:8px;font-size:12px;font-weight:600}
+.ink-settings-toolbar select,.ink-settings-toolbar input{width:100%;height:38px;border:1px solid #bccdce;background:white;padding:8px;font:inherit}
+.ink-settings-toolbar .weight-input{width:100%}.ink-confirm-actions{grid-column:1/-1;display:flex;gap:8px}
+.ink-application-status{display:grid;gap:6px;padding:14px 18px;background:#edf6f4;border-left:3px solid #145f65;font-size:12px}.ink-application-status span{font-size:11px;color:#62777b}.ink-application-status.pending{background:#fff5e6;border-left-color:#be7c24}
+.layers-panel{display:flex;flex-direction:column}.layers-panel .layer-list{flex:1;display:grid;grid-auto-rows:minmax(66px,1fr)}.layers-panel .layer-row{height:100%}
+@media(max-width:760px){.ink-settings-toolbar{grid-template-columns:minmax(0,1fr)}}
 </style>

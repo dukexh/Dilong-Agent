@@ -16,7 +16,7 @@
     "build:textures": "tsx scripts/build-public-textures.ts",
     "test": "node --require tsx/cjs --test tests/unit/*.test.cjs",
     "test:browser": "node tests/vue/browser.cjs",
-    "test:images": "node tests/vue/images.cjs",
+    "test:images": "node tests/vue/browser.cjs design.cjs ink-production.cjs",
     "test:http": "node tests/vue/http.cjs",
     "test:dist": "node tests/vue/dist.cjs",
     "build-only": "vite build",
