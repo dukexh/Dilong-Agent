@@ -21,7 +21,9 @@
     "test:dist": "node tests/vue/dist.cjs",
     "build-only": "vite build",
     "test:ecosystem": "node tests/unit/template-ecosystem.test.cjs",
-    "dev:tools": "vite --mode tools --host 127.0.0.1 --port 51458 --strictPort"
+    "dev:tools": "vite --mode tools --host 127.0.0.1 --port 51458 --strictPort",
+    "test:image-tools": "node tests/vue/browser.cjs image-tools.cjs",
+    "build:search-index": "tsx scripts/build-texture-index.ts"
   },
   "devDependencies": {
     "@babel/generator": "^8.1.0",
@@ -53,6 +55,7 @@
     "pinia": "4.0.2",
     "ant-design-vue": "4.2.6",
     "preline": "4.2.0",
-    "lucide-vue-next": "1.0.0"
+    "lucide-vue-next": "1.0.0",
+    "ag-psd": "34.2.0"
   }
 }

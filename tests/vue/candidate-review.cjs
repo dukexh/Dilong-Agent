@@ -157,7 +157,7 @@ async function ready(page) {
         assert.equal(await page.locator('.candidate-card').count(), expected)
         if (expected) {
           assert.match(await page.locator('.candidate-title').innerText(), /保留候选最新名称/)
-          if (scenario.mode === 'compare') assert.match(await page.locator('.candidate-title').innerText(), /100%/)
+          if (scenario.mode === 'compare') assert.match(await page.locator('.candidate-title').innerText(), /排序 01/)
         }
         const task = await page.evaluate(() => S.tasks.at(-1))
         assert.equal(task.outputCount, expected)

@@ -8,11 +8,11 @@ async function port(){const server=net.createServer();await new Promise(resolve=
  let log='';server.stdout.on('data',data=>log+=data);server.stderr.on('data',data=>log+=data)
  try{
   let ready=false;for(let i=0;i<100&&!ready;i++){ready=await new Promise(resolve=>{const r=http.get(base+'/src/main.ts',res=>{res.resume();resolve(res.statusCode===200)});r.on('error',()=>resolve(false))});if(!ready)await pause(100)}if(!ready)throw Error('Vite did not start: '+log)
-  const scripts=process.argv.slice(2).length?process.argv.slice(2):['candidate-review.cjs','color-compare.cjs','design.cjs','storage.cjs','ink-production.cjs','library-home-trends.cjs','compatibility.cjs','layout.cjs','template-ecosystem.cjs']
+  const scripts=process.argv.slice(2).length?process.argv.slice(2):['candidate-review.cjs','color-compare.cjs','design.cjs','storage.cjs','ink-production.cjs','library-home-trends.cjs','compatibility.cjs','layout.cjs','template-ecosystem.cjs','image-tools.cjs','review-repairs.cjs']
   for(const script of scripts){
    console.log('\nRunning '+script)
    const result=spawnSync(process.execPath,[path.join('tests/vue',script)],{cwd:root,stdio:'inherit',windowsHide:true,env:{...process.env,DILONG_URL:base,DILONG_TEST_URL:base,DILONG_TEST_BASE:base,DILONG_TEST_FILTER:''}})
-   if(result.status!==0)throw Error(script+' failed with exit '+result.status)
+   if(result.status!==0)throw Error(script+' failed with exit '+result.status+'\nVite log: '+log.slice(-4000))
   }
   console.log('All Vue browser suites passed against an isolated temporary Vite server.')
  }finally{

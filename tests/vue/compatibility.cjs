@@ -1,3 +1,4 @@
+const {settled}=require('../helpers/inks.cjs')
 const { chromium } = require('playwright')
 const assert = require('node:assert/strict')
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os')
@@ -38,17 +39,17 @@ async function check(name, action, init) {
 
   browser = await chromium.launch({ channel: 'chrome', headless: true })
   try {
-    await check('修改重量后立即刷新，连续三次均恢复最后值且不新增历史', async page => {
+    await check('确认保存完成后刷新，连续三次均恢复最后值且不新增历史', async page => {
       await seed(page)
       for (const weight of ['13.5', '18', '27.5']) {
-        await page.locator('#ink-weight').fill(weight); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.reload(); await service(page); await page.locator('.layer-card').first().waitFor(); await open(page)
+        await page.locator('#ink-weight').fill(weight); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await settled(page); await page.reload(); await service(page); await page.locator('.layer-card').first().waitFor(); await open(page)
         assert.equal(await page.locator('#ink-weight').inputValue(), weight)
         assert.equal(await page.evaluate(() => window.__S.inkRuns.length), 2)
       }
     })
     await check('色层开关、选中色层和详情页立即刷新后保留', async page => {
       await seed(page); await page.locator('.layer-switch input').nth(1).uncheck(); await page.locator('.layer-select').last().click(); await page.getByRole('tab', { name: '单层配方详情', exact: true }).click()
-      await page.reload(); await service(page); await page.locator('.layer-card').first().waitFor(); await open(page)
+      await settled(page); await page.reload(); await service(page); await page.locator('.layer-card').first().waitFor(); await open(page)
       assert.equal(await page.locator('.layer-switch input').nth(1).isChecked(), false)
       assert.equal(await page.getByRole('tab', { name: '单层配方详情', exact: true }).getAttribute('aria-selected'), 'true')
       assert(await page.evaluate(() => window.__S.inkRuns.find(run => run.id === 'fix-a').snapshot.settings.selectedLayer > 0))
@@ -64,7 +65,7 @@ async function check(name, action, init) {
       await page.evaluate(() => { const update = window.__S.updateInkRunSettings; window.__S.updateInkRunSettings = async (...args) => { await new Promise(resolve => setTimeout(resolve, 350)); return update(...args) } })
       await page.locator('#ink-weight').fill('31'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.locator('.ink-run-info').getByText('正在保存…', { exact: true }).waitFor()
       assert.equal(await page.evaluate(() => window.__S.inkRuns.find(run => run.id === 'fix-a').snapshot.settings.weight), 10)
-      await page.locator('#ink-weight').fill('32'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click()
+      assert(await page.locator('#ink-weight').isDisabled());await settled(page);await page.locator('#ink-weight').fill('32'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click()
       await page.waitForFunction(() => window.__S.inkRuns.find(run => run.id === 'fix-a').snapshot.settings.weight === 32 && !document.querySelector('.ink-run-info')?.textContent.includes('正在保存'))
     })
     await check('恢复当前样例保留原图、重量和记录，仅恢复色层及预览', async page => {
@@ -135,7 +136,7 @@ const { records } = require('../helpers/database.cjs')
   assert.equal((await records(page,'assets'))[0].id,fixture.assets[0].id);assert.equal((await records(page,'tasks'))[0].resultIds[0],fixture.assets[0].id)
   await page.getByRole('button',{name:'查看设计任务，1项',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'打开任务',exact:true}).click();await page.waitForURL('**/design');await page.locator('.saved-results article').waitFor()
   assert.equal(await page.locator('.source-tabs button.active').textContent(),'上传图片');assert.equal(await page.locator('.saved-results article').count(),1);assert.match(await page.locator('.upload-box small').textContent(),/旧版兼容输入/)
-  assert.match(await page.locator('.mode-card.active').textContent(),/小样联想补全/);assert.equal(await page.locator('.config-panel select').inputValue(),'horizontal3')
+  assert.match(await page.locator('.mode-card.active').textContent(),/小样联想补全/);assert.equal(await page.getByLabel('补全扩展方式',{exact:true}).inputValue(),'horizontal3');assert(await page.locator('.completion-run-button').isDisabled())
   assert.equal(await page.getByLabel('候选评价',{exact:true}).inputValue(),'adjust');assert.equal((await records(page,'tasks')).length,1)
   console.log('PASS 实际React旧版v2数据：候选、评价、上传输入、完整任务参数与关联恢复')
   await page.locator('.text-navigation a[href="/"]').click();await page.getByRole('button',{name:'查看配墨操作，1项',exact:true}).click();await page.getByRole('dialog').getByRole('button',{name:'打开此次配墨',exact:true}).click();await page.waitForURL('**/ink');await page.locator('.ink-run-info strong').waitFor()

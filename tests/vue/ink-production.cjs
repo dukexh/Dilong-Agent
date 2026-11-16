@@ -84,7 +84,7 @@ try {
  await check('跨标签修改冲突保留预览、阻止覆盖，显式重载后恢复保存', async () => {
   await open(firstId); const other = await context.newPage(); other.on('pageerror', error => errors.push(error.message)); await other.goto(base + '/ink'); await service(other); await open(firstId, other)
   await other.locator('#ink-weight').fill('17'); await other.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await other.waitForFunction(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight === 17, firstId)
-  await page.getByRole('button', { name: '重新加载最新记录', exact: true }).waitFor(); assert.equal(await page.locator('#ink-weight').inputValue(), '38'); await page.locator('#ink-weight').fill('11'); await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).click(); await page.waitForTimeout(250); assert.equal(await other.evaluate(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight, firstId), 17)
+  await page.getByRole('button', { name: '重新加载最新记录', exact: true }).waitFor(); assert.equal(await page.locator('#ink-weight').inputValue(), '38'); await page.locator('#ink-weight').fill('11'); assert(await page.getByRole('button', { name: '确认组合并更新配方', exact: true }).isDisabled()); await page.waitForTimeout(250); assert.equal(await other.evaluate(id => window.__S.inkRuns.find(run => run.id === id).snapshot.settings.weight, firstId), 17)
   await page.getByRole('button', { name: '重新加载最新记录', exact: true }).click(); await page.waitForFunction(() => document.querySelector('#ink-weight')?.value === '17'); await other.close()
  })
  await check('仅完全透明拒绝，极低透明图片仍可分析，失败清除旧结果', async () => {

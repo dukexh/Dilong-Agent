@@ -7,6 +7,6 @@ export const useWorkflowStore = defineStore('workflow', () => {
   S.subscribe(() => { tick.value++ })
   const from = <T>(read: () => T) => computed(() => { void tick.value; return read() })
   return { tick, assets: from(() => [...S.assets]), tasks: from(() => [...S.tasks]), inkRuns: from(() => [...S.inkRuns]),
-    all: from(() => S.all()), stats: from(() => S.stats()), operations: from(() => Object.fromEntries(Object.entries(S.operations).map(([key,value]) => [key,{...value}]))),
+    all: from(() => S.all()), personalSamples: from(() => S.personalSamples()), stats: from(() => S.stats()), operations: from(() => Object.fromEntries(Object.entries(S.operations).map(([key,value]) => [key,{...value}]))),
     designRuns: from(() => new Map(Array.from(S.designRuns, ([key,value]) => [key,{...value}]))), statsView: from(() => S.statsView), editSession: from(() => S.editSession) }
 })

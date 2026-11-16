@@ -36,17 +36,18 @@ export const S = {
   operations: {} as Record<string, OperationStatus>, listeners: new Set<() => void>(),
   designRuns: new Map<string, DesignRun>(),
   deletedHistory: { tasks: new Set<string>(), inkRuns: new Set<string>() },
-  designModeLabels: { compare: '相似检索', complete: '小样补全', twin: '风格迁移', generate: '示例候选推荐' } as Record<DesignMode, string>,
+  designModeLabels: { compare: '相似检索', complete: '小样补全', twin: '风格迁移', generate: '示例候选推荐', seamless: '四方连续' } as Record<DesignMode, string>,
   statsSession: 0, statsView: null as string | null, statsTrigger: null as HTMLElement | null,
   activeTask: null as string | null, editingAssetId: null as string | null,
   editingAssetSnapshot: undefined as WorkflowAsset | undefined, editSession: 0,
   lastImportIds: [] as string[], packageOpen: false, savingCandidateKey: undefined as string | undefined,
   originalTrends: [] as TrendRecord[], inkRecordStatus: undefined as InkRecordStatus | undefined,
   ready: Promise.resolve(),
+  beforeInkChange: undefined as (() => Promise<boolean>) | undefined,
   navigate: (_page: PageKey): void | Promise<unknown> => {},
   analyze: analyzeSummary, analyzeFull: analyzeInk,
   status, subscribe, createId, startDesignRun, checkDesignCancelled, finishDesignRun,
-  isCandidate, isLibraryAsset, formalSamples, stats, showStats, closeStats, all, deleteAsset, confirmDelete, startEdit, closeEdit,
+  isCandidate, isLibraryAsset, formalSamples, personalSamples, stats, showStats, closeStats, all, deleteAsset, confirmDelete, startEdit, closeEdit,
   updateAsset, librarySamples, showImported, save, updateTask, reviewCandidate, captureInkImage,
   canRestoreInkRun, recordInkRun, updateInkRunSettings, openInkRun, deleteHistory, beginDesignTask,
   createTask, openTask, open, recommend, layerDifference, zip, unzip, exportPackage, previewPackage,
@@ -95,7 +96,7 @@ function revision(record: Revisioned | undefined): number { return record?._revi
 function chronological(a: Revisioned, b: Revisioned): number { return String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || a.id.localeCompare(b.id) }
 function candidateStatus(asset: WorkflowAsset): CandidateStatus { return asset.candidateReview?.status || 'pending' }
 function isCandidate(asset: WorkflowAsset): boolean {
-  return asset.recordKind === 'design-candidate' || (!asset.importedAt && (asset.status === '本地保存' || (asset.status !== '本地导入' && candidateSources.includes(asset.source))))
+  return asset.recordKind === 'design-candidate' || !!asset.candidateReview || (!asset.importedAt && (asset.status === '本地保存' || (asset.status !== '本地导入' && candidateSources.includes(asset.source))))
 }
 function resultStatus(resultIds: string[], assets = S.assets): DesignTaskStatus {
   return resultIds.some(key => assets.some(asset => asset.id === key && candidateStatus(asset) === 'pending')) ? '已保存候选' : '已评价'
@@ -111,6 +112,7 @@ function showStats(kind: string, trigger: HTMLElement | null = null): void { S.s
 function closeStats(session?: number): void { if (session !== undefined && session !== S.statsSession) return; S.statsView = null; emit() }
 function isLibraryAsset(asset: WorkflowAsset): boolean { return !S.isCandidate(asset) || candidateStatus(asset) === 'accepted' }
 function formalSamples(): WorkflowAsset[] { return S.all().filter(S.isLibraryAsset) }
+function personalSamples(): WorkflowAsset[] { return S.assets.filter(S.isLibraryAsset) }
 function all(): WorkflowAsset[] { return [...S.base, ...S.assets] }
 
 /** Call once at application startup. Repeated calls may replace the public catalog without reopening storage. */
@@ -414,7 +416,8 @@ async function persistInkRun(next: InkRun): Promise<void> {
     await write('inkRuns', [next]); S.inkRuns = S.inkRuns.some(run => run.id === next.id) ? S.inkRuns.map(run => run.id === next.id ? next : run) : [...S.inkRuns, next]
     unsavedInkRuns.delete(next.id); setInkRecordStatus(next.id, 'ready')
   } catch (error) {
-    if (isConflict(error)) inkConflicts.add(next.id); else unsavedInkRuns.set(next.id, next)
+    if (isConflict(error)) inkConflicts.add(next.id)
+    else if (!S.inkRuns.some(run => run.id === next.id)) unsavedInkRuns.set(next.id, next)
     setInkRecordStatus(next.id, 'error', '配墨记录保存失败：' + errorMessage(error)); throw error
   }
 }
@@ -423,27 +426,34 @@ function canRestoreInkRun(run: InkRun | undefined): run is RestorableInkRun {
   const snapshot = run?.snapshot, model = snapshot?.renderModel
   return !!(snapshot?.version === 1 && typeof snapshot.imageUrl === 'string' && snapshot.imageUrl.startsWith('data:image/') && snapshot.layers?.length > 0 && model && model.width > 0 && model.height > 0 && model.assignments?.length === model.width * model.height && model.original?.length === model.width * model.height * 4 && model.colours?.length === snapshot.layers.length)
 }
-function recordInkRun(record: InkRun): Promise<void> {
+function recordInkRun(record: InkRun): Promise<InkRun> {
   return withDataWrite(async () => {
     await S.ready
-    if (S.inkRuns.some(run => run.id === record.id)) return
+    const existing = S.inkRuns.find(run => run.id === record.id)
+    if (existing) return existing
     const next = { ...record, schemaVersion: record.snapshot ? 2 : 1, createdAt: record.createdAt || new Date().toISOString() }
     await persistInkRun(next)
+    return next
   })
 }
-function updateInkRunSettings(runId: string, settings: InkSettings): Promise<void> {
+function updateInkRunSettings(runId: string, settings: InkSettings): Promise<RestorableInkRun> {
   return withDataWrite(async () => {
     await S.ready
-    if (S.deletedHistory.inkRuns.has(runId)) return
-    if (inkConflicts.has(runId)) { setInkRecordStatus(runId, 'error', '此记录已在其他页面修改，请重新加载最新记录后再调整。'); return }
+    if (S.deletedHistory.inkRuns.has(runId)) throw Error('此次历史已删除，参数不会重新保存到该记录。')
+    if (inkConflicts.has(runId)) {
+      const error = conflict(false); setInkRecordStatus(runId, 'error', error.message); throw error
+    }
     const old = unsavedInkRuns.get(runId) || S.inkRuns.find(run => run.id === runId)
-    if (!S.canRestoreInkRun(old)) return
-    if (!unsavedInkRuns.has(runId) && JSON.stringify(old.snapshot.settings) === JSON.stringify(settings)) return
-    const next: InkRun = { ...old, updatedAt: new Date().toISOString(), difference: S.layerDifference(old.snapshot.renderModel, settings.enabled), snapshot: { ...old.snapshot, settings: structuredClone(settings), layers: normalize(old.snapshot.settings?.selectedInks).join() === normalize(settings.selectedInks).join() ? old.snapshot.layers : old.snapshot.layers.map(layer => ({ ...layer, recipe: recipe(layer.rgb, settings.selectedInks) })) } }
+    if (!S.canRestoreInkRun(old)) throw Error('此记录已不存在或缺少完整配墨快照，无法保存参数。')
+    const normalizedSettings = { ...structuredClone(settings), selectedInks: normalize(settings.selectedInks) }
+    if (!unsavedInkRuns.has(runId) && JSON.stringify(old.snapshot.settings) === JSON.stringify(normalizedSettings)) return old
+    const next: RestorableInkRun = { ...old, updatedAt: new Date().toISOString(), difference: S.layerDifference(old.snapshot.renderModel, normalizedSettings.enabled), snapshot: { ...old.snapshot, settings: normalizedSettings, layers: normalize(old.snapshot.settings?.selectedInks).join() === normalizedSettings.selectedInks.join() ? old.snapshot.layers : old.snapshot.layers.map(layer => ({ ...layer, recipe: recipe(layer.rgb, normalizedSettings.selectedInks) })) } }
     await persistInkRun(next)
+    return next
   })
 }
 async function openInkRun(record: InkRun): Promise<void> {
+  if (S.beforeInkChange && !await S.beforeInkChange()) return
   await dataWrites
   const run = S.inkRuns.find(item => item.id === record.id)
   if (!S.canRestoreInkRun(run)) { S.status('ink-restore', 'error', '此旧记录没有完整快照，无法恢复当次配墨；可选择来源样例重新分析。'); return }
@@ -483,10 +493,10 @@ function deleteHistory(store: HistoryStore, ids: string[]): Promise<number> {
   })
 }
 function describeConditions(mode: DesignMode, parameters: DesignParameters): string {
-  const sorting: Record<string, string> = { balanced: '综合色彩与纹理', texture: '优先纹理', color: '优先色彩' }
   const completion: Record<string, string> = { horizontal3: '横向扩展3倍', horizontal5: '横向扩展5倍', around: '四周扩展' }
   const styles: Record<string, string> = { smoked: '烟熏胡桃', warmGrey: '暖灰中古', lightNatural: '浅米自然', redBrown: '红棕复古' }
-  if (mode === 'compare') return sorting[parameters.sorting || 'balanced'] + '；返回 ' + parameters.limit + ' 条'
+  if (mode === 'compare') return (parameters.searchScope === 'mine' ? '我的样例' : '全部样例') + ' · 纹理结构；返回 ' + parameters.limit + ' 条'
+  if (mode === 'seamless') return '四方连续单元；重叠 ' + (parameters.seamlessOverlap ?? 15) + '%；' + (parameters.lightBalance ? '光照均衡' : '保留原光照')
   if (mode === 'complete') return completion[parameters.completion || 'horizontal3']
   if (mode === 'twin') return styles[parameters.style || 'smoked'] + '；强度 ' + parameters.strength + '%'
   return parameters.direction || ''
@@ -529,6 +539,7 @@ function openTask(task: DesignTask): void {
   void S.open('design', sample, task).catch(error => S.status('task', 'error', errorMessage(error)))
 }
 async function open(page: PageKey, sample: WorkflowAsset, task?: DesignTask): Promise<void> {
+  if (page === 'color' && S.beforeInkChange && !await S.beforeInkChange()) return
   if (page === 'design') S.activeTask = task?.id || null
   await S.navigate(page)
   requestAnimationFrame(() => requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('dilong-open', { detail: { page, sample, task } }))))
@@ -576,26 +587,55 @@ function zip(files: ZipFiles): Blob {
 }
 async function unzip(buffer: ArrayBuffer): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
   const bytes = new Uint8Array(buffer), view = new DataView(buffer), files = new Map<string, Uint8Array<ArrayBuffer>>()
+  const budget = 150 * 1024 * 1024
+  if (bytes.length > 100 * 1024 * 1024) throw Error('ZIP 不能超过100MB')
+  if (bytes.length < 22) throw Error('不是有效的 ZIP 文件')
+  const inside = (offset: number, length: number) => Number.isSafeInteger(offset) && Number.isSafeInteger(length) && offset >= 0 && length >= 0 && offset + length <= bytes.length
   let end = bytes.length - 22
   while (end >= Math.max(0, bytes.length - 65557) && view.getUint32(end, true) !== 0x06054b50) end--
   if (end < 0 || end < Math.max(0, bytes.length - 65557)) throw Error('不是有效的 ZIP 文件')
-  let position = view.getUint32(end + 16, true), size = 0
+  let position = view.getUint32(end + 16, true), size = 0, declaredSize = 0
   const count = view.getUint16(end + 10, true)
   for (let index = 0; index < count; index++) {
+    if (!inside(position, 46)) throw Error('ZIP 目录损坏')
     if (view.getUint32(position, true) !== 0x02014b50) throw Error('ZIP 目录损坏')
     const method = view.getUint16(position + 10, true), packed = view.getUint32(position + 20, true), length = view.getUint32(position + 24, true)
     const nameLength = view.getUint16(position + 28, true), extraLength = view.getUint16(position + 30, true), commentLength = view.getUint16(position + 32, true), offset = view.getUint32(position + 42, true)
-    size += length
-    if (size > 150 * 1024 * 1024) throw Error('解压内容超过150MB')
+    declaredSize += length
+    if (declaredSize > budget) throw Error('解压内容超过150MB')
+    if (!inside(position + 46, nameLength + extraLength + commentLength) || !inside(offset, 30)) throw Error('ZIP 目录或条目损坏')
     const name = decoder.decode(bytes.slice(position + 46, position + 46 + nameLength))
     if (files.has(name)) throw Error('ZIP 包含重复路径')
     if (view.getUint16(position + 8, true) & 1) throw Error('不支持加密 ZIP')
     if (view.getUint32(offset, true) !== 0x04034b50) throw Error('ZIP 图片条目损坏')
     const start = offset + 30 + view.getUint16(offset + 26, true) + view.getUint16(offset + 28, true)
-    let content = bytes.slice(start, start + packed)
-    if (method === 8) content = new Uint8Array(await new Response(new Blob([content]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer())
-    else if (method !== 0) throw Error('不支持该 ZIP 压缩方式')
+    if (!inside(start, packed) || start + packed > position) throw Error('ZIP 条目截断或位置无效')
+    let content: Uint8Array<ArrayBuffer>
+    if (method === 8) {
+      const reader = new Blob([bytes.subarray(start, start + packed)]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader()
+      const chunks: Uint8Array[] = []
+      let actual = 0
+      try {
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          actual += value.byteLength
+          if (actual > budget - size) throw Error('解压内容超过150MB')
+          if (actual > length) throw Error('ZIP 条目实际大小超过声明：' + name)
+          chunks.push(value)
+        }
+        content = new Uint8Array(actual)
+        let cursor = 0
+        for (const chunk of chunks) { content.set(chunk, cursor); cursor += chunk.byteLength }
+      } catch (error) { try { await reader.cancel(error) } catch { /* Keep the size/format failure. */ } throw error }
+      finally { reader.releaseLock() }
+    } else if (method === 0) {
+      if (packed > budget - size) throw Error('解压内容超过150MB')
+      if (packed !== length) throw Error('ZIP 条目实际大小与声明不符：' + name)
+      content = bytes.subarray(start, start + packed)
+    } else throw Error('不支持该 ZIP 压缩方式')
     if (content.length !== length || crc(content) !== view.getUint32(position + 16, true)) throw Error('文件校验失败：' + name)
+    size += content.byteLength
     files.set(name, content); position += 46 + nameLength + extraLength + commentLength
   }
   return files
@@ -607,8 +647,9 @@ function download(blob: Blob, name: string): void {
 async function exportPackage(): Promise<void> {
   S.status('package', 'busy')
   try {
-    const samples = S.assets, files: ZipFiles = [], records: Array<SampleMetadata & { id: string; image: string }> = []
-    if (!samples.length) throw Error('暂无本地样例，请先保存或导入样例。')
+    await S.ready
+    const samples = S.personalSamples(), files: ZipFiles = [], records: Array<SampleMetadata & { id: string; image: string }> = []
+    if (!samples.length) throw Error('暂无已入库的个人样例，请先导入样例或采用候选方案。')
     for (const [index, sample] of samples.entries()) {
       const path = `images/${index}.png`, bytes = await pngBytes(sample.imageUrl)
       files.push([path, bytes]); records.push({ id: sample.id, ...metadata.normalize(sample), image: path })

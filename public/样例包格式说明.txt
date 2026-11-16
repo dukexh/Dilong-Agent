@@ -1,65 +1,143 @@
-帝龙样例包 v1（可补充业务资料）
+样例包格式规范（v1）
+====================
 
-ZIP根目录必须直接包含 manifest.json 和 images/ 文件夹。
-id、name、image 是每条记录的必填文字字段。重复编号仍默认跳过，不会覆盖已有资料。
-wood、style、tone、source：材质、风格、色系、来源，均可选填。
-customer、customerCode、orderNo：客户/项目、客户编号、订单编号。
-substrate、inkSeries、machine：原纸、油墨型号或系列、生产设备。
-staff：责任人员对象，字段 designer、colorist、operator、reviewer。
-feedback：生产或客户反馈文字。
-productionRecords：实际生产记录数组，字段 batchNo、stage、date、equipment、quantity、substrate、deltaE、result、operator。
-  空记录忽略；填写记录时batchNo必填；date可空，非空需为有效YYYY-MM-DD；deltaE可空，非空需为非负数值/数值字符串。
-  quantity等其余字段为文字，例如“100 m”。
-history：可选历史数组，每项date/title/description/status，日期需为YYYY-MM-DD。
-parameters：可选JSON对象，作为附加参数保留，编辑表单不改动它。
+1. 适用范围
 
-缺失业务信息显示未填写，不由大模型补造。导入只接收以上业务字段；analysis、layers等图像分析数据不会被外部数值覆盖，程序会重新计算。
-内置100条演示记录保持只读，自己导入或保存的记录可在侧栏/完整档案点击“编辑信息”，补充基础资料、客户工艺、人员、生产记录和反馈。
-编号、原图和算法参考配方不可在资料编辑中修改。保存时追加一条真实的用户编辑操作记录。
-导出本地样例包会保留这些业务信息和历史；导出后可在另一浏览器重新导入。任务和生产比对报告仍独立，不包含在样例包中。
-ZIP上限100MB、解压内容150MB，不设500条样例或图片条目的数量上限；单图30MB/4000万像素。支持普通ZIP Stored/Deflate。
+本规范用于帝龙装饰纸智能设计平台的个人样例导入、导出及资料交换。
+样例包使用 ZIP 格式，清单采用 UTF-8 编码的 JSON。
 
-完整示例（以下均为演示值，请替换）：
+2. 目录结构
+
+ZIP 根目录应直接包含 manifest.json 和 images 文件夹：
+
+sample-package.zip
+  manifest.json
+  images/
+    sample-001.png
+    sample-002.jpg
+
+不要在 manifest.json 外再套一层目录。清单中的图片路径须与 ZIP 内文件路径完全一致，建议使用正斜线“/”。
+
+3. 最小清单示例
+
 {
   "schemaVersion": 1,
   "samples": [
     {
-      "id": "META-DEMO-20261031-01",
-      "name": "可编辑资料示例（演示）",
-      "image": "images/design.png",
+      "id": "MY-001",
+      "name": "浅色橡木",
+      "image": "images/sample-001.png"
+    }
+  ]
+}
+
+schemaVersion 必须为数字 1，samples 必须为数组。JSON 不支持注释或末尾多余逗号。
+
+4. 样例字段
+
+必填字段：
+  id       非空字符串；样例唯一编号。
+  name     非空字符串；样例名称。
+  image    字符串；ZIP 内的图片相对路径。
+
+可选文字字段：
+  wood          材质或木种。
+  style         风格。
+  tone          色系。
+  source        图片或样例来源。
+  customer      客户或项目名称。
+  customerCode  客户编号。
+  orderNo       订单编号。
+  substrate     承印原纸。
+  inkSeries     油墨型号或系列。
+  machine       生产设备。
+  feedback      反馈说明。
+
+业务资料可以留空，导入后在样例档案中补充。缺少的客户、工艺和生产信息不会自动生成。
+
+5. 人员、生产与历史记录
+
+staff 为可选对象，各字段均为文字：
+  designer  设计人员。
+  colorist  调墨人员。
+  operator  生产操作人员。
+  reviewer  审核人员。
+
+productionRecords 为可选数组，每条记录支持：
+  batchNo、stage、date、equipment、quantity、substrate、deltaE、result、operator。
+  有效记录必须填写 batchNo；完全空白的记录忽略。
+  date 可留空，填写时须为有效的 YYYY-MM-DD 日期。
+  deltaE 可留空，填写时须为非负数值或可转换为非负数的字符串。
+  其他字段使用文字，例如 quantity 填写“100 m”。
+
+history 为可选数组，每条支持 date、title、description、status 文字字段。
+  date 可留空，填写时须为有效的 YYYY-MM-DD 日期。
+
+带业务资料的示例：
+
+{
+  "schemaVersion": 1,
+  "samples": [
+    {
+      "id": "MY-001",
+      "name": "浅色橡木",
+      "image": "images/sample-001.png",
       "wood": "橡木",
       "style": "自然",
-      "tone": "浅米",
-      "source": "流程测试示例，非真实客户或生产资料",
-      "customer": "示例客户（演示）",
-      "customerCode": "DEMO-C-001",
-      "orderNo": "DEMO-ORDER-001",
-      "substrate": "70g原纸（演示）",
-      "inkSeries": "示例油墨系列",
-      "machine": "示例设备",
+      "tone": "浅米色",
+      "source": "自有样例",
+      "customer": "示例项目",
+      "substrate": "70 g 原纸",
       "staff": {
         "designer": "示例设计员",
-        "colorist": "示例调墨员",
-        "operator": "示例操作员",
-        "reviewer": "示例审核员"
+        "colorist": "示例调墨员"
       },
-      "feedback": "用于体验资料编辑，请替换为自己的真实记录。",
       "productionRecords": [
         {
-          "batchNo": "DEMO-BATCH-001",
+          "batchNo": "BATCH-001",
           "stage": "试印",
-          "date": "2026-10-31",
-          "equipment": "示例设备",
-          "quantity": "100 m（演示）",
-          "substrate": "70g原纸（演示）",
+          "date": "2026-01-01",
+          "quantity": "100 m",
           "deltaE": "1.2",
-          "result": "演示记录",
-          "operator": "示例操作员"
+          "result": "待复核"
         }
       ]
     }
   ]
 }
 
+以上名称和数值仅作格式示例，请替换为实际资料。
 
-新增可选字段：recordKind="design-candidate"代表设计候选；candidateReview.status为pending/accepted/adjust/rejected，分别代表待评价/已采用/需调整/未采用。用户在页面保存/评价后，导出会自动带上这些资料；普通图片样例无需填写。样例包不包含任务清单或配墨次数。
+6. 候选与工程数据
+
+普通图片样例无需填写 recordKind 和 candidateReview。
+  recordKind 可为 sample 或 design-candidate。
+  candidateReview.status 可为：
+    pending   待评价。
+    accepted  已采用。
+    adjust    需调整。
+    rejected  未采用。
+  candidateReview 可附带 note 评价意见及 updatedAt 评价时间。
+
+parameters 为可选 JSON 对象。平台导出的记录可能包含连续工程图层、遮罩或铺排数据；备份和转交时应完整保留，不建议手工修改。
+外部提供的 analysis、layers 等字段不会直接覆盖平台的图片分析结果，导入时会重新分析图片。
+
+7. 校验规则与限制
+
+  ZIP 文件大小：不超过 100 MB。
+  实际解压总量：不超过 150 MB。
+  单张图片大小：不超过 30 MB。
+  单张图片像素：不超过 4,000 万。
+  图片格式：建议使用 PNG、JPG 或 WebP。
+  压缩方式：支持普通 ZIP 的 Stored 和 Deflate。
+
+样例数量没有单独上限，但须满足以上体积及像素限制。
+已有编号和包内重复编号不会覆盖已存在的样例；导入预览中标记为重复或错误的条目不入库。
+
+8. 导出与兼容范围
+
+本地样例包只包含当前浏览器中的正式个人样例：普通导入样例及已采用候选。
+公共图库、待评价、需调整和未采用候选不包含在导出范围内；没有正式个人样例时不可导出。
+导出保留样例图片、业务资料、样例历史和已有工程参数，不包含设计任务清单、配墨历史或比对报告。
+旧 v1 包可继续导入，候选保持原评价状态，不会自动采用。撤销采用的候选不再进入后续样例包导出。
+导出的包如需重新导入，也须满足第 7 节的导入限制。

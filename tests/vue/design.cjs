@@ -8,8 +8,11 @@ const output = path.resolve(process.env.DILONG_TEST_OUTPUT || 'verification/vue-
 fs.mkdirSync(output, { recursive: true })
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds))
 
-const { records, untilRecords } = require('../helpers/database.cjs')
-async function run(page) { const button = page.locator('.run-button'); await button.click(); await page.waitForFunction(() => !document.querySelector('.run-button')?.disabled); return (await records(page, 'tasks')).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)) }
+const { records: rawRecords, untilRecords: rawUntilRecords } = require('../helpers/database.cjs')
+const withoutFixtures = (rows, store) => store === 'assets' ? rows.filter(row => !row.parameters?.testLibraryFixture) : rows
+const records = async (page, store) => withoutFixtures(await rawRecords(page, store), store)
+const untilRecords = async (page, store, predicate) => withoutFixtures(await rawUntilRecords(page, store, rows => predicate(withoutFixtures(rows, store))), store)
+async function run(page) { if(await page.locator('[data-design-mode="complete"].active').count()){if(!(await page.locator('[data-confirmed-unit="true"]').count())){await page.locator('.unit-dimensions').waitFor();await page.waitForFunction(()=>document.querySelector('.confirm-unit-button')&&!document.querySelector('.confirm-unit-button').disabled);await page.locator('.confirm-unit-button').click();await page.waitForFunction(()=>!document.querySelector('.completion-run-button').disabled)}await page.locator('.completion-run-button').click();await page.locator('.completion-result').waitFor();await page.waitForFunction(()=>!document.querySelector('.completion-run-button').disabled);return(await records(page,'tasks')).sort((a,b)=>a.createdAt.localeCompare(b.createdAt))} const button = page.locator('.run-button'); await button.click(); await page.waitForFunction(() => !document.querySelector('.run-button')?.disabled); return (await records(page, 'tasks')).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)) }
 async function mode(page, label) { const key = { '小样补全':'complete', '风格迁移':'twin', '候选推荐':'generate' }[label]; await page.locator(`[data-design-mode="${key}"]`).click() }
 async function png(page, { width = 96, height = 64, alpha = 1, empty = false, colour = '#a78c60' } = {}) {
   return Buffer.from(await page.evaluate(({ width, height, alpha, empty, colour }) => {
@@ -35,8 +38,18 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
     try {
       await page.goto(`${url}/design`)
       await page.locator('.design-page').waitFor()
-      await page.waitForFunction(() => document.querySelector('.source-panel select')?.options.length > 100)
       await page.evaluate(async () => (await import('/src/services/workflows.ts')).S.ready)
+      await page.getByRole('button', {name:'从样例库选择',exact:true}).click()
+      await page.waitForFunction(() => document.querySelector('.source-panel select')?.options.length > 100)
+      await page.getByLabel('搜图范围',{exact:true}).selectOption('mine')
+      await page.evaluate(async () => {
+        const { S } = await import('/src/services/workflows.ts'); await S.ready
+        // Persisted local fixtures verify the explicit personal-library search scope.
+        for (const [index, sample] of S.base.slice(0, 6).entries()) {
+          const asset = await S.save(sample.imageUrl, '检索测试样例' + index, '测试导入', { testLibraryFixture: true, wood: sample.wood, style: sample.style, tone: sample.tone }, 'library-fixture-' + index, null)
+          await S.reviewCandidate(asset.id, 'accepted')
+        }
+      })
       await action(page)
       results.push(name); console.log(`PASS ${name}`)
       fs.writeFileSync(path.join(output, 'results.json'), JSON.stringify({ results, errors }, null, 2))
@@ -44,22 +57,14 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
     finally { await context.close() }
   }
   try {
-    await check('相似检索保持原组件取整与权重，任务保留完整参数', async page => {
-      const expected = await page.evaluate(async () => {
-        const { S } = await import('/src/services/workflows.ts'), source = S.base[0], input = source.analysis
-        const clamp = value => Math.max(0, Math.min(100, value))
-        return S.all().filter(sample => sample.id !== source.id && sample.analysis).map(sample => {
-          const target = sample.analysis
-          const colour = Math.round(clamp(100 - Math.hypot(input.averageRgb.r - target.averageRgb.r, input.averageRgb.g - target.averageRgb.g, input.averageRgb.b - target.averageRgb.b) / 441.67 * 100))
-          const texture = Math.round(clamp(100 - Math.abs(input.textureDensity - target.textureDensity) * 2.3))
-          const brightness = Math.round(clamp(100 - Math.abs(input.brightness - target.brightness) / 255 * 100))
-          return { name: sample.name, score: Math.round(colour * .5 + texture * .32 + brightness * .18) }
-        }).sort((a, b) => b.score - a.score).slice(0, 5)
-      })
+    await check('相似检索只查正式个人图库，结构匹配与任务参数可恢复', async page => {
       const tasks = await run(page); assert.equal(tasks.length, 1); assert.equal(tasks[0].status, '已处理')
-      assert.equal(tasks[0].input.kind, 'library'); assert.deepEqual(tasks[0].parameters, { sorting: 'balanced', limit: 5, completion: 'horizontal3', style: 'smoked', strength: 78, direction: '浅色自然橡木', candidateCount: 3 })
-      const actual = await page.locator('.candidate-title').evaluateAll(nodes => nodes.map(node => ({ name: node.querySelector('strong').textContent, score: Number(node.querySelector('em').textContent.match(/\d+/)[0]) })))
-      assert.deepEqual(actual, expected)
+      assert.equal(tasks[0].input.kind, 'library'); assert.equal(tasks[0].parameters.sorting, 'texture'); assert.equal(tasks[0].parameters.limit, 5)
+      assert.deepEqual(tasks[0].parameters.searchRegion, {x:0,y:0,width:100,height:100,rotation:0})
+      assert.equal(await page.locator('.candidate-card').count(), 5)
+      const titles = await page.locator('.candidate-title strong').allTextContents(); assert(titles.every(name => name.startsWith('检索测试样例')))
+      assert.match(await page.locator('.candidate-title em').first().textContent(), /排序 01/)
+      assert.equal(await page.locator('.result-truth').getAttribute('open'), null); await page.locator('.result-truth summary').click(); assert.match(await page.locator('.result-truth').innerText(), /颜色不参与/)
     })
     await check('保存失败无成功提示，成功后toast、跨任务关联去重和评价持久化', async page => {
       await run(page)
@@ -82,20 +87,21 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
     })
     await check('上传输入快照与参数恢复，小样补全保留像素和PNG', async page => {
       await upload(page, { width: 96, height: 64 }); await mode(page, '小样补全')
-      await page.locator('.config-panel select').selectOption('horizontal5')
+      await page.locator('.unit-dimensions').waitFor();await page.waitForFunction(()=>document.querySelector('.confirm-unit-button')&&!document.querySelector('.confirm-unit-button').disabled);await page.locator('.confirm-unit-button').click();await page.waitForFunction(()=>!document.querySelector('.completion-run-button').disabled)
+      await page.getByLabel('补全扩展方式',{exact:true}).selectOption('horizontal5')
       const tasks = await run(page); assert.equal(tasks[0].input.kind, 'upload'); assert.equal(tasks[0].parameters.completion, 'horizontal5')
-      assert.equal(await page.locator('.candidate-card').count(), 3)
-      const sizes = await page.locator('.image-dimensions').allTextContents(); assert(sizes.every(value => value.includes('480 × 64') && value.includes('PNG')))
-      const savedUrl = await page.locator('.candidate-image .big-image-trigger img').first().getAttribute('src'); assert(savedUrl.startsWith('data:image/'))
+      assert.equal(await page.locator('.completion-result').count(), 1)
+      const sizes = await page.locator('.image-dimensions').allTextContents(); assert(sizes.every(value => value.includes('410 × 54') && value.includes('PNG')))
+      const savedUrl = await page.locator('.completion-result > .big-image-trigger img').first().getAttribute('src'); assert(savedUrl.startsWith('data:image/'))
       await page.getByRole('button', { name: '保存候选方案', exact: true }).first().click()
       const assets = await untilRecords(page, 'assets', rows => rows.length === 1); assert(assets[0].imageUrl.startsWith('data:image/png'))
       assert.equal(assets[0].parameters.sourceKind, 'upload'); assert.equal(assets[0].parameters.sourceName, '真实纹理.png'); assert.equal(Object.hasOwn(assets[0].parameters, 'sourceId'), false)
-      const dimensions = await page.evaluate(async src => { const image = new Image(); image.src = src; await image.decode(); return [image.naturalWidth, image.naturalHeight] }, assets[0].imageUrl); assert.deepEqual(dimensions, [480, 64])
-      await page.locator('.candidate-image .big-image-trigger').first().click(); await page.getByRole('dialog').getByRole('button', { name: '100%', exact: true }).click()
-      await page.getByRole('dialog').getByText('480 × 64 · 100%', { exact: true }).waitFor()
+      const dimensions = await page.evaluate(async src => { const image = new Image(); image.src = src; await image.decode(); return [image.naturalWidth, image.naturalHeight] }, assets[0].imageUrl); assert.deepEqual(dimensions, [410, 54])
+      await page.locator('.completion-result > .big-image-trigger').first().click(); await page.getByRole('dialog').getByRole('button', { name: '100%', exact: true }).click()
+      await page.getByRole('dialog').getByText('410 × 54 · 100%', { exact: true }).waitFor()
       const download = page.waitForEvent('download'); await page.getByRole('link', { name: '下载完整图片' }).click(); assert((await download).suggestedFilename().endsWith('.png'))
       await page.keyboard.press('Escape'); assert.equal(await page.getByRole('dialog').count(), 0)
-      await openTask(page, tasks[0].id); assert.equal(await page.locator('.config-panel select').inputValue(), 'horizontal5'); assert.equal(await page.locator('.saved-results article').count(), 1)
+      await openTask(page, tasks[0].id); assert.equal(await page.getByLabel('补全扩展方式',{exact:true}).inputValue(), 'horizontal5'); assert.equal(await page.locator('.saved-results article').count(), 1)
       assert.equal(await page.locator('.source-panel .upload-box small').textContent(), '真实纹理.png')
       const restored = await page.evaluate(async () => { const { S } = await import('/src/services/workflows.ts'); const input = S.tasks[0].input; return JSON.stringify(await S.analyze(input.imageUrl)) === JSON.stringify(input.summary) }); assert(restored)
       await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).first().click()
@@ -225,7 +231,7 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
     await check('源样例删除后历史候选可查看评价，重试必须更换输入', async page => {
       await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).first().click(); const assets = await untilRecords(page, 'assets', rows => rows.length === 1)
       await page.getByLabel('候选评价', { exact: true }).selectOption('accepted'); await page.getByRole('button', { name: '保存评价', exact: true }).click(); await untilRecords(page, 'assets', rows => rows[0]?.candidateReview?.status === 'accepted');
-      await page.locator('.source-panel select').selectOption(assets[0].id); await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).first().click()
+      await page.locator('.source-panel select').selectOption(assets[0].id); await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).nth(1).click()
       const tasks = await untilRecords(page, 'tasks', rows => rows.length === 2 && rows.some(task => task.sampleId === assets[0].id && task.resultIds.length === 1)); const target = tasks.find(task => task.sampleId === assets[0].id)
       await page.evaluate(async id => { await (await import('/src/services/workflows.ts')).S.deleteAsset(id) }, assets[0].id)
       await openTask(page, target.id); assert.equal(await page.locator('.saved-results article').count(), 1); assert(await page.locator('.run-button').isDisabled()); assert.equal(await page.locator('.run-button').textContent(), '请先选择新输入')

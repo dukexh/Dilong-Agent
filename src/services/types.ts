@@ -1,6 +1,8 @@
 import type { ImageSummary, InkLayer, InkRenderModel, RGB } from '../core/types'
+import type { EngineeringProject, CompletionPipeline } from '../core/seamless'
+import type { InkKey } from '../core/ink-recipe'
 
-export type DesignMode = 'compare' | 'complete' | 'twin' | 'generate'
+export type DesignMode = 'compare' | 'complete' | 'twin' | 'generate' | 'seamless'
 export type CandidateStatus = 'pending' | 'accepted' | 'adjust' | 'rejected'
 export type PageKey = 'home' | 'color' | 'design' | 'samples' | 'trends' | 'production'
 export type OperationState = 'idle' | 'ready' | 'busy' | 'error'
@@ -14,6 +16,10 @@ export type ProductionRecord = Record<ProductionKey, string>
 export interface SampleHistory { date: string; title: string; description: string; status: string }
 export interface CandidateReview { status: CandidateStatus; note?: string; updatedAt?: string }
 export interface DesignParameters {
+  searchScope?: 'all' | 'mine'; completionPipeline?: CompletionPipeline
+  engineering?: EngineeringProject; seamlessOverlap?: number; lightBalance?: boolean
+  outputWidth?: number; outputHeight?: number
+  searchRegion?: { x: number; y: number; width: number; height: number; rotation: number }
   sourceKind?: 'library' | 'upload'; sourceName?: string; sourceId?: string
   sorting?: string; limit?: number; completion?: string; style?: string; strength?: number
   direction?: string; wood?: string; tone?: string; candidateCount?: number
@@ -47,7 +53,7 @@ export interface BeginDesignTaskRequest {
   mode: DesignMode; runKey: string; taskId?: string | null; parameters: DesignParameters
   input: { kind: 'library'; sampleId: string; name: string } | { kind: 'upload'; name: string; src: string | HTMLImageElement; summary: ImageSummary }
 }
-export interface InkSettings { selectedInks?: string[]; weight: number; enabled: boolean[]; selectedLayer: number; tab: 'overview' | 'detail' }
+export interface InkSettings { selectedInks?: InkKey[]; weight: number; enabled: boolean[]; selectedLayer: number; tab: 'overview' | 'detail' }
 export interface InkSnapshot { version: 1; imageUrl: string; layers: InkLayer[]; renderModel: InkRenderModel; settings: InkSettings }
 export interface InkRun extends Revisioned {
   schemaVersion?: number; inputName: string; sampleId?: string | null; source?: string

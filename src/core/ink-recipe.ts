@@ -5,11 +5,15 @@ export const inks = ['red', 'yellow', 'blue', 'black'] as const
 export type InkKey = typeof inks[number]
 export const defaultCombination = inks.join(',')
 export const labels: Record<keyof InkRecipe, string> = { red: '红墨', yellow: '黄墨', blue: '蓝墨', black: '黑墨', thinner: '稀释剂' }
-export const combinations = [inks, inks.slice(0, 3), ['red','yellow','black'], ['red','blue','black'], ['yellow','blue','black']].map(keys => ({ value: keys.join(','), label: (keys.length === 4 ? '四墨：' : '三墨：') + keys.map(k => labels[k as InkKey].replace('墨', '')).join('、') }))
+export const inkColours: Record<InkKey, string> = { red: '#b7322c', yellow: '#d6a51e', blue: '#325d81', black: '#33393b' }
 export function normalize(selected: string | readonly string[] = inks): InkKey[] {
   const values = typeof selected === 'string' ? selected.split(',') : selected
-  if (!Array.isArray(values) || new Set(values).size !== values.length || ![3,4].includes(values.length) || values.some(k => !inks.includes(k as InkKey))) throw Error('请选择红黄蓝黑中的三种或全部四种色墨')
+  if (!Array.isArray(values) || new Set(values).size !== values.length || values.length < 1 || values.length > 4 || values.some(k => !inks.includes(k as InkKey))) throw Error('请至少选择一种油墨，且只能选择红、黄、蓝、黑')
   return inks.filter(k => values.includes(k))
+}
+export function combinationLabel(selected: string | readonly string[] = inks): string {
+  const keys = normalize(selected)
+  return ['','单墨','双墨','三墨','四墨'][keys.length] + '：' + keys.map(key => labels[key].replace('墨', '')).join('、')
 }
 export function recipe(rgb: RGB, selected: string | readonly string[] = inks): InkRecipe {
   const keys = normalize(selected)

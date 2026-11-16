@@ -1,0 +1,16 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path')
+const {decodeTextureIndex}=require('../../src/core/texture-index.ts'),{textureScore,TEXTURE_VERSION,TEXTURE_VECTOR_LENGTH,TEXTURE_PATCH_COUNT}=require('../../src/core/texture-search.ts')
+test('public binary index covers the complete built-in catalog with finite Float32 descriptors',()=>{
+ const root=path.resolve(__dirname,'../../public/texture-search'),manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8')),bytes=fs.readFileSync(path.join(root,manifest.file)),buffer=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength)
+ const decoded=decodeTextureIndex(manifest,buffer)
+ assert.equal(decoded.size,2990);assert(decoded.has('TX-ambientcg--Wood033'))
+ const feature=decoded.get('TX-ambientcg--Wood033');assert.equal(feature.patches.length,6);assert(feature.patches[0] instanceof Float32Array);assert.equal(textureScore(feature,feature),100)
+ assert(fs.existsSync(path.join(root,'demo-wood033.png')))
+})
+test('public index refuses stale versions, duplicate IDs and incomplete binaries',()=>{
+ const manifest={algorithm:TEXTURE_VERSION,patchCount:TEXTURE_PATCH_COUNT,vectorLength:TEXTURE_VECTOR_LENGTH,ids:['one'],file:'features-abcd.bin',byteLength:TEXTURE_PATCH_COUNT*TEXTURE_VECTOR_LENGTH*4},buffer=new ArrayBuffer(TEXTURE_PATCH_COUNT*TEXTURE_VECTOR_LENGTH*4)
+ assert.throws(()=>decodeTextureIndex({...manifest,algorithm:'stale'},buffer),/版本/)
+ assert.throws(()=>decodeTextureIndex({...manifest,ids:['one','one']},buffer),/记录/)
+ assert.throws(()=>decodeTextureIndex(manifest,new ArrayBuffer(16)),/不完整/)
+ const invalid=new Float32Array(buffer);invalid[0]=NaN;assert.throws(()=>decodeTextureIndex(manifest,buffer),/无效特征/)
+})
