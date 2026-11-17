@@ -43,26 +43,26 @@ async function save() {
   @apply items-center;
   @apply justify-center;
   @apply gap-[7px];
-  @apply [border:1px_solid_#c3d8d9];
-  background: #edf5f5;
-  color: #145f65;
+  @apply [border:.5px_solid_var(--dl-border)];
+  background: var(--dl-inset);
+  color: var(--dl-accent);
   @apply [padding:9px_12px];
-  @apply rounded-[2px];
-  @apply text-[12px];
+  @apply rounded-[var(--dl-r-md)];
+  @apply text-[13px];
   cursor: pointer
 }
 .candidate-save button.saved {
-  color: #16a34a;
-  @apply [border-color:#d1f0d9];
-  background: #f2fbf5
+  color: var(--dl-success);
+  @apply [border-color:var(--dl-success-soft)];
+  background: var(--dl-inset)
 }
 .candidate-save button:disabled {
   cursor: default;
   opacity: .8
 }
 .save-error {
-  @apply text-[12px];
-  color: #dc2626;
+  @apply text-[13px];
+  color: var(--dl-danger);
   @apply [margin:7px_0_0]
 }
 .spin {

@@ -1,4 +1,5 @@
 import { normalize, recipe } from '../core/ink-recipe'
+import { radarScenarios } from '../data/radar-scenarios'
 /** Local workflow service. IndexedDB names and record schemas remain compatible with v0.3. */
 import { analyzeInk, analyzeSummary } from '../core/color-analysis'
 import { DesignImages } from '../core/design-images'
@@ -692,6 +693,8 @@ function commitPackage(rows: PackageRow[]): Promise<number> {
   })
 }
 function filterOriginal(platform: string, period: string, space: string): TrendRecord[] {
+  const scenario = radarScenarios.find(row => row.platform === platform && row.period === period && row.space === space)
+  if (scenario) return structuredClone(scenario.records)
   const periods: Record<string, number> = { '近7天': 7, '近30天': 30, '近90天': 90, '近半年': 180 }, days = periods[period] || 90
   const ages = [[3, 18, 20], [20, 65, 70], [5, 30, 40], [85, 90, 120]], spaces = [['客厅', '卧室', '厨房与柜体'], ['客厅', '商业空间'], ['卧室', '厨房与柜体'], ['商业空间']]
   return S.originalTrends.map((record, index) => ({ ...record, sources: record.sources.filter((source, sourceIndex) => (platform === '全平台' || source.platform === platform) && (ages[index]?.[sourceIndex] ?? Infinity) <= days) })).filter((record, index) => record.sources.length && (space === '全屋空间' || spaces[index]?.includes(space)))

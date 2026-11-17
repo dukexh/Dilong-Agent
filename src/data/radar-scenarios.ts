@@ -1,0 +1,56 @@
+import type { TrendRecord } from '../services/types'
+
+// Curated demonstration records. Kept separate from the default research corpus.
+export const radarScenarios: Array<{ platform: string; period: string; space: string; records: TrendRecord[] }> = [{
+  platform: '抖音', period: '近7天', space: '卧室',
+  records: [
+    {
+      id: 'bedroom-oat-oak', name: '燕麦白橡 · 通顶衣柜', stage: '快速上升期',
+      heat: 89, growth: 28, confidence: 86, saturation: 57, color: '#CDBD9F',
+      palette: ['#F0EBE2', '#DFD3BD', '#CDBD9F', '#8B7C65'],
+      material: '白橡木', texture: '细直纹连续排布，柜门拼缝处保持纹理方向一致',
+      layers: '建议 3 色层，减少深色纹理占比',
+      forecast: '适合小卧室的整墙柜面，优先比较浅底色与细纹密度',
+      desc: '通顶衣柜采用燕麦色细直纹，搭配暖白墙面与亚麻床品；压低纹理反差，让整墙柜面更轻。',
+      tags: ['通顶衣柜', '燕麦色', '细直纹'], signals: [46,53,61,68,78,89],
+      sources: [{ platform: '抖音', count: 184, change: '+28%' }],
+      matches: ['白橡木', '白橡木·浅洗自然', '浅色橡木'],
+    },
+    {
+      id: 'bedroom-walnut-headboard', name: '浅胡桃 · 悬浮床头', stage: '稳定增长期',
+      heat: 84, growth: 21, confidence: 83, saturation: 63, color: '#9A7961',
+      palette: ['#E9E0D4', '#C4AA92', '#9A7961', '#58463B'],
+      material: '胡桃木', texture: '横向舒展山纹，床头柜与背板保持同一木色',
+      layers: '建议 4 色层，保留山纹的深浅过渡',
+      forecast: '适合床头背板与悬浮边柜组合，重点控制大幅拼接的色差',
+      desc: '浅胡桃山纹横向贯穿床头背板与悬浮边柜，配米色软包；保留木色层次，减少深黑纹。',
+      tags: ['床头一体', '浅胡桃', '横向山纹'], signals: [51,56,62,69,76,84],
+      sources: [{ platform: '抖音', count: 146, change: '+21%' }],
+      matches: ['自然胡桃·浅洗自然', '欧洲胡桃·浅洗自然', '暖棕胡桃·浅洗自然'],
+    },
+    {
+      id: 'bedroom-sage-ash', name: '灰绿白蜡 · 静谧卧室', stage: '趋势萌芽期',
+      heat: 78, growth: 36, confidence: 76, saturation: 34, color: '#A5AC98',
+      palette: ['#E7E5DB', '#CFCBB9', '#A5AC98', '#727B69'],
+      material: '白蜡木', texture: '疏朗直纹配灰绿素色，木纹用于床头与开放格',
+      layers: '木纹建议 3 色层，素色板单独打样',
+      forecast: '适合先做床头与开放格的小面积组合，核对灰绿与浅木的冷暖关系',
+      desc: '灰绿素色柜门搭配浅白蜡木床头与开放格，配暖灰织物；用小面积木纹连接整组色彩。',
+      tags: ['灰绿配木', '低饱和', '开放格'], signals: [25,31,40,51,64,78],
+      sources: [{ platform: '抖音', count: 98, change: '+36%' }],
+      matches: ['浅色白蜡木', '白蜡木·浅洗自然', '白蜡木·烟熏哑光'],
+    },
+    {
+      id: 'bedroom-cherry-wall', name: '暖樱桃木 · 复古床墙', stage: '小众增长期',
+      heat: 72, growth: 31, confidence: 74, saturation: 39, color: '#B77C61',
+      palette: ['#ECE0D0', '#D2AE91', '#B77C61', '#774D3C'],
+      material: '樱桃木', texture: '细直纹半高护墙，床头柜局部使用小山纹',
+      layers: '建议 4 色层，控制红相与深纹的对比',
+      forecast: '适合半高床墙与矮柜组合，避免整墙大面积深红棕',
+      desc: '暖樱桃木用于半高床墙与矮柜，上方留暖白墙面，配黄铜小五金；红棕色集中在床头区域。',
+      tags: ['半高床墙', '暖红棕', '黄铜点缀'], signals: [29,33,41,49,61,72],
+      sources: [{ platform: '抖音', count: 76, change: '+31%' }],
+      matches: ['樱桃木直纹', '樱桃木·浅洗自然', '樱桃木·烟熏哑光'],
+    },
+  ],
+}]

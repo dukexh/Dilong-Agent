@@ -224,35 +224,35 @@ onMounted(() => { S.beforeInkChange = beforeChange; window.addEventListener('bef
 onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.beforeInkChange = undefined; window.removeEventListener('beforeunload', beforeUnload); window.removeEventListener('dilong-ink-open', restore); window.removeEventListener('dilong-open', openSample) })
 </script>
 <template><div class="ink-page embedded-module"><div class="workspace">
-<div class="breadcrumb">配色工作台 <ChevronRight/> 新建分析任务</div><div class="page-heading"><div><h1>样例分色、色层还原与配墨建议</h1><p>将样例拆解为最多四个真实色层，逐层合成还原图，并同步生成各层初始配墨配方。</p></div><button class="btn btn-primary export-button" :disabled="busy || !result || !validWeight" @click="exportRecipe"><Download :size="16"/>导出配墨建议单</button></div>
-<div class="ink-algorithm-note"><b>本地算法初步分析</b><p>用于演示与人工参考；细密纹理可能识别不足，配方需经试印确认。</p></div>
+<div class="page-heading"><div><h1>配墨智能体</h1><p>样例分色、色层还原与配墨建议</p></div><button class="btn btn-primary export-button" :disabled="busy || !result || !validWeight" @click="exportRecipe"><Download :size="16"/>导出配墨建议单</button></div>
+
 <section class="summary-strip ink-summary"><div class="ink-metric"><span>任务状态</span><strong :class="result?'ready':'pending'">{{busy?'分析中…':error?'分析失败':result?'分析完成':'等待图片'}}</strong></div><div class="ink-metric"><span>初步识别色层</span><strong>{{busy?'计算中':result?result.layers.length+' 层':'—'}}</strong></div><div class="ink-metric aggregate-color"><span>综合色值</span><strong class="hex-summary"><i :style="{background:aggregateHex==='—'?'transparent':aggregateHex}"/><b class="hex-value">{{aggregateHex}}</b></strong></div><div class="ink-metric"><span>当前合成偏差（白底）</span><strong>{{busy?'计算中':difference?.toFixed(2) ?? '—'}}<template v-if="!busy && difference!==null"> / 255</template></strong></div><div class="ink-metric"><span>配方基准</span><strong>{{validWeight?Number(weight).toFixed(1)+' kg / 层':'—'}}</strong></div></section>
 <p v-if="error" class="error-banner" role="alert">{{error}}</p>
 
 <div class="main-grid"><section class="panel image-panel"><header class="panel-header"><div><span class="step-no">01</span><div><h2>上传样例</h2><p>上传后自动完成色层分析</p></div></div><span class="format-note">JPG · PNG · WEBP</span></header><input ref="fileInput" type="file" accept=".png,.jpg,.jpeg,.webp" class="sr-only" aria-label="上传配墨图片" @change="upload"/>
-<div class="image-stage" :class="{dragging}" @dragover.prevent="dragging=true" @dragleave="dragging=false" @drop="drop"><BigImageViewer v-if="source" :src="source" :alt="sourceName" class="ink-large-image" eager/><div v-if="busy" class="analysis-overlay"><LoaderCircle class="spin"/><span>正在识别颜色与色层…</span></div><div v-else-if="!source" class="empty-state">请选择有效图片</div><div class="scan-corners" aria-hidden="true"><i/><i/><i/><i/></div></div><div class="file-row"><div class="file-info"><ImageIcon/><div><strong>{{sourceName}}</strong><span>当前分析样例</span></div></div><button class="btn btn-secondary" @click="fileInput?.click()"><Upload :size="14"/>更换图片</button></div><div class="local-note"><Check :size="14"/>主动选择的图片与配墨记录保存在当前浏览器，不会上传服务器。</div></section>
+<div class="image-stage" :class="{dragging}" @dragover.prevent="dragging=true" @dragleave="dragging=false" @drop="drop"><BigImageViewer v-if="source" :src="source" :alt="sourceName" class="ink-large-image" eager/><div v-if="busy" class="analysis-overlay"><LoaderCircle class="spin"/><span>正在识别颜色与色层…</span></div><div v-else-if="!source" class="empty-state">请选择有效图片</div><div class="scan-corners" aria-hidden="true"><i/><i/><i/><i/></div></div><div class="file-row"><div class="file-info"><ImageIcon/><div><strong>{{sourceName}}</strong><span>当前分析样例</span></div></div><button class="btn btn-secondary" @click="fileInput?.click()"><Upload :size="14"/>更换图片</button></div></section>
 <section class="panel layers-panel"><header class="panel-header"><div><span class="step-no">02</span><div><h2>印刷色层建议</h2><p>按实际叠印顺序由浅至深排列</p></div></div><span class="complete-badge"><Check/>{{busy?'计算中':result?'已完成':'待分析'}}</span></header><div class="layer-list"><article v-for="(layer,index) in result?.layers || []" :key="index" class="layer-card" :class="{selected:selectedLayer===index}"><button class="layer-row layer-select" :class="{active:selectedLayer===index}" :aria-pressed="selectedLayer===index" :disabled="settingsSaving" @click="selectedLayer=index"><span class="layer-index">{{String(index+1).padStart(2,'0')}}</span><span class="color-swatch" :style="{background:layer.hex}"/><span class="layer-copy"><strong>{{layer.name}}</strong><small>{{layer.role}}</small></span><span class="layer-values"><strong class="current-layer-hex">{{layer.hex}}</strong><small>覆盖约 {{layer.share}}%</small></span><ChevronRight/></button></article><div v-if="!result" class="empty-state">{{busy?'正在计算色层…':'选择有效图片后开始分析'}}</div></div>
 <div class="ink-secondary-actions"><button class="text-link" aria-label="恢复当前样例" title="保留当前图片和重量，恢复全部色层与默认预览" :disabled="busy || settingsSaving || !result" @click="resetCurrentSample"><RotateCcw :size="13"/>恢复当前样例</button><button class="text-link" :disabled="busy || !source" @click="analyze({name:sourceName,sampleId:sourceSampleId,source:'用户重新分析'})">重新分析当前图片</button></div></section></div>
-<section class="panel reconstruction-panel"><header class="panel-header"><div><span class="step-no">03</span><div><h2>四色层合成还原</h2><p>还原图仅由识别出的色层重新叠加生成</p></div></div><span class="reconstruction-status"><Layers3/>原样与重建对比</span></header><div class="reconstruction-body"><div><div class="ink-preview-tabs" role="tablist" aria-label="配墨图像预览"><button role="tab" :aria-selected="previewTab==='pair'" :class="{active:previewTab==='pair'}" @click="previewTab='pair'">原图与合成</button><button role="tab" :aria-selected="previewTab==='layer'" :class="{active:previewTab==='layer'}" :disabled="!activeLayer" @click="previewTab='layer'">当前色层</button></div><div v-if="previewTab==='pair'" class="comparison-grid image-pair"><figure><figcaption><span>上传原样</span><small>原始图像</small></figcaption><div class="compare-image"><BigImageViewer v-if="source" :src="source" :alt="sourceName" class="ink-large-image"/></div></figure><figure><figcaption><span>四色层还原样</span><small>{{result?'当前启用 '+activeCount+' / '+result.layers.length+' 层':'等待分析'}}</small></figcaption><div class="compare-image reconstructed"><BigImageViewer v-if="result && reconstructed" :src="reconstructed" alt="色层合成还原图" class="ink-large-image"/><div v-else class="empty-state">{{busy?'正在计算…':'分析后显示还原图'}}</div></div></figure></div><div v-else class="single-layer-preview checker"><BigImageViewer v-if="activeLayer" :src="activeLayer.maskUrl" :alt="activeLayer.name+'分层图'" class="ink-large-image"/></div></div>
-<aside class="layer-stack"><div class="stack-heading"><div><strong>色层叠加控制</strong><span>关闭任意一层，观察该层对还原结果的影响</span></div><button class="btn btn-secondary" :disabled="settingsSaving || !result" @click="enabled=result?.layers.map(()=>true) ?? []">全部开启</button></div><div class="stack-list"><label v-for="(layer,index) in result?.layers || []" :key="index" class="stack-layer layer-switch" :class="{disabled:!enabled[index]}"><span class="stack-order">{{index+1}}</span><span class="stack-thumb checker"><img :src="layer.maskUrl" :alt="layer.name+'色层缩略图'"/></span><span class="stack-copy"><b>{{layer.name}}</b><small>{{layer.hex}} · 覆盖约 {{layer.share}}%</small></span><input class="sr-only" type="checkbox" :disabled="settingsSaving" :checked="enabled[index]" :aria-label="'开启'+layer.name" @change="toggle(index)"/><Eye v-if="enabled[index]" :size="15"/><EyeOff v-else :size="15"/></label></div><div class="difference-note"><strong>当前合成偏差（白底）：{{busy?'计算中':difference?.toFixed(2) ?? '—'}}<template v-if="!busy && difference!==null"> / 255</template></strong><span>数值越低，四色层近似效果越接近上传原样。该指标为 RGB 像素平均距离，评价分色近似效果，不代表配方的实际涂层效果。</span></div></aside></div></section>
-<section class="panel formula-panel"><header class="panel-header"><div><span class="step-no">04</span><div><h2>各色层配墨建议</h2><p>默认同时查看全部色层，也可切换到单层详情称量</p></div></div><span class="formula-status"><Activity :size="15"/> 初始配方建议</span></header><div class="ink-settings-toolbar"><InkSelector v-model="draftInks" label="配墨色墨组合" :disabled="busy || settingsSaving"/><label>单层配墨重量<div class="weight-input"><input id="ink-weight" v-model="draftWeight" :disabled="settingsSaving" aria-label="单层配墨重量" type="number" min="0.5" max="500" step="0.5"/><span>kg</span></div></label><div class="ink-confirm-actions"><button class="btn btn-primary" :disabled="busy || settingsSaving || recordConflict || !result || !validDraftWeight || !validSelection || !settingsDirty" @click="confirmSettings">{{confirming?'正在保存…':'确认组合并更新配方'}}</button><button class="btn btn-secondary" :disabled="settingsSaving || (!settingsDirty && !localSaveError)" @click="cancelSettings">取消修改</button></div></div><div class="ink-application-status" :class="{pending:settingsDirty}" role="status"><strong>{{settingsSaving?'正在保存，请稍候':localSaveError?'保存失败，当前配方仍为上次已确认值':settingsDirty?'待确认：组合或重量尚未应用':recordDeleted?'仅更新当前预览，历史不会重新创建':'配方已更新，下方总览与单层详情已同步'}}</strong><span>当前配方：{{combinationLabel(selectedInks)}}，{{Number(weight).toFixed(2)}} kg / 层。基础色墨数量与图像色层数量独立，稀释剂单独计算。</span><span v-if="!validDraftWeight">请输入0.5至500 kg的有效重量。</span></div>    <div v-if="activeRun" class="ink-run-info" :role="recordConflict || localSaveError || recordStatus?.state==='error' ? 'alert' : 'status'">
+<section class="panel reconstruction-panel"><header class="panel-header"><div><span class="step-no">03</span><div><h2>色层合成还原</h2></div></div><span class="reconstruction-status"><Layers3/>原样与重建对比</span></header><div class="reconstruction-body"><div><div class="ink-preview-tabs" role="tablist" aria-label="配墨图像预览"><button role="tab" :aria-selected="previewTab==='pair'" :class="{active:previewTab==='pair'}" @click="previewTab='pair'">原图与合成</button><button role="tab" :aria-selected="previewTab==='layer'" :class="{active:previewTab==='layer'}" :disabled="!activeLayer" @click="previewTab='layer'">当前色层</button></div><div v-if="previewTab==='pair'" class="comparison-grid image-pair"><figure><figcaption><span>上传原样</span></figcaption><div class="compare-image"><BigImageViewer v-if="source" :src="source" :alt="sourceName" class="ink-large-image"/></div></figure><figure><figcaption><span>色层还原样</span><small>{{result?'当前启用 '+activeCount+' / '+result.layers.length+' 层':'等待分析'}}</small></figcaption><div class="compare-image reconstructed"><BigImageViewer v-if="result && reconstructed" :src="reconstructed" alt="色层合成还原图" class="ink-large-image"/><div v-else class="empty-state">{{busy?'正在计算…':'分析后显示还原图'}}</div></div></figure></div><div v-else class="single-layer-preview checker"><BigImageViewer v-if="activeLayer" :src="activeLayer.maskUrl" :alt="activeLayer.name+'分层图'" class="ink-large-image"/></div></div>
+<aside class="layer-stack"><div class="stack-heading"><div><strong>色层叠加控制</strong></div><button class="btn btn-secondary" :disabled="settingsSaving || !result" @click="enabled=result?.layers.map(()=>true) ?? []">全部开启</button></div><div class="stack-list"><label v-for="(layer,index) in result?.layers || []" :key="index" class="stack-layer layer-switch" :class="{disabled:!enabled[index]}"><span class="stack-order">{{index+1}}</span><span class="stack-thumb checker"><img :src="layer.maskUrl" :alt="layer.name+'色层缩略图'"/></span><span class="stack-copy"><b>{{layer.name}}</b><small>{{layer.hex}} · 覆盖约 {{layer.share}}%</small></span><input class="sr-only" type="checkbox" :disabled="settingsSaving" :checked="enabled[index]" :aria-label="'开启'+layer.name" @change="toggle(index)"/><Eye v-if="enabled[index]" :size="15"/><EyeOff v-else :size="15"/></label></div><div class="difference-note"><strong>当前合成偏差（白底）：{{busy?'计算中':difference?.toFixed(2) ?? '—'}}<template v-if="!busy && difference!==null"> / 255</template></strong><span>RGB 平均像素距离 · 0–255</span></div></aside></div></section>
+<section class="panel formula-panel"><header class="panel-header"><div><span class="step-no">04</span><div><h2>各色层配墨建议</h2></div></div><span class="formula-status"><Activity :size="15"/> 初始配方建议</span></header><div class="ink-settings-toolbar"><InkSelector v-model="draftInks" label="配墨色墨组合" :disabled="busy || settingsSaving"/><label>单层配墨重量<div class="weight-input"><input id="ink-weight" v-model="draftWeight" :disabled="settingsSaving" aria-label="单层配墨重量" type="number" min="0.5" max="500" step="0.5"/><span>kg</span></div></label><div class="ink-confirm-actions"><button class="btn btn-primary" :disabled="busy || settingsSaving || recordConflict || !result || !validDraftWeight || !validSelection || !settingsDirty" @click="confirmSettings">{{confirming?'正在保存…':'确认组合并更新配方'}}</button><button class="btn btn-secondary" :disabled="settingsSaving || (!settingsDirty && !localSaveError)" @click="cancelSettings">取消修改</button></div></div><div class="ink-application-status" :class="{pending:settingsDirty}" role="status"><strong>{{settingsSaving?'正在保存，请稍候':localSaveError?'保存失败，当前配方仍为上次已确认值':settingsDirty?'待确认：组合或重量尚未应用':recordDeleted?'仅更新当前预览，历史不会重新创建':'配方已更新'}}</strong><span>当前配方：{{combinationLabel(selectedInks)}}，{{Number(weight).toFixed(2)}} kg / 层。</span><span v-if="!validDraftWeight">请输入0.5至500 kg的有效重量。</span></div>    <div v-if="activeRun" class="ink-run-info" :role="recordConflict || localSaveError || recordStatus?.state==='error' ? 'alert' : 'status'">
       <template v-if="recordDeleted">此次历史已删除。当前预览仍可导出，后续参数调整不再保存到该记录。</template>
       <template v-else-if="recordConflict">此记录已在其他页面修改，当前预览已保留，参数暂不保存。<button class="btn btn-secondary" @click="reloadRecord">重新加载最新记录</button></template>
       <template v-else><strong>当前配墨记录：{{activeRun.inputName}}</strong><span>{{settingsSaving || recordStatus?.state==='busy' ? '正在保存…' : localSaveError || recordStatus?.message || (recordStored?'原图、配方和参数已保存在本机浏览器':'当前分析尚未保存')}}</span><button v-if="localSaveError || recordStatus?.state==='error' || !recordStored" :disabled="settingsSaving" class="btn btn-secondary" @click="retrySave">重试保存</button></template>
     </div>
 <div class="formula-tabs"><div class="formula-tabs-list ink-preview-tabs" role="tablist" aria-label="配方查看方式"><button role="tab" :aria-selected="tab==='overview'" :class="{active:tab==='overview'}" :disabled="settingsSaving" @click="tab='overview'">全部色层总览</button><button role="tab" :aria-selected="tab==='detail'" :class="{active:tab==='detail'}" :disabled="settingsSaving || !activeLayer" @click="tab='detail'">单层配方详情</button></div>
-<div v-if="result && tab==='overview'" class="recipe-grid"><article v-for="(layer,index) in result.layers" :key="index" class="recipe-card"><header class="recipe-card-head"><i class="mini-swatch" :style="{background:layer.hex}"/><div><strong>{{String(index+1).padStart(2,'0')}} · {{layer.name}}</strong><small>{{layer.hex}} · {{layer.share}}%</small></div><button @click="showLayer(index)">查看详情</button></header><div class="recipe-components"><div v-for="item in ingredients" :key="item.key"><span><i :style="{background:item.color}"/>{{item.label}}{{unused(item.key)?"（未使用）":""}}</span><b>{{layer.recipe[item.key]}}%</b></div></div><footer class="recipe-card-total"><span>单层合计</span><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong></footer></article></div>
-<div v-else-if="activeLayer" class="formula-body recipe-panel"><aside class="target-card"><span>{{activeLayer.name}}</span><div class="target-color" :style="{background:activeLayer.hex}"/><strong>{{activeLayer.hex}}</strong><p>RGB {{Math.round(activeLayer.rgb.r)}} / {{Math.round(activeLayer.rgb.g)}} / {{Math.round(activeLayer.rgb.b)}}</p><div class="layer-pager"><button v-for="(layer,index) in result?.layers || []" :key="index" :class="{active:selectedLayer===index}" :aria-label="`查看第${index+1}色层配方`" :aria-pressed="selectedLayer===index" :disabled="settingsSaving" @click="selectedLayer=index">{{String(index+1).padStart(2,'0')}}</button></div><div class="target-meta"><span>当前色层</span><b>{{selectedLayer+1}} / {{result?.layers.length}}</b></div></aside><div class="ink-table-wrap recipe-list"><div class="ink-table-head"><span>油墨组分</span><span>参考占比</span><span>换算用量</span><span>配方比例</span></div><div v-for="item in ingredients" :key="item.key" class="ink-row recipe-row"><span class="ink-name"><i :style="{background:item.color}"/><b>{{item.label}}{{unused(item.key)?"（未使用）":""}}</b></span><strong>{{activeLayer.recipe[item.key]}}%</strong><strong>{{amount(activeLayer.recipe[item.key])}}</strong><div class="ratio-track"><i :style="{width:activeLayer.recipe[item.key]+'%',background:item.color}"/></div></div><div class="total-row"><b>配方合计</b><strong>100%</strong><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong><span>按单层配墨重量换算</span></div></div></div><div v-else class="empty-state">暂无可用配方</div></div><p v-for="warning in warnings" :key="warning" class="warning-text">{{warning}}</p><div class="industrial-notice"><strong>试印提示</strong><span>该配方由图像色彩近似换算，作为首次调整的参考起点。实际生产前请结合原纸底色、油墨型号与设备状态进行试印校正。</span></div></section>
+<div v-if="result && tab==='overview'" class="recipe-grid" :data-layer-count="result.layers.length" :style="{'--recipe-count':result.layers.length}"><article v-for="(layer,index) in result.layers" :key="index" class="recipe-card"><header class="recipe-card-head"><i class="mini-swatch" :style="{background:layer.hex}"/><div><strong>{{String(index+1).padStart(2,'0')}} · {{layer.name}}</strong><small>{{layer.hex}} · {{layer.share}}%</small></div><button @click="showLayer(index)">查看详情</button></header><div class="recipe-components"><div v-for="item in ingredients" :key="item.key"><span><i :style="{background:item.color}"/>{{item.label}}{{unused(item.key)?"（未使用）":""}}</span><b>{{layer.recipe[item.key]}}%</b></div></div><footer class="recipe-card-total"><span>单层合计</span><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong></footer></article></div>
+<div v-else-if="activeLayer" class="formula-body recipe-panel"><aside class="target-card"><span>{{activeLayer.name}}</span><div class="target-color" :style="{background:activeLayer.hex}"/><strong>{{activeLayer.hex}}</strong><p>RGB {{Math.round(activeLayer.rgb.r)}} / {{Math.round(activeLayer.rgb.g)}} / {{Math.round(activeLayer.rgb.b)}}</p><div class="layer-pager"><button v-for="(layer,index) in result?.layers || []" :key="index" :class="{active:selectedLayer===index}" :aria-label="`查看第${index+1}色层配方`" :aria-pressed="selectedLayer===index" :disabled="settingsSaving" @click="selectedLayer=index">{{String(index+1).padStart(2,'0')}}</button></div><div class="target-meta"><span>当前色层</span><b>{{selectedLayer+1}} / {{result?.layers.length}}</b></div></aside><div class="ink-table-wrap recipe-list"><div class="ink-table-head"><span>油墨组分</span><span>参考占比</span><span>换算用量</span><span>配方比例</span></div><div v-for="item in ingredients" :key="item.key" class="ink-row recipe-row"><span class="ink-name"><i :style="{background:item.color}"/><b>{{item.label}}{{unused(item.key)?"（未使用）":""}}</b></span><strong>{{activeLayer.recipe[item.key]}}%</strong><strong>{{amount(activeLayer.recipe[item.key])}}</strong><div class="ratio-track"><i :style="{width:activeLayer.recipe[item.key]+'%',background:item.color}"/></div></div><div class="total-row"><b>配方合计</b><strong>100%</strong><strong>{{validWeight?Number(weight).toFixed(2)+' kg':'—'}}</strong></div></div></div><div v-else class="empty-state">暂无可用配方</div></div><p v-for="warning in warnings" :key="warning" class="warning-text">{{warning}}</p><details class="context-help ink-help"><summary>配方与记录说明</summary><p>配方由图像色彩换算，细密纹理可能影响分层结果。实际用量通过原纸、油墨和设备试印校正。</p><p>合成偏差衡量分色图与原图的 RGB 像素距离；涂层颜色在颜色比对中复核。基础色墨与图像色层分别计数，稀释剂单独计算。</p><p>图片、配方与参数保存在当前浏览器。</p></details></section>
 </div></div></template>
 <style scoped>
 @reference "../assets/css/style.css";
 .ink-algorithm-note {
-  @apply [border:1px_solid_#c5d5d6];
-  background: #f3f8f8;
+  @apply [border:0.5px_solid_var(--dl-border)];
+  background: var(--dl-inset);
   @apply [padding:14px_16px];
   @apply mb-[12px];
-  color: #386064;
-  @apply text-[12px]
+  color: var(--dl-text);
+  @apply text-[13px]
 }
 .ink-algorithm-note p {
   @apply [margin:6px_0_0]
@@ -263,16 +263,16 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
   @apply gap-[10px];
   @apply flex-wrap;
   @apply [padding:12px_16px];
-  @apply [border:1px_solid_var(--border)];
-  @apply text-[12px];
-  background: var(--surface);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  @apply text-[13px];
+  background: var(--dl-surface);
   @apply [margin:0_0_14px]
 }
 .ink-run-info span {
-  color: var(--muted)
+  color: var(--dl-muted)
 }
 .ink-run-info .btn {
-  @apply text-[11px];
+  @apply text-[13px];
   @apply [padding:6px_10px]
 }
 .ink-large-image {
@@ -286,9 +286,9 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
   @apply [padding:0_14px_14px]
 }
 .warning-text {
-  @apply text-[11px];
+  @apply text-[13px];
   @apply leading-[1.7];
-  color: #a76b26;
+  color: var(--dl-warning);
   @apply [margin:9px_18px]
 }
 .ink-preview-tabs {
@@ -301,19 +301,19 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
 .ink-preview-tabs button {
   @apply [padding:7px_12px];
   @apply [border:0];
-  background: #f0f4f4;
-  color: var(--muted);
-  @apply text-[11px];
+  background: var(--dl-inset);
+  color: var(--dl-muted);
+  @apply text-[13px];
   cursor: pointer
 }
 .ink-preview-tabs button.active {
-  background: #fff;
-  color: #145f65;
-  box-shadow: inset 0 -2px #145f65
+  background: var(--dl-surface);
+  color: var(--dl-accent);
+  box-shadow: inset 0 -2px var(--dl-accent)
 }
 .reconstruction-body>div>.ink-preview-tabs {
   @apply [padding:10px_16px_0];
-  background: #f5f7f7
+  background: var(--dl-inset)
 }
 .single-layer-preview {
   @apply h-[350px];
@@ -323,10 +323,10 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
   @apply flex;
   @apply justify-between;
   @apply gap-[8px];
-  background: #253b3e;
-  color: white;
+  background: var(--dl-inset);
+  color: var(--dl-text);
   @apply p-[11px];
-  @apply text-[11px]
+  @apply text-[13px]
 }
 .layer-card {
   @apply [border:0]
@@ -350,11 +350,11 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
   cursor: pointer
 }
 .layer-switch:focus-within {
-  outline: 2px solid #438e93;
+  outline: 2px solid var(--dl-accent);
   outline-offset: 1px
 }
 .layer-values strong {
-  @apply text-[11px]
+  @apply text-[13px]
 }
 .formula-status {
   @apply flex;
@@ -396,13 +396,13 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
   @apply h-[36px]
 }
 .layer-values strong {
-  @apply text-[10px]
+  @apply text-[13px]
 }
 .layer-copy strong {
-  @apply text-[12px]
+  @apply text-[13px]
 }
 .layer-copy small {
-  @apply text-[9px]
+  @apply text-[13px]
 }
 .reconstruction-status {
   @apply hidden
@@ -434,12 +434,24 @@ onBeforeUnmount(() => { request++; if (S.beforeInkChange === beforeChange) S.bef
 }}
 /* Long names remain readable within the existing layout. */
 .ink-run-info { @apply min-w-0 wrap-anywhere; } .ink-run-info strong { @apply min-w-0; } .file-info { @apply min-w-0; flex: 1; } .file-info strong { @apply whitespace-normal max-w-none overflow-visible wrap-anywhere; } .file-row>button { flex: none; } .ink-table-wrap { @apply min-w-0 overflow-x-auto; }
-.ink-settings-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.55fr);align-items:start;gap:12px;padding:18px;background:#f3f8f7}
-.ink-settings-toolbar label{display:grid;gap:8px;font-size:12px;font-weight:600}
+.ink-settings-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,.55fr);align-items:start;gap:12px;padding:18px;background:var(--dl-inset)}
+.ink-settings-toolbar label{display:grid;gap:8px;font-size:13px;font-weight:600}
 .ink-settings-toolbar>label{line-height:16px}
-.ink-settings-toolbar select,.ink-settings-toolbar input{width:100%;height:38px;border:1px solid #bccdce;background:white;padding:8px;font:inherit}
+.ink-settings-toolbar select,.ink-settings-toolbar input{width:100%;height:38px;border:0.5px solid var(--dl-border);background:var(--dl-surface);padding:8px;font:inherit}
 .ink-settings-toolbar .weight-input{width:100%}.ink-confirm-actions{grid-column:1/-1;display:flex;gap:8px}
-.ink-application-status{display:grid;gap:6px;padding:14px 18px;background:#edf6f4;border-left:3px solid #145f65;font-size:12px}.ink-application-status span{font-size:11px;color:#62777b}.ink-application-status.pending{background:#fff5e6;border-left-color:#be7c24}
+.ink-application-status{display:grid;gap:6px;padding:14px 18px;background:var(--dl-accent-soft);border-left:3px solid var(--dl-accent);font-size:13px}.ink-application-status span{font-size:13px;color:var(--dl-muted)}.ink-application-status.pending{background:var(--dl-warning-soft);border-left-color:var(--dl-warning)}
 .layers-panel{display:flex;flex-direction:column}.layers-panel .layer-list{flex:1;display:grid;grid-auto-rows:minmax(66px,1fr)}.layers-panel .layer-row{height:100%}
 @media(max-width:760px){.ink-settings-toolbar{grid-template-columns:minmax(0,1fr)}}
+
+.ink-page .ink-summary > div { background: transparent; border-color: var(--dl-border); }
+.ink-page .ink-summary span { color: var(--dl-muted); }
+.ink-page .ink-summary strong { color: var(--dl-text); font-variant-numeric: tabular-nums; }
+.ink-page .total-row { background: var(--dl-inset); color: var(--dl-text); border-top: 0.5px solid var(--dl-border); font-variant-numeric: tabular-nums; }
+.ink-page .recipe-card-total :is(span,strong,b), .ink-page .total-row :is(span,strong,b) { color: inherit; }
+.ink-page .ink-settings-toolbar :is(input,select) { height: 36px; border: 0.5px solid var(--dl-border); border-radius: 12px; background: var(--dl-surface); color: var(--dl-text); font-size: 14px; }
+.ink-page .ink-algorithm-note, .ink-page .ink-run-info { border-radius: 16px; }
+.ink-page .ink-preview-tabs { gap: 4px; }
+.ink-page .ink-preview-tabs button { min-height: 36px; border-radius: 12px; }
+.ink-page .ink-preview-tabs button.active { background: var(--dl-active); color: var(--dl-text); box-shadow: none; }
+.ink-page .ink-application-status { border-radius: 12px; }
 </style>

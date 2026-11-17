@@ -28,21 +28,34 @@ onBeforeUnmount(()=>controller?.abort())
 </script>
 <template>
   <button type="button" class="engineering-export-button btn btn-secondary" :class="{'export-compact':compact}" :aria-label="compact?'导出 TIF / PSD':undefined" :title="compact?'导出 TIF / PSD':undefined" @click="open"><Download v-if="compact" :size="14"/>导出 TIF / PSD</button>
-  <Teleport to="body"><dialog ref="dialog" aria-label="工程文件导出" class="engineering-dialog" @cancel.prevent="close" @close="controller?.abort()"><header><h2>工程文件导出</h2><button type="button" class="btn btn-secondary" @click="close">关闭</button></header><p class="export-name">{{name}}</p><p v-if="loading" role="status">正在读取完整像素原图…</p><template v-else-if="width"><dl><div><dt>实际像素</dt><dd>{{width}} × {{height}}</dd></div><div><dt>按当前分辨率的尺寸</dt><dd>{{size?size.widthMm.toFixed(2)+' × '+size.heightMm.toFixed(2)+' mm':'请输入有效分辨率'}}</dd></div><div><dt>颜色</dt><dd>8 位 RGB · 保留透明度</dd></div></dl><label>文件格式<select v-model="format" :disabled="busy" aria-label="工程文件格式"><option value="tif">TIF 无损合成图</option><option value="psd">PSD {{project?'分层连续单元':'完整设计图'}}</option></select></label><label>分辨率 ppi<input v-model.number="ppi" type="number" min="1" max="2400" step="1" :disabled="busy" aria-label="工程文件分辨率"/></label><p>按实际像素导出，不改变图像尺寸。300 ppi 表示每英寸 300 个像素，修改此值不会增加图像细节。</p><p v-if="format==='psd'">{{project?'包含原始单元参考、单元基础和接缝修补图层；透明区域可继续编辑。':'此来源为合成图，PSD 包含一个完整设计图层。'}}生产分色尚未确认。</p><button type="button" class="btn btn-primary" :disabled="busy||!size" @click="download">{{busy?'正在编码文件…':'下载工程文件'}}</button><button v-if="busy" type="button" class="btn btn-secondary" @click="controller?.abort()">取消导出</button></template><p v-if="error" class="export-error" role="alert">{{error}}</p></dialog></Teleport>
+  <Teleport to="body"><dialog ref="dialog" aria-label="工程文件导出" class="engineering-dialog dilong-theme" @cancel.prevent="close" @close="controller?.abort()"><header><h2>工程文件导出</h2><button type="button" class="btn btn-secondary" @click="close">关闭</button></header><p class="export-name">{{name}}</p><p v-if="loading" role="status">正在读取完整像素原图…</p><template v-else-if="width"><dl><div><dt>实际像素</dt><dd>{{width}} × {{height}}</dd></div><div><dt>按当前分辨率的尺寸</dt><dd>{{size?size.widthMm.toFixed(2)+' × '+size.heightMm.toFixed(2)+' mm':'请输入有效分辨率'}}</dd></div><div><dt>颜色</dt><dd>8 位 RGB · 保留透明度</dd></div></dl><label>文件格式<select v-model="format" :disabled="busy" aria-label="工程文件格式"><option value="tif">TIF 无损合成图</option><option value="psd">PSD {{project?'分层连续单元':'完整设计图'}}</option></select></label><label>分辨率 ppi<input v-model.number="ppi" type="number" min="1" max="2400" step="1" :disabled="busy" aria-label="工程文件分辨率"/></label><p>按实际像素导出，不改变图像尺寸。300 ppi 表示每英寸 300 个像素，修改此值不会增加图像细节。</p><p v-if="format==='psd'">{{project?'包含原始单元参考、单元基础和接缝修补图层；透明区域可继续编辑。':'此来源为合成图，PSD 包含一个完整设计图层。'}}生产分色尚未确认。</p><button type="button" class="btn btn-primary" :disabled="busy||!size" @click="download">{{busy?'正在编码文件…':'下载工程文件'}}</button><button v-if="busy" type="button" class="btn btn-secondary" @click="controller?.abort()">取消导出</button></template><p v-if="error" class="export-error" role="alert">{{error}}</p></dialog></Teleport>
 </template>
 <style scoped>
 @reference "../assets/css/style.css";
 .engineering-export-button { @apply mt-3 text-xs w-full; }
-.engineering-export-button.export-compact { @apply m-0 w-auto inline-flex items-center justify-center gap-1.5 text-[11px] px-2.5 py-2; }
-.engineering-dialog { @apply fixed p-5 border w-[min(520px,calc(100vw-32px))] max-h-[90vh] overflow-auto m-auto; background:var(--surface,#fff);color:var(--ink,#173a3d);border-color:var(--line-strong,#c8d8d8); }
-.engineering-dialog::backdrop { background:#102b3480; }
+.engineering-export-button.export-compact { @apply m-0 w-auto inline-flex items-center justify-center gap-1.5 text-xs px-2.5 py-2; }
+.engineering-dialog { @apply fixed p-5 w-[min(520px,calc(100vw-32px))] max-h-[90vh] overflow-auto m-auto; background:var(--dl-surface);color:var(--dl-text);border:0;border-radius:var(--dl-r-panel);box-shadow:var(--dl-shadow);font-family:var(--dl-font);font-size:14px;scrollbar-gutter:stable; }
+.engineering-dialog::backdrop { background:var(--dl-mask); }
 header { @apply flex items-center justify-between gap-3; }
-h2 { @apply text-lg font-semibold; }
-p { @apply text-xs leading-relaxed my-3; color:var(--muted); }
+h2 { @apply text-base font-semibold m-0; }
+p { @apply text-xs leading-relaxed my-3; color:var(--dl-muted); }
 .export-name { @apply wrap-anywhere; }
-dl>div { @apply flex justify-between flex-wrap gap-3 text-xs my-3; }
+dl>div { @apply flex justify-between flex-wrap gap-3 text-xs py-2; }
 dd { @apply m-0; }
 label { @apply block text-xs my-4; }
-input,select { @apply block w-full mt-2 border px-3 py-2; background:var(--surface);color:var(--ink);border-color:var(--line-strong); }
-.export-error { color:#b13e28; }
+input,select { @apply block w-full mt-2 border px-3 py-2;min-height:36px;border-radius:var(--dl-r-md);font-size:14px; background:var(--dl-surface);color:var(--dl-text);border-color:var(--dl-border); }
+.export-error { color:var(--dl-danger); }
+
+.engineering-export-button { border-radius:var(--dl-r-md); }
+.engineering-dialog :where(button,input,select):focus-visible { outline:2px solid var(--dl-focus);outline-offset:2px; }
+.engineering-dialog .btn { min-height:36px;padding:8px 12px;border:1px solid var(--dl-border);border-radius:var(--dl-r-md);font:inherit; }
+.engineering-dialog .btn-primary { background:var(--dl-primary-fill);color:var(--dl-primary-text);border-color:transparent; }
+.engineering-dialog .btn-secondary { background:transparent;color:var(--dl-text); }
+.engineering-dialog .btn-primary:hover:not(:disabled) { background:var(--dl-primary-hover); }
+.engineering-dialog .btn-secondary:hover:not(:disabled) { background:var(--dl-hover); }
+.engineering-dialog .btn + .btn { margin-left:8px; }
+.engineering-dialog button:disabled { opacity:.5;cursor:not-allowed; }
+dl>div { border-bottom:1px solid var(--dl-divider); }
+dt { color:var(--dl-muted); }
+dd { font-variant-numeric:tabular-nums; }
 </style>

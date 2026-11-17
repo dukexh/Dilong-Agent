@@ -14,6 +14,6 @@ export default defineConfig({
   base: process.env.DILONG_BASE || '/',
   cacheDir: process.env.DILONG_CACHE_DIR || 'node_modules/.vite',
   optimizeDeps: { include: ['ag-psd'] },
-  server: { host: '127.0.0.1', port: 51458, strictPort: true },
+  server: { host: '127.0.0.1', port: 51458, strictPort: true, watch: { ignored: ['**/verification/**'] } },
   build: { outDir: 'dist' },
 })

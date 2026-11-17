@@ -1,14 +1,14 @@
 /* Dilong library: Tailwind compositions retain the established page geometry. */
-.samples-page .sample-thumb img {
+:where(.dilong-theme, .dilong-theme *).samples-page .sample-thumb img {
   @apply object-contain;
 }
-.samples-page .library-count {
+:where(.dilong-theme, .dilong-theme *).samples-page .library-count {
   @apply whitespace-nowrap;
 }
-.samples-page .filter-tabs {
+:where(.dilong-theme, .dilong-theme *).samples-page .filter-tabs {
   @apply flex-wrap;
 }
-.library-pagination {
+:where(.dilong-theme, .dilong-theme *).library-pagination {
   @apply flex;
   @apply items-center;
   @apply justify-center;
@@ -16,93 +16,93 @@
   @apply gap-[12px];
   @apply [margin:20px_0px];
 }
-.library-pagination span, .library-pagination label {
-  @apply text-[13px];
+:where(.dilong-theme, .dilong-theme *).library-pagination span, :where(.dilong-theme, .dilong-theme *).library-pagination label {
+  @apply text-[14px];
 }
-.library-pagination select {
+:where(.dilong-theme, .dilong-theme *).library-pagination select {
   @apply ml-[8px];
   @apply p-[7px];
   @apply max-w-[110px];
-  @apply [border:1px_solid_rgb(189,_204,_202)];
-  background: white;
+  @apply [border:.5px_solid_var(--dl-border)];
+  background: var(--dl-surface);
 }
-.library-pagination button {
+:where(.dilong-theme, .dilong-theme *).library-pagination button {
   @apply min-w-[80px];
 }
-.public-texture-image {
+:where(.dilong-theme, .dilong-theme *).public-texture-image {
   @apply max-w-[720px];
   @apply [margin:14px_auto];
 }
-.public-texture-image .candidate-preview-trigger {
+:where(.dilong-theme, .dilong-theme *).public-texture-image .candidate-preview-trigger {
   @apply w-[100%];
   @apply h-[240px];
-  background: rgb(237, 241, 238);
+  background: var(--dl-inset);
 }
-.public-texture-image .candidate-preview-trigger img {
+:where(.dilong-theme, .dilong-theme *).public-texture-image .candidate-preview-trigger img {
   @apply w-[100%];
   @apply h-[100%];
   @apply object-contain;
 }
-.public-texture-image .candidate-preview-hint {
+:where(.dilong-theme, .dilong-theme *).public-texture-image .candidate-preview-hint {
   @apply absolute;
   @apply right-[8px];
   @apply bottom-[8px];
   @apply [padding:4px_8px];
-  @apply text-[12px];
+  @apply text-[13px];
   @apply leading-[1.4];
-  color: rgb(21, 94, 99);
-  background: rgba(255, 255, 255, 0.94);
-  @apply [border:1px_solid_rgb(199,_212,_213)];
+  color: var(--dl-accent);
+  background: color-mix(in srgb,var(--dl-surface) 94%,transparent);
+  @apply [border:.5px_solid_var(--dl-border)];
   pointer-events: none;
 }
-.samples-page .stage1-library-actions button {
+:where(.dilong-theme, .dilong-theme *).samples-page .stage1-library-actions button {
   @apply inline-flex;
   @apply items-center;
   @apply justify-center;
   @apply gap-[6px];
 }
-.samples-page .stage1-library-actions button svg {
+:where(.dilong-theme, .dilong-theme *).samples-page .stage1-library-actions button svg {
   flex: 0 0 auto;
   @apply w-[16px];
   @apply h-[16px];
 }
-.public-texture-provenance {
+:where(.dilong-theme, .dilong-theme *).public-texture-provenance {
   @apply wrap-anywhere;
   @apply leading-[1.8];
-  @apply text-[13px];
+  @apply text-[14px];
 }
-.public-texture-provenance a {
-  color: rgb(18, 101, 85);
+:where(.dilong-theme, .dilong-theme *).public-texture-provenance a {
+  color: var(--dl-success);
   text-decoration: underline;
 }
-.public-texture-actions {
+:where(.dilong-theme, .dilong-theme *).public-texture-actions {
   @apply flex;
   @apply gap-[8px];
   @apply flex-wrap;
   @apply [margin:12px_0px];
 }
-.public-texture-dialog dl {
+:where(.dilong-theme, .dilong-theme *).public-texture-dialog dl {
   @apply grid;
   @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
   @apply gap-[12px];
   @apply [margin:20px_0px];
 }
-.public-texture-dialog dt {
-  @apply text-[12px];
-  color: rgb(97, 115, 110);
+:where(.dilong-theme, .dilong-theme *).public-texture-dialog dt {
+  @apply text-[13px];
+  color: var(--dl-muted);
 }
-.public-texture-dialog dd {
+:where(.dilong-theme, .dilong-theme *).public-texture-dialog dd {
   @apply [margin:5px_0px];
   @apply wrap-anywhere;
 }
 @media (max-width: 600px) {
-.public-texture-dialog dl {
+:where(.dilong-theme, .dilong-theme *).public-texture-dialog dl {
   @apply grid-cols-[1fr];
 }
-.library-pagination {
+:where(.dilong-theme, .dilong-theme *).library-pagination {
   @apply gap-[8px];
 }
-.library-pagination span {
+:where(.dilong-theme, .dilong-theme *).library-pagination span {
   @apply w-[100%];
   @apply text-center;
 }

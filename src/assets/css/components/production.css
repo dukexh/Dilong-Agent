@@ -1,8 +1,8 @@
 /* Dilong production: Tailwind compositions retain the established page geometry. */
 .production-compare .pc-coordinates {
   @apply [padding:0px_16px_14px];
-  @apply text-[10px];
-  color: rgb(112, 129, 133);
+  @apply text-[13px];
+  color: var(--dl-muted);
 }
 .production-compare .pc-coordinates summary {
   cursor: pointer;
@@ -26,27 +26,25 @@
   @apply gap-[3px];
 }
 .production-compare .pc-coordinate-row input {
+  min-height: 28px;
   @apply w-[57px];
   @apply min-w-[0px];
-  @apply [border:1px_solid_rgb(189,_205,_206)];
+  @apply [border:0.5px_solid_var(--dl-border)];
   @apply p-[4px];
-  color: rgb(20, 95, 101);
-  background: rgb(255, 255, 255);
-  @apply rounded-[2px];
-  @apply text-[10px];
-}
-@media (max-width: 760px) {
-.platform-shell:has(.production-compare) .platform-sidebar nav {
-  @apply grid-cols-[repeat(6,_minmax(0px,_1fr))];
-}
+  color: var(--dl-accent);
+  background: var(--dl-surface);
+  @apply rounded-[12px];
+  @apply text-[13px];
 }
 .production-compare {
-  --pc-teal: #145f65;
-  --pc-dark: #253639;
-  --pc-muted: #708185;
-  --pc-line: #d7e0e0;
-  --pc-amber: #ca8e3b;
-  color: rgb(38, 56, 59);
+  --pc-teal: var(--dl-accent);
+  font: 13px/1.6 var(--dl-font);
+  font-variant-numeric: tabular-nums;
+  --pc-dark: var(--dl-text);
+  --pc-muted: var(--dl-muted);
+  --pc-line: var(--dl-border);
+  --pc-amber: var(--dl-warning);
+  color: var(--dl-text);
   @apply min-h-[0px];
 }
 .production-compare *, .production-compare ::before, .production-compare ::after {
@@ -69,18 +67,18 @@
 }
 .production-compare .page-heading p {
   @apply max-w-[780px];
-  @apply text-[12px];
+  @apply text-[13px];
   @apply leading-[1.7];
 }
 .production-compare .breadcrumb {
   @apply tracking-[0.13em];
-  @apply text-[9px];
+  @apply text-[13px];
 }
 .production-compare .export-button {
   flex: 0 0 auto;
   @apply w-[auto];
   @apply m-[0px];
-  @apply text-[12px];
+  @apply text-[13px];
 }
 .production-compare .pc-heading-actions {
   @apply flex;
@@ -93,7 +91,7 @@
   font: inherit;
 }
 .production-compare button:focus-visible, .production-compare input:focus-visible, .production-compare select:focus-visible, .production-compare textarea:focus-visible, .production-compare [tabindex]:focus-visible {
-  outline: rgb(137, 198, 201) solid 3px;
+  outline: var(--dl-accent) solid 2px;
   outline-offset: 3px;
 }
 .production-compare button:disabled {
@@ -101,12 +99,12 @@
   opacity: 0.48;
 }
 .production-compare .panel {
+  border-radius: 20px;
   @apply min-w-[0px];
   @apply mb-[14px];
-  background: rgb(255, 255, 255);
-  @apply [border:1px_solid_rgb(199,_211,_212)];
-  @apply rounded-[2px];
-  box-shadow: rgba(17, 37, 40, 0.03) 0px 1px 2px;
+  background: var(--dl-surface);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  box-shadow: none;
 }
 .production-compare .panel-header {
   @apply min-h-[70px];
@@ -118,14 +116,15 @@
   @apply leading-[1.45];
 }
 .production-compare .panel-header p {
-  @apply text-[11px];
+  @apply text-[13px];
   @apply leading-[1.6];
 }
 .production-compare .step-no {
+  color: var(--dl-primary-text);
   flex: 0 0 auto;
   @apply w-[30px];
   @apply h-[30px];
-  @apply rounded-[1px];
+  @apply rounded-[8px];
   background: var(--pc-teal);
 }
 .production-compare .pc-task-fields {
@@ -138,22 +137,22 @@
   @apply flex;
   @apply flex-col;
   @apply gap-[7px];
-  color: rgb(98, 119, 123);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
 }
 .production-compare .pc-task-fields input, .production-compare .pc-field input, .production-compare .pc-field select, .production-compare .pc-field textarea {
   @apply w-[100%];
   @apply min-w-[0px];
-  @apply [border:1px_solid_rgb(199,_211,_212)];
-  @apply rounded-[2px];
-  background: rgb(255, 255, 255);
-  color: rgb(38, 56, 59);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  @apply rounded-[12px];
+  background: var(--dl-surface);
+  color: var(--dl-text);
   @apply [padding:10px_11px];
-  @apply text-[12px];
+  @apply text-[13px];
   @apply leading-[1.5];
 }
 .production-compare input::placeholder, .production-compare textarea::placeholder {
-  color: rgb(148, 161, 164);
+  color: var(--dl-muted);
 }
 .production-compare .summary-strip {
   @apply grid-cols-[repeat(6,_minmax(0px,_1fr))];
@@ -169,7 +168,7 @@
   grid-column: auto;
 }
 .production-compare .summary-strip span {
-  @apply text-[10px];
+  @apply text-[13px];
   @apply tracking-[0.04em];
 }
 .production-compare .summary-strip strong {
@@ -196,15 +195,15 @@
   @apply h-[340px];
   @apply p-[16px];
   @apply overflow-hidden;
-  background-color: rgb(242, 246, 246);
-  background-image: linear-gradient(45deg, rgb(233, 239, 239) 25%, transparent 25%), linear-gradient(-45deg, rgb(233, 239, 239) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgb(233, 239, 239) 75%), linear-gradient(-45deg, transparent 75%, rgb(233, 239, 239) 75%);
+  background-color: var(--dl-inset);
+  background-image: linear-gradient(45deg, var(--dl-inset) 25%, transparent 25%), linear-gradient(-45deg, var(--dl-inset) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--dl-inset) 75%), linear-gradient(-45deg, transparent 75%, var(--dl-inset) 75%);
   background-size: 20px 20px;
   background-position: 0px 0px, 0px 10px, 10px -10px, -10px 0px;
 }
 .production-compare .pc-stage.dragging, .production-compare .pc-stage.drag-over, .production-compare .pc-stage.is-drag-over {
   outline: 2px dashed var(--pc-teal);
   outline-offset: -8px;
-  background-color: rgb(232, 244, 242);
+  background-color: var(--dl-inset);
 }
 .production-compare .pc-stage.has-image {
   @apply min-h-[0px];
@@ -238,15 +237,15 @@
   @apply grid;
   place-items: center;
   @apply p-[25px];
-  background: rgba(242, 246, 246, 0.93);
+  background: var(--dl-inset);
   color: var(--pc-teal);
-  @apply text-[13px];
+  @apply text-[14px];
   @apply font-[600];
 }
 .production-compare .format-note {
   flex: 0 0 auto;
-  color: rgb(138, 157, 160);
-  font: 9px ui-monospace, monospace;
+  color: var(--dl-muted);
+  font: 12px var(--dl-mono);
   @apply tracking-[0.04em];
 }
 .production-compare .pc-selection {
@@ -280,43 +279,44 @@
   cursor: default !important;
 }
 .production-compare .pc-link-bar {
+  border-radius: 16px;
   @apply flex;
   @apply items-center;
   @apply flex-wrap;
   @apply gap-[10px_20px];
   @apply mb-[14px];
   @apply [padding:13px_16px];
-  @apply [border:1px_solid_rgb(199,_211,_212)];
-  background: rgb(255, 255, 255);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  background: var(--dl-surface);
 }
 .production-compare .pc-link-bar > strong {
   flex: 0 0 auto;
   color: var(--pc-teal);
-  @apply text-[12px];
+  @apply text-[13px];
 }
 .production-compare .pc-link-bar p {
   flex: 1 1 260px;
   @apply min-w-[0px];
   @apply m-[0px];
-  color: rgb(112, 129, 133);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-resolution-note {
   @apply [padding:12px_16px];
   @apply mb-[14px];
   @apply [border-left:3px_solid_var(--pc-teal)];
-  background: rgb(244, 249, 248);
+  background: var(--dl-inset);
 }
 .production-compare .pc-resolution-note strong {
-  @apply text-[12px];
+  @apply text-[13px];
   color: var(--pc-teal);
 }
 .production-compare .pc-resolution-note p {
   @apply [margin:5px_0px_0px];
-  @apply text-[11px];
+  @apply text-[13px];
   @apply leading-[1.8];
-  color: rgb(101, 123, 125);
+  color: var(--dl-muted);
   @apply wrap-anywhere;
 }
 .production-compare progress {
@@ -352,18 +352,18 @@
 .production-compare .pc-upload-empty > svg {
   @apply w-[35px];
   @apply h-[35px];
-  color: rgb(109, 154, 159);
+  color: var(--dl-muted);
   stroke-width: 1.4;
 }
 .production-compare .pc-upload-empty > strong {
-  color: rgb(56, 88, 92);
+  color: var(--dl-text);
   @apply text-[14px];
   @apply font-[600];
 }
 .production-compare .pc-upload-empty > span {
   @apply max-w-[320px];
-  color: rgb(124, 142, 146);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-upload-empty .pc-button {
@@ -376,26 +376,26 @@
   @apply items-center;
   @apply gap-[12px];
   @apply [padding:12px_16px];
-  @apply [border-top:1px_solid_rgb(226,_232,_232)];
+  @apply [border-top:0.5px_solid_var(--dl-border)];
 }
 .production-compare .pc-file-info {
   @apply min-w-[0px];
   @apply flex;
   @apply flex-col;
   @apply gap-[5px];
-  @apply text-[12px];
+  @apply text-[13px];
   @apply leading-[1.5];
   @apply wrap-anywhere;
 }
 .production-compare .pc-file-info small {
-  color: rgb(124, 142, 145);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
 }
 .production-compare .pc-note {
   @apply m-[0px];
   @apply [padding:0px_16px_14px];
-  color: rgb(123, 140, 143);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-source-panel .pc-note {
@@ -413,14 +413,14 @@
   @apply justify-center;
   @apply items-center;
   @apply gap-[7px];
-  @apply min-h-[35px];
+  @apply min-h-[36px];
   @apply [padding:8px_12px];
-  @apply [border:1px_solid_rgb(189,_205,_206)];
-  @apply rounded-[2px];
-  background: rgb(255, 255, 255);
-  color: rgb(56, 87, 91);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  @apply rounded-[12px];
+  background: var(--dl-surface);
+  color: var(--dl-text);
   cursor: pointer;
-  @apply text-[11px];
+  @apply text-[13px];
   @apply font-[500];
   @apply leading-[1.4];
   transition: background-color 0.15s, border-color 0.15s;
@@ -431,49 +431,51 @@
   @apply h-[15px];
 }
 .production-compare .pc-button:hover:not(:disabled) {
-  background: rgb(238, 245, 245);
-  @apply [border-color:rgb(109,_157,_161)];
+  background: var(--dl-hover);
+  @apply [border-color:var(--dl-accent)];
 }
 .production-compare .pc-button.primary {
-  background: var(--pc-teal);
+  background: var(--dl-primary-fill);
   @apply [border-color:var(--pc-teal)];
-  color: rgb(255, 255, 255);
+  color: var(--dl-primary-text);
 }
 .production-compare .pc-button.primary:hover:not(:disabled) {
-  background: rgb(16, 78, 83);
-  @apply [border-color:rgb(16,_78,_83)];
+  background: color-mix(in srgb, var(--dl-primary-fill) 90%, var(--dl-text));
+  @apply [border-color:transparent];
 }
 .production-compare .pc-button.ghost {
   background: transparent;
   @apply [border-color:transparent];
-  color: rgb(83, 124, 129);
+  color: var(--dl-muted);
 }
 .production-compare .pc-button.danger {
-  color: rgb(163, 77, 61);
-  @apply [border-color:rgb(223,_200,_194)];
+  color: var(--dl-danger);
+  @apply [border-color:var(--dl-danger)];
 }
 .production-compare .pc-button.active {
   color: var(--pc-teal);
   @apply [border-color:var(--pc-teal)];
-  background: rgb(234, 244, 243);
+  background: var(--dl-active);
 }
 .production-compare .pc-button.small {
-  @apply min-h-[29px];
+  border-radius: 8px;
+  @apply min-h-[28px];
   @apply [padding:5px_9px];
-  @apply text-[10px];
+  @apply text-[13px];
 }
 .production-compare .pc-error {
+  border-radius: 12px;
   @apply flex;
   @apply gap-[8px];
   @apply [margin:12px_0px_15px];
   @apply [padding:12px_14px];
   @apply [border-width:1px_1px_1px_3px];
   @apply [border-style:solid];
-  @apply [border-color:rgb(230,_192,_180)_rgb(230,_192,_180)_rgb(230,_192,_180)_rgb(182,_94,_64)];
+  @apply [border-color:var(--dl-danger)_var(--dl-danger)_var(--dl-danger)_var(--dl-danger)];
   border-image: none;
-  background: rgb(255, 246, 242);
-  color: rgb(148, 77, 55);
-  @apply text-[12px];
+  background: var(--dl-danger-soft);
+  color: var(--dl-danger);
+  @apply text-[13px];
   @apply leading-[1.7];
 }
 .production-compare .pc-error svg {
@@ -481,19 +483,20 @@
   @apply mt-[2px];
 }
 .production-compare .pc-example-note {
+  border-radius: 12px;
   @apply [margin:0px_0px_15px];
   @apply [padding:11px_14px];
   @apply [border-left:3px_solid_var(--pc-amber)];
-  background: rgb(252, 246, 235);
-  color: rgb(138, 121, 91);
-  @apply text-[11px];
+  background: var(--dl-warning-soft);
+  color: var(--dl-warning);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-inline-state {
-  color: rgb(85, 123, 114);
-  background: rgb(237, 245, 241);
+  color: var(--dl-success);
+  background: var(--dl-success-soft);
   @apply [padding:7px_9px];
-  @apply text-[10px];
+  @apply text-[13px];
   @apply leading-[1.6];
 }
 .production-compare .pc-badge {
@@ -501,11 +504,11 @@
   @apply items-center;
   flex: 0 0 auto;
   @apply gap-[5px];
-  @apply [border:1px_solid_rgb(203,_220,_218)];
-  background: rgb(241, 247, 245);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  background: var(--dl-success-soft);
   @apply [padding:4px_7px];
-  color: rgb(82, 121, 111);
-  @apply text-[10px];
+  color: var(--dl-success);
+  @apply text-[13px];
   @apply leading-[1.5];
 }
 .production-compare .pc-view-body {
@@ -525,32 +528,32 @@
   @apply flex;
   @apply flex-wrap;
   @apply gap-[4px];
-  @apply [border-bottom:1px_solid_rgb(220,_228,_228)];
+  @apply [border-bottom:0.5px_solid_var(--dl-border)];
   @apply [padding:10px_13px];
-  background: rgb(255, 255, 255);
+  background: var(--dl-surface);
 }
 .production-compare .pc-tabs button {
   @apply flex;
   @apply items-center;
   @apply justify-center;
   @apply gap-[7px];
-  @apply min-h-[34px];
+  @apply min-h-[36px];
   @apply [padding:8px_13px];
   background: transparent;
-  @apply [border:1px_solid_transparent];
-  @apply rounded-[2px];
-  color: rgb(119, 137, 141);
-  @apply text-[11px];
+  @apply [border:0.5px_solid_transparent];
+  @apply rounded-[12px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   cursor: pointer;
 }
 .production-compare .pc-tabs button.active {
-  background: rgb(234, 243, 243);
-  @apply [border-color:rgb(208,_224,_223)];
+  background: var(--dl-active);
+  @apply [border-color:var(--dl-accent)];
   color: var(--pc-teal);
   @apply font-[600];
 }
 .production-compare .pc-tabs button:hover:not(:disabled) {
-  background: rgb(242, 247, 247);
+  background: var(--dl-hover);
 }
 .production-compare .pc-tabs svg {
   @apply w-[14px];
@@ -563,7 +566,7 @@
   @apply justify-center;
   @apply min-h-[335px];
   @apply p-[18px];
-  background: rgb(242, 245, 245);
+  background: var(--dl-inset);
   @apply overflow-hidden;
 }
 .production-compare .pc-pair {
@@ -582,15 +585,15 @@
   @apply w-[100%];
   @apply h-[100%];
   object-fit: fill;
-  background: rgb(225, 232, 232);
+  background: var(--dl-inset);
 }
 .production-compare .pc-pair figcaption, .production-compare .pc-single figcaption {
   @apply flex;
   @apply justify-between;
   @apply gap-[10px];
   @apply pb-[9px];
-  color: rgb(106, 128, 132);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.6];
 }
 .production-compare .pc-single {
@@ -680,8 +683,8 @@
 }
 .production-compare .pc-view-main > .pc-note {
   @apply pt-[11px];
-  @apply [border-top:1px_solid_rgb(220,_228,_228)];
-  background: rgb(255, 255, 255);
+  @apply [border-top:0.5px_solid_var(--dl-border)];
+  background: var(--dl-surface);
 }
 .production-compare .pc-empty-view {
   @apply flex;
@@ -690,21 +693,21 @@
   @apply gap-[10px];
   @apply max-w-[390px];
   @apply [padding:40px_16px];
-  color: rgb(125, 146, 149);
+  color: var(--dl-muted);
   @apply text-center;
-  @apply text-[11px];
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-empty-view svg {
   @apply w-[36px];
   @apply h-[36px];
   @apply mb-[5px];
-  color: rgb(139, 166, 169);
+  color: var(--dl-muted);
   stroke-width: 1.3;
 }
 .production-compare .pc-empty-view strong {
-  color: rgb(80, 110, 115);
-  @apply text-[13px];
+  color: var(--dl-muted);
+  @apply text-[14px];
   @apply font-[600];
 }
 .production-compare .pc-legend {
@@ -712,10 +715,10 @@
   @apply items-center;
   @apply gap-[10px];
   @apply [padding:11px_16px];
-  @apply [border-top:1px_solid_rgb(220,_228,_228)];
-  color: rgb(113, 134, 138);
-  background: rgb(255, 255, 255);
-  @apply text-[10px];
+  @apply [border-top:0.5px_solid_var(--dl-border)];
+  color: var(--dl-muted);
+  background: var(--dl-surface);
+  @apply text-[13px];
   @apply leading-[1.7];
 }
 .production-compare .pc-legend .gradient, .production-compare .pc-legend-gradient {
@@ -727,7 +730,7 @@
   background: linear-gradient(90deg, rgb(39, 104, 112), rgb(240, 194, 81) 50%, rgb(197, 69, 46));
 }
 .production-compare .pc-legend small {
-  @apply text-[10px];
+  @apply text-[13px];
 }
 .production-compare .pc-controls {
   @apply flex;
@@ -735,25 +738,25 @@
   @apply gap-[17px];
   @apply min-w-[0px];
   @apply [padding:18px_17px];
-  @apply [border-left:1px_solid_rgb(220,_228,_228)];
-  background: rgb(251, 252, 252);
+  @apply [border-left:0.5px_solid_var(--dl-accent)];
+  background: var(--dl-surface);
 }
 .production-compare .pc-controls > label, .production-compare .pc-control-group {
   @apply flex;
   @apply flex-col;
   @apply gap-[9px];
-  color: rgb(101, 126, 130);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.7];
 }
 .production-compare .pc-control-group > strong {
-  color: rgb(56, 91, 96);
-  @apply text-[12px];
+  color: var(--dl-text);
+  @apply text-[13px];
 }
 .production-compare .pc-control-group > p {
   @apply [margin:0px_0px_5px];
-  color: rgb(124, 144, 148);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-control-group > label {
@@ -762,8 +765,8 @@
   @apply items-center;
   @apply gap-[9px];
   @apply mt-[4px];
-  color: rgb(101, 126, 130);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
 }
 .production-compare .pc-control-group > label > input {
   grid-column: 1 / -1;
@@ -784,20 +787,20 @@
 .production-compare .pc-controls input[type="number"] {
   @apply w-[75px];
   @apply [padding:5px_7px];
-  @apply [border:1px_solid_rgb(199,_211,_212)];
-  @apply rounded-[2px];
-  background: rgb(255, 255, 255);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  @apply rounded-[12px];
+  background: var(--dl-surface);
   color: var(--pc-teal);
-  @apply text-[11px];
+  @apply text-[13px];
 }
 .production-compare .pc-controls small {
-  color: rgb(136, 153, 156);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.75];
 }
 .production-compare .pc-controls .pc-value {
   color: var(--pc-teal);
-  font: 600 12px ui-monospace, monospace;
+  font: 600 12px var(--dl-mono);
 }
 .production-compare .pc-controls .pc-toolbar {
   @apply p-[0px];
@@ -809,7 +812,7 @@
 }
 .production-compare .pc-controls .pc-note {
   @apply p-[0px];
-  @apply text-[10px];
+  @apply text-[13px];
 }
 .production-compare .pc-result-grid {
   @apply grid;
@@ -818,11 +821,12 @@
   @apply p-[17px];
 }
 .production-compare .pc-metric {
+  border-radius: 16px;
   @apply min-w-[0px];
   @apply w-[100%];
   @apply p-[16px];
-  @apply [border:1px_solid_rgb(220,_229,_229)];
-  background: rgb(247, 250, 250);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  background: var(--dl-inset);
   @apply text-left;
   cursor: pointer;
 }
@@ -836,17 +840,17 @@
 .production-compare .pc-metric > span {
   @apply block;
   @apply mb-[10px];
-  color: rgb(112, 136, 139);
-  @apply text-[11px];
+  color: var(--dl-muted);
+  @apply text-[13px];
 }
 .production-compare .pc-metric strong {
   @apply block;
   color: var(--pc-teal);
-  font: 600 26px / 1.2 ui-monospace, monospace;
+  font: 600 26px / 1.2 var(--dl-mono);
   @apply wrap-anywhere;
 }
 .production-compare .pc-metric strong small {
-  @apply text-[12px];
+  @apply text-[13px];
 }
 .production-compare .pc-metric strong.pc-bias-text {
   font-family: inherit;
@@ -855,17 +859,19 @@
 }
 .production-compare .pc-metric .pc-metric-description {
   @apply [margin:11px_0px_0px];
-  color: rgb(117, 139, 142);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-metric .pc-metric-link {
   @apply block;
   @apply mt-[12px];
   color: var(--pc-teal);
-  @apply text-[10px];
+  @apply text-[13px];
 }
 .pc-metric-dialog {
+  box-shadow: var(--dl-shadow);
+  border-radius: 28px;
   @apply fixed;
   @apply inset-[0px];
   @apply m-[auto];
@@ -875,21 +881,21 @@
   @apply h-[fit-content];
   @apply overflow-auto;
   @apply p-[22px];
-  @apply [border:1px_solid_rgb(198,_213,_213)];
-  @apply rounded-[2px];
-  background: rgb(255, 255, 255);
-  color: rgb(35, 59, 61);
-  font: 13px / 1.8 system-ui, sans-serif;
+  border: 0;
+  background: var(--dl-surface);
+  color: var(--dl-text);
+  font: 13px / 1.8 var(--dl-font);
+  font-variant-numeric: tabular-nums;
 }
 .pc-metric-dialog::backdrop {
-  background: rgba(16, 42, 46, 0.5);
+  background: var(--dl-mask);
 }
 .pc-metric-dialog-heading {
   @apply flex;
   @apply justify-between;
   @apply items-start;
   @apply gap-[16px];
-  @apply [border-bottom:1px_solid_rgb(220,_229,_229)];
+  @apply [border-bottom:0.5px_solid_var(--dl-border)];
   @apply pb-[12px];
 }
 .pc-metric-dialog h2 {
@@ -901,14 +907,14 @@
   @apply [margin:12px_0px];
 }
 .pc-metric-context {
-  color: rgb(96, 119, 123);
+  color: var(--dl-muted);
 }
 .pc-metric-dialog pre {
   @apply [margin:12px_0px];
   @apply p-[14px];
-  background: rgb(244, 248, 248);
-  @apply [border:1px_solid_rgb(220,_229,_229)];
-  font: 12px / 1.9 ui-monospace, monospace;
+  background: var(--dl-inset);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  font: 12px / 1.9 var(--dl-mono);
   @apply whitespace-pre-wrap;
   @apply wrap-anywhere;
 }
@@ -921,29 +927,31 @@
   @apply flex-wrap;
   @apply gap-[8px_20px];
   @apply [padding:9px_0px];
-  @apply [border-bottom:1px_solid_rgb(228,_236,_236)];
+  @apply [border-bottom:0.5px_solid_var(--dl-border)];
 }
 .pc-calculation-values dt {
-  color: rgb(96, 119, 123);
+  color: var(--dl-muted);
 }
 .pc-calculation-values dd {
   @apply m-[0px];
-  color: rgb(20, 95, 101);
+  color: var(--dl-accent);
   @apply font-[600];
 }
 .pc-formula-more {
   @apply [margin:14px_0px];
 }
 .pc-formula-more summary {
-  color: rgb(20, 95, 101);
+  color: var(--dl-accent);
   cursor: pointer;
 }
 .pc-metric-footnote {
-  @apply text-[11px];
-  color: rgb(112, 136, 139);
+  @apply text-[13px];
+  color: var(--dl-muted);
 }
 @media (max-width: 600px) {
 .pc-metric-dialog {
+  box-shadow: var(--dl-shadow);
+  border-radius: 28px;
   @apply p-[16px];
 }
 .pc-metric-dialog h2 {
@@ -962,15 +970,17 @@
   resize: vertical;
 }
 .production-compare .pc-reference-note {
+  border-radius: 12px;
   @apply [margin:0px_17px_17px];
   @apply [padding:11px_13px];
-  @apply [border-left:3px_solid_rgb(198,_154,_91)];
-  background: rgb(250, 247, 241);
-  color: rgb(138, 124, 101);
-  @apply text-[10px];
+  @apply [border-left:3px_solid_var(--dl-warning)];
+  background: var(--dl-warning-soft);
+  color: var(--dl-warning);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-reference-note {
+  border-radius: 12px;
   @apply flex;
   @apply items-start;
   @apply gap-[9px];
@@ -980,15 +990,15 @@
   @apply mt-[2px];
 }
 .production-compare .pc-reference-note strong {
-  color: rgb(131, 112, 85);
-  @apply text-[11px];
+  color: var(--dl-warning);
+  @apply text-[13px];
 }
 .production-compare .pc-reference-note p {
   @apply [margin:4px_0px_0px];
 }
 .production-compare .pc-field small {
-  color: rgb(132, 151, 155);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.7];
 }
 .production-compare .pc-local-info {
@@ -996,9 +1006,9 @@
   @apply items-center;
   @apply gap-[7px];
   @apply [padding:11px_17px];
-  @apply [border-top:1px_solid_rgb(224,_231,_231)];
-  color: rgb(134, 152, 155);
-  @apply text-[10px];
+  @apply [border-top:0.5px_solid_var(--dl-border)];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.7];
 }
 .production-compare .pc-controls .pc-local-info {
@@ -1007,41 +1017,41 @@
   @apply gap-[4px];
   @apply p-[11px];
   @apply [border-top:0px];
-  @apply [border-left:3px_solid_rgb(117,_164,_159)];
-  background: rgb(237, 245, 243);
-  color: rgb(105, 143, 138);
+  @apply [border-left:3px_solid_var(--dl-accent)];
+  background: var(--dl-inset);
+  color: var(--dl-muted);
 }
 .production-compare .pc-controls .pc-local-info strong {
   color: var(--pc-teal);
-  @apply text-[12px];
+  @apply text-[13px];
 }
 .production-compare .pc-local-info svg {
   flex: 0 0 auto;
   @apply w-[13px];
   @apply h-[13px];
-  color: rgb(126, 158, 159);
+  color: var(--dl-muted);
 }
 .production-compare .pc-local-footer {
   @apply flex;
   @apply items-start;
   @apply gap-[7px];
   @apply [margin:6px_0px_0px];
-  color: rgb(139, 155, 158);
-  @apply text-[10px];
+  color: var(--dl-muted);
+  @apply text-[13px];
   @apply leading-[1.8];
 }
 .production-compare .pc-local-footer svg {
   flex: 0 0 auto;
   @apply mt-[2px];
-  color: rgb(123, 153, 156);
+  color: var(--dl-muted);
 }
 .production-compare .pc-local-detail {
   @apply [padding:12px_16px];
-  @apply [border-top:1px_solid_rgb(220,_228,_228)];
-  @apply text-[11px];
+  @apply [border-top:0.5px_solid_var(--dl-border)];
+  @apply text-[13px];
   @apply leading-[1.8];
-  background: rgb(255, 255, 255);
-  color: rgb(89, 119, 124);
+  background: var(--dl-surface);
+  color: var(--dl-muted);
 }
 .production-compare .pc-local-detail strong {
   color: var(--pc-teal);
@@ -1055,7 +1065,7 @@
   @apply w-[68px];
   @apply h-[68px];
   @apply object-contain;
-  @apply [border:1px_solid_rgb(212,_223,_223)];
+  @apply [border:0.5px_solid_var(--dl-border)];
   image-rendering: pixelated;
 }
 @media (max-width: 1100px) {
@@ -1075,7 +1085,7 @@
   @apply grid;
   @apply grid-cols-[repeat(2,_minmax(0px,_1fr))];
   @apply gap-[16px_22px];
-  @apply [border-top:1px_solid_rgb(220,_228,_228)];
+  @apply [border-top:0.5px_solid_var(--dl-border)];
   @apply [border-left:0px];
 }
 .production-compare .pc-controls .pc-run {
@@ -1113,7 +1123,7 @@
 }
 .production-compare .summary-strip > div {
   @apply [padding:13px_14px];
-  @apply [border-bottom:1px_solid_rgb(67,_82,_85)];
+  @apply [border-bottom:0.5px_solid_var(--dl-border)];
 }
 .production-compare .summary-strip > div:nth-child(2n) {
   @apply [border-right:0px];
@@ -1134,10 +1144,10 @@
   @apply gap-[10px];
 }
 .production-compare .panel-header h2 {
-  @apply text-[13px];
+  @apply text-[14px];
 }
 .production-compare .panel-header p {
-  @apply text-[10px];
+  @apply text-[13px];
 }
 .production-compare .panel-header > .pc-badge {
   @apply hidden;
@@ -1171,7 +1181,7 @@
 .production-compare .pc-tabs button {
   flex: 1 1 0%;
   @apply [padding:8px_5px];
-  @apply text-[10px];
+  @apply text-[13px];
   @apply whitespace-nowrap;
 }
 .production-compare .pc-legend {
@@ -1180,6 +1190,7 @@
   @apply gap-[7px];
 }
 .production-compare .pc-metric {
+  border-radius: 16px;
   @apply p-[14px];
 }
 .production-compare .pc-result-grid {
@@ -1190,6 +1201,7 @@
   @apply [padding:0px_13px_13px];
 }
 .production-compare .pc-reference-note {
+  border-radius: 12px;
   @apply [margin:0px_13px_13px];
 }
 }

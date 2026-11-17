@@ -33,25 +33,25 @@ function similarity(asset: WorkflowAsset) { return scoreLabel(typeof asset.param
   @apply gap-[14px]
 }
 .saved-results article {
-  @apply [border:1px_solid_var(--border,#e5e7eb)];
-  @apply rounded-[2px];
+  @apply [border:.5px_solid_var(--border,var(--dl-inset))];
+  @apply rounded-[var(--dl-r-md)];
   @apply overflow-hidden;
-  background: var(--card,#fff)
+  background: var(--card,var(--dl-surface))
 }
 .saved-image {
   @apply h-[170px];
-  background: var(--soft,#f9fafb)
+  background: var(--soft,var(--dl-surface))
 }
 .saved-copy {
   @apply p-[13px]
 }
 .saved-copy>strong {
-  @apply text-[13px];
-  color: var(--title,#111827)
+  @apply text-[14px];
+  color: var(--title,var(--dl-text))
 }
 .saved-copy>p {
-  @apply text-[12px];
-  color: var(--muted,#6b7280);
+  @apply text-[13px];
+  color: var(--muted,var(--dl-muted));
   @apply [margin:7px_0]
 }
 .saved-empty {
@@ -62,17 +62,17 @@ function similarity(asset: WorkflowAsset) { return scoreLabel(typeof asset.param
   @apply items-center;
   @apply gap-[12px];
   @apply text-center;
-  color: var(--muted,#6b7280);
-  @apply text-[13px]
+  color: var(--muted,var(--dl-muted));
+  @apply text-[14px]
 }
 .saved-empty strong {
-  color: var(--title,#111827)
+  color: var(--title,var(--dl-text))
 }
 .saved-empty button {
-  @apply [border:1px_solid_var(--border,#e5e7eb)];
-  background: var(--card,#fff);
-  color: var(--primary,#145f65);
-  @apply rounded-[2px];
+  @apply [border:.5px_solid_var(--border,var(--dl-inset))];
+  background: var(--card,var(--dl-surface));
+  color: var(--primary,var(--dl-accent));
+  @apply rounded-[var(--dl-r-md)];
   @apply [padding:8px_14px];
   cursor: pointer
 }

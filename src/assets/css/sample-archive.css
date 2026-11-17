@@ -1,0 +1,47 @@
+/* Sample dossiers use readable records, independent of legacy summary tiles. */
+.sample-archive-modal .ant-modal-content {
+  padding: 24px 28px;
+  background: var(--dl-surface);
+  color: var(--dl-text);
+  font-family: var(--dl-font);
+}
+.sample-archive-modal .ant-modal-title { font-size: 20px; line-height: 1.5; font-weight: 650; }
+.sample-archive-modal .ant-modal-header { margin-bottom: 20px; background: var(--dl-surface); }
+.sample-archive-modal .ant-modal-close { top: 20px; right: 20px; width: 36px; height: 36px; }
+.sample-archive-modal .ant-modal-body { scrollbar-gutter: stable; padding-right: 8px; }
+.sample-archive-modal .sample-archive { display: grid; gap: 20px; font-size: 16px; line-height: 1.65; }
+.sample-archive-modal .sample-archive > .archive-preview {
+  width: 100%; height: clamp(240px, 34vh, 340px); min-height: 240px;
+  border: 1px solid var(--dl-border); border-radius: 8px; background: var(--dl-inset);
+}
+.sample-archive-modal .archive-preview > img { width: 100%; height: 100%; object-fit: contain; }
+.sample-archive-modal .sample-archive > p { margin: 0; font-size: 14px; line-height: 1.6; }
+.sample-archive-modal .sample-archive .archive-section {
+  padding: 20px 0 0; border: 0; border-top: 1px solid var(--dl-border); border-radius: 0;
+  min-width: 0; background: transparent;
+}
+.sample-archive-modal .sample-archive .archive-section h3 { margin: 0 0 12px; font-size: 18px; line-height: 1.5; font-weight: 650; }
+.sample-archive-modal .sample-archive .archive-facts {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; border: 0; margin: 0; background: transparent;
+}
+.sample-archive-modal .sample-archive .archive-facts > div {
+  display: grid; grid-template-columns: 132px minmax(0, 1fr); align-items: baseline;
+  min-height: 48px; padding: 12px 0; gap: 12px; border: 0; border-bottom: 1px solid var(--dl-divider);
+}
+.sample-archive-modal .sample-archive .archive-facts dt { font-size: 15px; line-height: 1.6; color: var(--dl-muted); }
+.sample-archive-modal .sample-archive .archive-facts dd { margin: 0; font-size: 16px; line-height: 1.6; color: var(--dl-text); overflow-wrap: anywhere; }
+.sample-archive-modal .sample-archive .archive-section p { margin: 8px 0; font-size: 16px; line-height: 1.7; }
+.sample-archive-modal .sample-archive .table-scroll { max-width: 100%; overflow-x: auto; }
+.sample-archive-modal .sample-archive table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.sample-archive-modal .sample-archive :is(th,td) { padding: 12px 14px; text-align: left; line-height: 1.6; vertical-align: top; white-space: nowrap; }
+.sample-archive-modal .sample-archive th { color: var(--dl-muted); font-weight: 500; background: var(--dl-inset); }
+.sample-archive-modal .sample-archive td { border-bottom: 1px solid var(--dl-divider); font-variant-numeric: tabular-nums; }
+.sample-archive-modal .sample-archive .archive-history { padding: 14px 0; gap: 6px; border-bottom: 1px solid var(--dl-divider); }
+.sample-archive-modal .sample-archive .archive-history span { font-size: 14px; color: var(--dl-muted); }
+.sample-archive-modal .sample-archive .archive-history strong { font-size: 16px; font-weight: 600; }
+@media (max-width: 700px) {
+  .sample-archive-modal .ant-modal-content { padding: 20px 16px; }
+  .sample-archive-modal .ant-modal-body { padding-right: 0; }
+  .sample-archive-modal .sample-archive .archive-facts { grid-template-columns: minmax(0, 1fr); }
+  .sample-archive-modal .sample-archive .archive-facts > div { grid-template-columns: 116px minmax(0, 1fr); gap: 10px; }
+}

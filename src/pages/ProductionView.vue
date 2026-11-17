@@ -108,7 +108,7 @@ async function upload(file: File, index: 0 | 1) {
   } catch (failure) { if (alive && token === sourceVersions[index]) error.value = (index === 0 ? '设计原图' : '生产实物') + '读取失败：' + (failure instanceof Error ? failure.message : '读取失败') + ' 请重新选择有效图片后再分析。' }
   finally { URL.revokeObjectURL(url); if (alive && token === sourceVersions[index]) loading.value[index] = false }
 }
-const demoNotes = '演示实物图由原图模拟偏色与局部变化生成，所有比对指标均根据图片实际计算。'
+const demoNotes = ''
 async function loadDemo() {
   if (selectionBlocked.value) return
   invalidate(); sources.value = [null, null]; quad.value = fullQuad(); const tokens = [++sourceVersions[0]!, ++sourceVersions[1]!]; loading.value = [true, true]
@@ -123,6 +123,7 @@ async function loadDemo() {
     sources.value = [first, actual]; sampleName.value = '浅橡木演示样本'; batch.value = 'DEMO-01'; notes.value = demoNotes
   } catch (failure) { if (alive) error.value = failure instanceof Error ? failure.message : '演示图读取失败。' }
   finally { if (alive) loading.value = loading.value.map((value, index) => tokens[index] === sourceVersions[index] ? false : value) as [boolean, boolean] }
+  if (alive && tokens.every((token, index) => token === sourceVersions[index]) && sources.value.every(source => source?.example)) await analyze()
 }
 async function analyze() {
   if (!ready.value || selectionBlocked.value) return
@@ -191,540 +192,68 @@ watch(metricDetail, async value => { await nextTick(); if (value && metricDialog
 onMounted(() => { void loadDemo() })
 onBeforeUnmount(() => { alive = false; generation++; sourceVersions[0] = sourceVersions[0]! + 1; sourceVersions[1] = sourceVersions[1]! + 1; controller?.abort() })
 </script>
-<template><div class="production-page production-compare embedded-module"><div class="workspace"><div class="breadcrumb">生产比对工作台 <ChevronRight/> 新建比对任务</div><div class="page-heading"><div><h1>设计与实物还原评估</h1><p>对照设计预期，查看生产样品的颜色与纹理差异。</p></div><button class="btn btn-primary export-button" :disabled="!result || busy" @click="exportResult"><Download :size="16"/>导出比对报告</button></div>
-<div class="pc-task-fields"><label class="pc-field">样品名称<input v-model="sampleName" class="form-control" placeholder="输入样品名称" maxlength="100"/></label><label class="pc-field">生产批次<input v-model="batch" class="form-control" placeholder="填写实际批次（可选）" maxlength="100"/></label></div>
-<section class="summary-strip pc-summary"><div><span>任务状态</span><strong :class="result?'ready':'pending'">{{busy?'正在分析…':error?'分析失败':result?'分析完成':'待确认对齐'}}</strong></div><div><span>平均图像色差 ΔE00</span><strong>{{result?.meanDeltaE.toFixed(2) ?? '—'}}</strong></div><div><span>RGB 平均偏差</span><strong>{{result?.meanRgbDifference.toFixed(2) ?? '—'}}</strong></div><div><span>纹理结构 SSIM</span><strong>{{result?(result.ssim*100).toFixed(1)+'%':'—'}}</strong></div><div><span>平均偏色方向</span><strong>{{result?bias:'—'}}</strong></div><div><span>人工结论</span><strong>{{result?review:'—'}}</strong></div></section>
-<div v-if="sources.some(source=>source?.example)" class="pc-example-note">当前包含演示样本：示例生产图含模拟偏色与局部变化，指标根据当前两图实际计算。上传真实图片可开始自己的比对。</div><section class="pc-link-bar" aria-label="选区联动设置"><strong>选区自动同步</strong><span>位置已同步，请核对是否为同一处纹理。联动按相同比例位置同步，请在设计原图上框选。</span></section><section v-if="plannedBounds && sources[0]" class="pc-resolution-note selection-summary"><strong>原始分辨率比较</strong><p>设计原图 {{sources[0].width}} × {{sources[0].height}}；本次选区 {{plannedBounds.width}} × {{plannedBounds.height}}，共 {{(plannedBounds.width*plannedBounds.height).toLocaleString()}} 个像素。预览缩放不影响完整计算。</p></section>
-<div class="pc-upload-grid input-grid"><ProductionSource v-for="(asset,index) in sources" :key="index" :asset="asset" :quad="quad" :side="index as 0|1" :busy="selectionBlocked" :loading="loading[index]!" @file="upload($event,index as 0|1)" @quad="changeQuad"/></div>
-<section class="panel pc-comparison-panel"><header class="panel-header"><div><span class="step-no">03</span><div><h2>对齐与差异对照</h2><p>确认同一位置的纹理对应，再查看真实图像差异</p></div></div><span class="pc-badge">{{result?'已完成分析':'待确认选区'}}</span></header><div class="pc-view-body"><div class="pc-view-main"><nav class="pc-tabs view-tabs" aria-label="对比查看模式"><button :class="{active:mode==='pair'}" @click="mode='pair'" title="并排对照">并排对照</button><button :class="{active:mode==='overlay'}" :disabled="!result" @click="mode='overlay'" title="透明叠加">透明叠加</button><button :class="{active:mode==='heat'}" :disabled="!result" @click="mode='heat'" title="色差热图">色差热图</button></nav><div class="pc-viewer">
+<template>
+<div class="production-page production-compare production-workbench embedded-module">
+  <main class="workspace">
+    <header class="page-heading">
+      <div><h1>生产比对</h1><p>设计原图与实物样品的颜色、纹理比对</p></div>
+      <div class="pc-work-status" role="status"><span>任务状态</span><strong :class="result?'ready':'pending'">{{busy?'正在分析…':error?'分析失败':result?'分析完成':'待确认对齐'}}</strong></div>
+    </header>
+    <div class="pc-task-fields"><label class="pc-field">样品名称<input v-model="sampleName" class="form-control" placeholder="输入样品名称" maxlength="100"/></label><label class="pc-field">生产批次<input v-model="batch" class="form-control" placeholder="填写实际批次（可选）" maxlength="100"/></label></div>
+
+    <section class="pc-input-workspace" aria-labelledby="pc-input-heading">
+      <header class="pc-section-heading"><div><h2 id="pc-input-heading">图像与选区</h2><p>在设计原图框选，实物区域按比例同步；请确认两侧对应同一纹理</p></div><span v-if="sources.some(source=>source?.example)" class="pc-example-note">示例图</span></header>
+      <div class="pc-upload-grid input-grid"><ProductionSource v-for="(asset,index) in sources" :key="index" :asset="asset" :quad="quad" :side="index as 0|1" :busy="selectionBlocked" :loading="loading[index]!" @file="upload($event,index as 0|1)" @quad="changeQuad"/></div>
+
+      <div class="pc-input-footer">
+        <div class="pc-input-context">
+          <section v-if="plannedBounds && sources[0]" class="pc-resolution-note"><span>本次选区</span><strong>{{plannedBounds.width}} × {{plannedBounds.height}}</strong><span>{{(plannedBounds.width*plannedBounds.height).toLocaleString()}} 像素</span><span>原图 {{sources[0].width}} × {{sources[0].height}}</span></section>
+
+        </div>
+        <aside class="pc-controls"><div class="pc-control-group"><button class="btn btn-secondary" :disabled="selectionBlocked" @click="resetQuads"><RotateCcw :size="13"/>重置两侧选区</button></div><button v-if="!busy" class="btn btn-primary pc-run" :disabled="!ready" @click="analyze()"><Check :size="16"/>确认对齐并分析</button><button v-else class="btn btn-secondary pc-run" @click="cancelAnalysis"><X :size="16"/>取消计算</button><div v-if="busy" class="calculation-progress" role="status"><div><span>{{phase}}</span><b>{{progress}}%</b></div><progress :value="progress" max="100" aria-label="图像比对进度"/></div></aside>
+      </div>
+      <p v-if="error" role="alert" class="error-banner">{{error}}</p>
+    </section>
+    <section class="panel pc-comparison-panel" aria-labelledby="pc-comparison-heading">
+      <header class="pc-section-heading"><div><h2 id="pc-comparison-heading">差异对照与复核</h2></div><span class="pc-badge">{{result?'已完成分析':'待确认选区'}}</span></header>
+      <div class="pc-analysis-layout">
+        <div class="pc-view-main"><nav class="pc-tabs view-tabs" aria-label="对比查看模式"><button :class="{active:mode==='pair'}" @click="mode='pair'" title="并排对照">并排对照</button><button :class="{active:mode==='overlay'}" :disabled="!result" @click="mode='overlay'" title="透明叠加">透明叠加</button><button :class="{active:mode==='heat'}" :disabled="!result" @click="mode='heat'" title="色差热图">色差热图</button></nav><div class="pc-viewer">
         <div v-if="result" class="result-viewer">
           <div v-if="mode==='pair'" class="comparison-stage pair-stage"><figure v-for="(url,index) in [result.referenceUrl,result.actualUrl]" :key="index"><div class="inspect-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="url" :alt="index===0?'设计图对照预览':'实物图对照预览'"><i v-if="marker" class="location-marker" :style="marker"/></div><span>{{index===0?'A · 设计原图':'B · 实物图像'}}</span><BigImageViewer button-only :src="url" :alt="index===0?'对齐设计图':'对齐实物图'" :description="resultDescription" download-label="下载展示图"/></figure></div>
           <div v-else-if="mode==='overlay'" class="comparison-stage single-result"><div class="inspect-image overlay-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="result.referenceUrl" alt="叠加底图"><img :src="result.actualUrl" alt="叠加实物图" :style="{opacity:opacity/100}"><i v-if="marker" class="location-marker" :style="marker"/></div><BigImageViewer button-only :src="overlayUrl" alt="透明叠加结果" :description="resultDescription" download-label="下载展示图"/><span class="stage-badge">实物图透明度 {{opacity}}%</span></div>
           <div v-else class="comparison-stage single-result heat-stage"><div class="inspect-image" :style="{aspectRatio:result.width+'/'+result.height,'--image-ratio':result.width/result.height}" @click="inspect"><img :src="heatmap" alt="实际色差热图"><i v-if="marker" class="location-marker" :style="marker"/></div><BigImageViewer button-only :src="heatmap" alt="色差热图" :description="resultDescription" download-label="下载展示图"/><span class="stage-badge">色差热图 · ΔE00</span></div>
         </div>
-        <div v-else class="comparison-stage result-empty empty-state"><LoaderCircle v-if="busy" :size="28" class="spin"/><ScanLine v-else :size="28"/><strong>{{busy?'正在按原始分辨率计算…':'确认选区后开始分析'}}</strong><p>准备两张图，框选相同纹理的位置，确认对齐后查看结果。</p></div>
+        <div v-else class="comparison-stage result-empty empty-state"><LoaderCircle v-if="busy" :size="28" class="spin"/><ScanLine v-else :size="28"/><strong>{{busy?'正在按原始分辨率计算…':'确认选区后开始分析'}}</strong></div>
         <div v-if="mode==='overlay'" class="control-row"><label for="overlay-opacity"><SlidersHorizontal :size="14"/> 实物图透明度</label><input id="overlay-opacity" v-model.number="opacity" type="range" min="0" max="100"><strong>{{opacity}}%</strong></div>
         <div v-if="mode==='heat'" class="heat-controls"><div class="control-row"><label for="heat-threshold"><SlidersHorizontal :size="14"/> 差异阈值</label><input id="heat-threshold" v-model.number="threshold" type="range" min="1" max="20" step="0.5"><strong>{{threshold.toFixed(1)}}</strong></div><div class="heat-scale"><span>差异较小</span><i></i><span>差异较大</span></div><p class="muted">超过当前阈值的像素：<b>{{changedArea?.count.toLocaleString() ?? '—'}}</b>，占有效区域 <b>{{changedArea?.percent.toFixed(2) ?? '—'}}%</b>。</p></div>
         <p v-if="result" class="inspect-hint muted">点击图中位置，查看周围最多15 × 15个原始像素的局部平均值。</p>
         <div v-if="local" class="local-inspection" role="status"><strong>局部平均色差 {{local.value?.toFixed(2) ?? '—'}} ΔE00</strong><span>位置 {{local.x}}, {{local.y}} · {{local.count}} 个有效像素</span><template v-if="local.count"><p>设计 RGB：{{local.referenceRgb.map(v=>v.toFixed(1)).join(' / ')}}<br>实物 RGB：{{local.actualRgb.map(v=>v.toFixed(1)).join(' / ')}}</p><p>设计 Lab：{{local.referenceLab.map(v=>v.toFixed(2)).join(' / ')}}<br>实物 Lab：{{local.actualLab.map(v=>v.toFixed(2)).join(' / ')}}</p></template><p v-else>此处没有可参与比较的不透明像素。</p></div>
-        <div class="visual-footer"><span class="muted">{{result ? result.width.toLocaleString()+' × '+result.height.toLocaleString()+' 原始计算网格' : '完成分析后显示对应区域'}}</span><span v-if="result" class="badge">{{result.validCount.toLocaleString()}} 有效像素</span></div>
+        <div v-if="result" class="visual-footer"><span class="muted">{{result ? result.width.toLocaleString()+' × '+result.height.toLocaleString()+' 原始计算网格' : '完成分析后显示对应区域'}}</span><span v-if="result" class="badge">{{result.validCount.toLocaleString()}} 有效像素</span></div>
 
-</div></div><aside class="pc-controls"><div class="pc-control-group"><h3>比对设置</h3><p>左右查看同一纹理区域的颜色与外观；需要检查错位时切换透明叠加，查看差异位置时切换色差热图。</p></div><div class="pc-control-group"><h3>对齐操作</h3><p>在设计原图上框选，实物区域自动按相同比例同步；请核对是否为同一处纹理。</p><button class="btn btn-secondary" :disabled="selectionBlocked" @click="resetQuads"><RotateCcw :size="13"/>重置两侧选区</button></div><button v-if="!busy" class="btn btn-primary pc-run" :disabled="!ready" @click="analyze()"><Check :size="16"/>确认对齐并分析</button><button v-else class="btn btn-secondary pc-run" @click="cancelAnalysis"><X :size="16"/>取消计算</button><div v-if="busy" class="calculation-progress" role="status"><div><span>{{phase}}</span><b>{{progress}}%</b></div><progress :value="progress" max="100" aria-label="图像比对进度"/></div><p class="pc-note">没有找到对应纹理时，请重新选区。计算不自动修正光照或偏色。</p></aside></div><p v-if="error" role="alert" class="error-banner">{{error}}</p></section>
-<section class="panel pc-results-panel"><header class="panel-header"><div><span class="step-no">04</span><div><h2>比对结果与人工复核</h2><p>分别观察颜色、结构与局部差异，记录本次判断</p></div></div><span class="pc-badge">辅助评估</span></header>
-    <div class="pc-result-grid metric-grid">
-      <button type="button" class="pc-metric comparison-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.delta+'的公式与本次结果'" @click="metricDetail='delta'"><span class="metric-label">平均颜色偏差 <i>ΔE00</i></span><strong>{{result?.meanDeltaE.toFixed(2) ?? '—'}}</strong><small>第95百分位 {{result?.p95DeltaE.toFixed(2) ?? '—'}}</small><small class="metric-details-link">查看公式与本次结果 ›</small></button>
-      <button type="button" class="pc-metric comparison-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.rgb+'的公式与本次结果'" @click="metricDetail='rgb'"><span class="metric-label">图像平均偏差 <i>RGB</i></span><strong>{{result?.meanRgbDifference.toFixed(2) ?? '—'}}<em v-if="result"> / 255</em></strong><small>逐像素 RGB 距离的平均值</small><small class="metric-details-link">查看公式与本次结果 ›</small></button>
-      <button type="button" class="pc-metric comparison-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.ssim+'的公式与本次结果'" @click="metricDetail='ssim'"><span class="metric-label">纹理结构相似度 <i>SSIM</i></span><strong>{{result ? (result.ssim*100).toFixed(1)+'%' : '—'}}</strong><small>{{result?'SSIM '+result.ssim.toFixed(4):'等待分析图像结构'}}</small><small class="metric-details-link">查看公式与本次结果 ›</small></button>
-      <button type="button" class="pc-metric comparison-metric bias-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.bias+'的公式与本次结果'" @click="metricDetail='bias'"><span class="metric-label">平均偏色方向 <i>Lab</i></span><strong>{{bias}}</strong><small>{{result?'ΔL '+signed(result.deltaL)+' · Δa '+signed(result.deltaA)+' · Δb '+signed(result.deltaB):'比较明暗、红绿与黄蓝方向'}}</small><small class="metric-details-link">查看公式与本次结果 ›</small></button>
+</div></div>
+        <section class="pc-results-panel" aria-label="测量与人工复核">
+          <h3>测量记录</h3>
+              <div class="pc-result-grid metric-grid">
+      <button type="button" class="pc-metric comparison-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.delta+'的公式与本次结果'" @click="metricDetail='delta'"><span class="metric-label">平均颜色偏差 <i>ΔE00</i></span><strong>{{result?.meanDeltaE.toFixed(2) ?? '—'}}</strong><small v-if="result">第95百分位 {{result.p95DeltaE.toFixed(2)}}</small><small class="metric-details-link">详情 ›</small></button>
+      <button type="button" class="pc-metric comparison-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.rgb+'的公式与本次结果'" @click="metricDetail='rgb'"><span class="metric-label">图像平均偏差 <i>RGB</i></span><strong>{{result?.meanRgbDifference.toFixed(2) ?? '—'}}<em v-if="result"> / 255</em></strong><small class="metric-details-link">详情 ›</small></button>
+      <button type="button" class="pc-metric comparison-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.ssim+'的公式与本次结果'" @click="metricDetail='ssim'"><span class="metric-label">纹理结构相似度 <i>SSIM</i></span><strong>{{result ? (result.ssim*100).toFixed(1)+'%' : '—'}}</strong><small v-if="result">SSIM {{result.ssim.toFixed(4)}}</small><small class="metric-details-link">详情 ›</small></button>
+      <button type="button" class="pc-metric comparison-metric bias-metric" aria-haspopup="dialog" :aria-label="'查看'+metricLabels.bias+'的公式与本次结果'" @click="metricDetail='bias'"><span class="metric-label">平均偏色方向 <i>Lab</i></span><strong>{{result?bias:'—'}}</strong><small v-if="result">{{'ΔL '+signed(result.deltaL)+' · Δa '+signed(result.deltaA)+' · Δb '+signed(result.deltaB)}}</small><small class="metric-details-link">详情 ›</small></button>
     </div>
 
 
-<div class="pc-review-grid review-form"><label class="pc-field">人工结论<select v-model="review" class="form-control" :disabled="!result"><option>未判定</option><option>可接受</option><option>需要调整</option><option>重新打样</option></select><small>由供给油墨和工艺要求确认。</small></label><label class="pc-field">复核备注<textarea v-model="notes" class="form-control" rows="4" maxlength="4000" placeholder="记录需要调整的颜色、纹理或取样情况…"/></label></div><div class="pc-reference-note review-note"><Info :size="16"/><div><strong>图像比较参考</strong><p>当前结果未经测色校准，包含光照、设备与对齐误差的影响。超阈值区域占比表示图片差异范围，不等同于生产不合格率。</p></div></div><p v-if="completedAt" class="calculated-at muted">最近分析：{{completedAt}}</p></section><p class="pc-local-footer production-footer">图片仅在当前浏览器中处理。切换模块可继续操作，刷新页面后清空；需要留存时请导出报告。</p>
-    <dialog ref="metricDialog" class="metric-dialog" aria-labelledby="metric-dialog-title" aria-describedby="metric-dialog-context" @close="metricDetail=null" @cancel="metricDetail=null"><div class="metric-dialog-heading"><h2 id="metric-dialog-title">{{metricDetail?metricLabels[metricDetail]:''}} · 计算详情</h2><button class="btn btn-secondary" aria-label="关闭指标详情" @click="metricDetail=null">关闭</button></div><div v-if="metricDetail" class="metric-dialog-body"><p id="metric-dialog-context">{{result?'本次计算网格 '+result.width+' × '+result.height+'；有效像素 N = '+result.validCount.toLocaleString()+'。':'尚未完成本次分析。确认对齐并分析后显示实际结果。'}}透明度小于250/255的对应像素不参与计算。</p><p>{{metricText[metricDetail]}}</p><pre>{{formulas[metricDetail]}}</pre><dl v-if="result" class="metric-values"><template v-if="metricDetail==='delta'"><dt>本次平均 ΔE00</dt><dd>{{result.meanDeltaE.toFixed(2)}}</dd><dt>第95百分位 ΔE00</dt><dd>{{result.p95DeltaE.toFixed(2)}}</dd></template><template v-else-if="metricDetail==='rgb'"><dt>本次 RGB 平均偏差</dt><dd>{{result.meanRgbDifference.toFixed(2)}} / 255</dd></template><template v-else-if="metricDetail==='ssim'"><dt>有效窗口 M</dt><dd>{{result.ssimWindowCount.toLocaleString()}}</dd><dt>本次 SSIM</dt><dd>{{result.ssim.toFixed(4)}}（{{(result.ssim*100).toFixed(1)}}%）</dd></template><template v-else><dt>平均 ΔL* / Δa* / Δb*</dt><dd>{{[result.deltaL,result.deltaA,result.deltaB].map(v=>signed(v)).join(' / ')}}</dd><dt>方向说明</dt><dd>{{bias}}</dd></template><dt>有效像素 N</dt><dd>{{result.validCount.toLocaleString()}}</dd></dl><details v-if="metricDetail==='delta'"><summary>查看 CIEDE2000 修正项的定义</summary><pre>{{deltaFormula}}</pre></details><details v-if="metricDetail==='delta' || metricDetail==='bias'"><summary>查看 RGB → Lab 转换公式</summary><pre>{{labFormula}}</pre></details><p v-if="result" class="muted">分析时间：{{completedAt}}（北京时间）。指标来自完整选区原始像素，预览缩放不改变结果；展示数值经过四舍五入。</p></div></dialog>
-</div></div></template>
-<style scoped>
-@reference "../assets/css/style.css";
-.selection-summary {
-  @apply [border:1px_solid_var(--border)];
-  background: var(--surface-2);
-  @apply p-[14px];
-  @apply rounded-[8px];
-  @apply mt-[16px];
-  @apply text-[12px]
-}
-.selection-summary strong {
-  color: #145f65
-}
-.selection-summary p {
-  color: var(--muted);
-  @apply text-[11px];
-  @apply leading-[1.7];
-  @apply [margin:6px_0_0]
-}
-.text-link {
-  @apply inline-flex;
-  @apply items-center;
-  @apply gap-[5px];
-  @apply [border:0];
-  background: none;
-  color: #145f65;
-  @apply text-[11px];
-  cursor: pointer
-}
-.text-link:disabled {
-  opacity: .5
-}
-.reset-selection {
-  @apply ml-[12px]
-}
-.comparison-metric {
-  @apply text-left;
-  cursor: pointer;
-  color: inherit
-}
-.comparison-metric:hover {
-  @apply [border-color:#438e93]
-}
-.metric-details-link {
-  color: #145f65!important
-}
-.result-viewer {
-  @apply min-w-[0]
-}
-.comparison-stage.pair-stage {
-  @apply h-[auto]
-}
-.pair-stage figure {
-  @apply flex;
-  @apply items-center;
-  @apply justify-center;
-  @apply min-h-[240px]
-}
-.inspect-image {
-  @apply relative;
-  @apply w-[min(100%,calc(320px_*_var(--image-ratio)))];
-  @apply max-h-[320px];
-  cursor: crosshair
-}
-.inspect-image>img {
-  @apply block;
-  @apply w-[100%];
-  @apply h-[100%];
-  @apply object-contain
-}
-.single-result {
-  @apply relative;
-  @apply flex;
-  @apply items-center;
-  @apply justify-center;
-  @apply p-[12px];
-  @apply h-[auto];
-  @apply min-h-[260px]
-}
-.overlay-image>img+img {
-  @apply absolute;
-  @apply inset-[0]
-}
-.location-marker {
-  @apply absolute;
-  @apply w-[14px];
-  @apply h-[14px];
-  transform: translate(-50%,-50%);
-  @apply [border:2px_solid_#fff];
-  outline: 1px solid #145f65;
-  @apply rounded-[50%];
-  pointer-events: none
-}
-.inspect-hint {
-  @apply text-[11px];
-  @apply [margin:12px_0_0]
-}
-.local-inspection {
-  @apply grid;
-  @apply gap-[7px];
-  @apply [border:1px_solid_#bfd0d1];
-  background: var(--surface-2);
-  @apply p-[12px];
-  @apply rounded-[8px];
-  @apply mt-[14px];
-  @apply text-[12px]
-}
-.local-inspection span,.local-inspection p {
-  @apply text-[11px];
-  color: var(--muted);
-  @apply leading-[1.7];
-  @apply m-[0]
-}
-.result-empty {
-  @apply text-center;
-  @apply p-[20px]
-}
-.result-empty p {
-  @apply text-[12px];
-  @apply leading-[1.7]
-}
-.production-footer {
-  @apply text-[11px];
-  @apply leading-[1.7]
-}
-.metric-dialog {
-  @apply w-[min(760px,calc(100vw_-_28px))];
-  @apply max-h-[85vh];
-  @apply overflow-auto;
-  background: var(--surface);
-  color: var(--text);
-  @apply [border:1px_solid_var(--border)];
-  @apply rounded-[12px];
-  @apply p-[0]
-}
-.metric-dialog::backdrop {
-  background: #102b2e99
-}
-.metric-dialog-heading {
-  @apply sticky;
-  @apply top-[0];
-  background: var(--surface);
-  @apply [padding:18px_20px];
-  @apply [border-bottom:1px_solid_var(--border)];
-  @apply flex;
-  @apply justify-between;
-  @apply items-center;
-  @apply gap-[10px];
-  @apply z-[1]
-}
-.metric-dialog-heading h2 {
-  @apply text-[16px];
-  @apply m-[0]
-}
-.metric-dialog-heading .btn {
-  @apply text-[12px]
-}
-.metric-dialog-body {
-  @apply p-[20px];
-  @apply text-[13px];
-  @apply leading-[1.8]
-}
-.metric-dialog pre {
-  @apply whitespace-pre-wrap;
-  @apply wrap-anywhere;
-  @apply text-[11px];
-  @apply [border:1px_solid_var(--border)];
-  background: var(--surface-2);
-  @apply rounded-[7px];
-  @apply p-[12px];
-  font-family: ui-monospace,monospace
-}
-.metric-dialog summary {
-  cursor: pointer;
-  color: #145f65
-}
-.metric-dialog details {
-  @apply mt-[14px]
-}
-.metric-values {
-  @apply grid;
-  @apply grid-cols-[minmax(0,1fr)_minmax(0,1fr)];
-  @apply text-[12px]
-}
-.metric-values dt,.metric-values dd {
-  @apply p-[8px];
-  @apply [border-bottom:1px_solid_var(--border)];
-  @apply m-[0];
-  @apply wrap-anywhere
-}
-.metric-values dd {
-  @apply font-[600]
-}
-.metric-dialog-body>p:last-child {
-  @apply text-[11px]
-}@media(max-width:575px){
-.reset-selection {
-  @apply [margin:7px_0_0];
-  @apply flex
-}
-.inspect-image {
-  @apply w-[min(100%,calc(230px_*_var(--image-ratio)))];
-  @apply max-h-[230px]
-}
-.pair-stage figure {
-  @apply min-h-[230px]!;
-  @apply h-[auto]!
-}
-.metric-dialog-body {
-  @apply p-[14px]
-}
-.metric-dialog-heading {
-  @apply p-[14px]
-}
-.metric-dialog-heading h2 {
-  @apply text-[14px]
-}}
-.pc-summary {
-  @apply grid-cols-[repeat(6,minmax(0,1fr))];
-  @apply mt-[14px]
-}
-.pc-summary strong {
-  @apply text-[13px]
-}
-.pc-task-fields .pc-field {
-  @apply flex;
-  @apply flex-col;
-  @apply gap-[8px];
-  @apply text-[12px]
-}
-.pc-task-fields input {
-  @apply h-[40px]
-}
-.input-grid {
-  @apply grid;
-  @apply grid-cols-[repeat(2,minmax(0,1fr))];
-  @apply gap-[14px]
-}
-.selection-summary {
-  @apply rounded-[0];
-  @apply mt-[14px];
-  @apply [border-left:3px_solid_#145f65]
-}
-.selection-summary strong {
-  color: #145f65
-}
-.pc-link-bar {
-  @apply mt-[14px]
-}
-.production-page .workspace {
-  @apply max-w-[none];
-  @apply [padding:28px_30px_40px]
-}
-.pc-upload-grid {
-  @apply [margin:14px_0]
-}
-.pc-viewer {
-  background: #f2f6f6;
-  @apply min-h-[330px]
-}
-.view-tabs {
-  @apply flex;
-  @apply items-center;
-  @apply gap-[4px];
-  @apply [padding:10px_12px];
-  @apply [border-bottom:1px_solid_var(--line)]
-}
-.view-tabs button {
-  @apply [padding:8px_12px];
-  @apply text-[11px];
-  color: #7b9294;
-  background: none;
-  @apply [border:1px_solid_transparent]
-}
-.view-tabs button.active {
-  background: #e6f1f1;
-  @apply [border-color:#c5ddde];
-  color: #145f65;
-  @apply font-[600]
-}
-.comparison-stage {
-  background: #f2f6f6;
-  @apply min-h-[300px]
-}
-.pair-stage {
-  @apply grid;
-  @apply grid-cols-[1fr_1fr];
-  @apply gap-[1px]
-}
-.pair-stage figure {
-  @apply relative;
-  @apply p-[12px]
-}
-.pair-stage figure>span,.stage-badge {
-  @apply absolute;
-  @apply left-[12px];
-  @apply top-[12px];
-  @apply [padding:5px_8px];
-  background: #ffffffdf;
-  color: #45666a;
-  @apply text-[10px]
-}
-.pair-stage figure>span {
-  @apply top-[auto];
-  @apply bottom-[12px]
-}
-.single-result {
-  @apply relative
-}
-.inspect-image {
-  @apply relative
-}
-.heat-stage img {
-  @apply object-contain
-}
-.result-empty {
-  @apply min-h-[320px]
-}
-.control-row {
-  @apply flex;
-  @apply items-center;
-  @apply gap-[8px];
-  @apply p-[14px];
-  @apply text-[11px]
-}
-.control-row input {
-  flex: 1;
-  @apply min-w-[0];
-  accent-color: #145f65
-}
-.control-row strong {
-  @apply min-w-[35px]
-}
-.heat-scale {
-  @apply flex;
-  @apply gap-[8px];
-  @apply items-center;
-  @apply [padding:0_14px];
-  @apply text-[10px];
-  color: var(--muted)
-}
-.heat-scale i {
-  @apply h-[6px];
-  flex: 1;
-  background: linear-gradient(90deg,#276870,#f0c251,#c5452e)
-}
-.heat-controls>p,.inspect-hint {
-  @apply [padding:0_14px];
-  @apply text-[11px];
-  @apply leading-[1.8]
-}
-.local-inspection {
-  @apply m-[14px];
-  @apply rounded-[0]
-}
-.visual-footer {
-  @apply flex;
-  @apply justify-between;
-  @apply gap-[8px];
-  @apply flex-wrap;
-  @apply [padding:10px_14px];
-  @apply [border-top:1px_solid_var(--line)];
-  @apply text-[10px]
-}
-.pc-controls .btn {
-  @apply w-[100%];
-  @apply text-[11px];
-  @apply mt-[14px]
-}
-.pc-controls .pc-run {
-  @apply mt-[55px]
-}
-.calculation-progress {
-  @apply mt-[16px];
-  color: #145f65;
-  @apply text-[11px]
-}
-.calculation-progress>div {
-  @apply flex;
-  @apply justify-between;
-  @apply gap-[8px];
-  @apply mb-[8px]
-}
-.calculation-progress progress {
-  @apply w-[100%];
-  accent-color: #145f65
-}
-.pc-result-grid {
-  @apply grid;
-  @apply grid-cols-[repeat(4,minmax(0,1fr))];
-  @apply gap-[12px]
-}
-.comparison-metric {
-  @apply flex;
-  @apply flex-col;
-  @apply gap-[15px];
-  @apply [border:1px_solid_#d5e0e1];
-  background: #f5f9f9;
-  @apply text-left;
-  @apply min-h-[205px];
-  @apply [padding:20px_16px];
-  @apply min-w-[0];
-  @apply justify-center
-}
-.metric-label {
-  color: #7f979a;
-  @apply text-[10px]
-}
-.metric-label i {
-  font-style: normal
-}
-.comparison-metric>strong {
-  @apply text-[23px];
-  font-family: var(--font-mono);
-  @apply font-[500];
-  color: #275f65
-}
-.comparison-metric>small {
-  @apply text-[10px];
-  color: #799497;
-  @apply leading-[1.8]
-}
-.comparison-metric em {
-  @apply text-[11px];
-  font-style: normal
-}
-.bias-metric>strong {
-  @apply text-[15px];
-  @apply leading-[1.7]
-}
-.pc-review-grid .pc-field {
-  @apply flex;
-  @apply flex-col;
-  @apply gap-[8px];
-  @apply text-[12px];
-  color: #7f9699
-}
-.pc-review-grid textarea {
-  @apply w-[100%];
-  @apply min-h-[115px];
-  resize: vertical
-}
-.pc-review-grid small {
-  @apply text-[10px]
-}
-.calculated-at {
-  @apply [padding:0_18px_14px];
-  @apply text-[10px]
-}
-.metric-dialog {
-  @apply rounded-[2px]
-}
-.metric-dialog pre {
-  @apply rounded-[0]
-}
-.review-note p {
-  @apply text-[10px];
-  @apply [margin:8px_0_0];
-  @apply leading-[1.8]
-}
-@media(max-width:760px){
-.production-page .workspace {
-  @apply [padding:20px_14px]
-}
-.page-heading {
-  @apply flex-col;
-  @apply items-start;
-  @apply gap-[14px]
-}
-.page-heading h1 {
-  @apply text-[23px]
-}
-.page-heading p {
-  @apply leading-[1.8]
-}
-.pc-summary {
-  @apply grid-cols-[repeat(2,minmax(0,1fr))]
-}
-.pc-summary>div {
-  @apply [padding:14px_12px]
-}
-.input-grid,.pc-result-grid {
-  @apply grid-cols-[1fr]
-}
-.pc-controls .pc-run {
-  @apply mt-[14px]
-}
-.metric-dialog {
-  @apply max-w-[calc(100vw_-_20px)]
-}
-.pc-task-fields {
-  @apply grid-cols-[1fr]
-}
-.pair-stage {
-  @apply grid-cols-[1fr]
-}
-.comparison-metric {
-  @apply min-h-[160px]
-}
-.pc-result-grid {
-  @apply gap-[8px]
-}}
-.production-compare{--pc-source-height:300px;--pc-result-height:360px}.inspect-image{width:min(100%,calc(var(--pc-result-height) * var(--image-ratio)));max-height:var(--pc-result-height);height:auto}.pair-stage figure{display:flex;flex-direction:column;align-items:center;gap:8px}.single-result{display:flex;flex-direction:column;align-items:center;gap:8px}.result-viewer .inspect-image img{object-fit:contain}
-@media(max-width:1100px){.production-compare{--pc-source-height:260px;--pc-result-height:320px}}
-@media(max-width:760px){.production-compare{--pc-source-height:220px;--pc-result-height:280px}}
-</style>
+
+
+        </section>
+      </div>
+      <section class="pc-review-panel" aria-label="人工复核与报告">
+          <h3 class="pc-review-title">人工复核</h3>
+          <div class="pc-review-grid review-form"><label class="pc-field">人工结论<select v-model="review" class="form-control" :disabled="!result"><option>未判定</option><option>可接受</option><option>需要调整</option><option>重新打样</option></select></label><label class="pc-field">复核备注<textarea v-model="notes" class="form-control" rows="3" maxlength="4000" placeholder="颜色、纹理、取样情况与处理意见"/></label></div><p v-if="completedAt" class="calculated-at muted">最近分析：{{completedAt}}</p>
+          <div class="pc-report-actions"><button class="btn btn-primary export-button" :disabled="!result || busy" @click="exportResult"><Download :size="16"/>导出比对报告</button></div>
+      </section>
+    </section>
+    <details class="context-help production-footer"><summary>测量与保存说明</summary><p>示例图包含模拟偏色与局部变化。按选区原始像素计算，保留原始光照与色彩。图片差异受光照、设备和对齐影响，当前结果未经测色校准；超阈值面积表示图像差异范围。</p><p>切换模块可继续处理，刷新后清空。需要留存时导出报告。</p></details>
+        <dialog ref="metricDialog" class="metric-dialog production-metric-dialog dilong-theme" aria-labelledby="metric-dialog-title" aria-describedby="metric-dialog-context" @close="metricDetail=null" @cancel="metricDetail=null"><div class="metric-dialog-heading"><h2 id="metric-dialog-title">{{metricDetail?metricLabels[metricDetail]:''}} · 计算详情</h2><button class="btn btn-secondary" aria-label="关闭指标详情" @click="metricDetail=null">关闭</button></div><div v-if="metricDetail" class="metric-dialog-body"><p id="metric-dialog-context">{{result?'本次计算网格 '+result.width+' × '+result.height+'；有效像素 N = '+result.validCount.toLocaleString()+'。':'尚未完成本次分析。确认对齐并分析后显示实际结果。'}}透明度小于250/255的对应像素不参与计算。</p><p>{{metricText[metricDetail]}}</p><pre>{{formulas[metricDetail]}}</pre><dl v-if="result" class="metric-values"><template v-if="metricDetail==='delta'"><dt>本次平均 ΔE00</dt><dd>{{result.meanDeltaE.toFixed(2)}}</dd><dt>第95百分位 ΔE00</dt><dd>{{result.p95DeltaE.toFixed(2)}}</dd></template><template v-else-if="metricDetail==='rgb'"><dt>本次 RGB 平均偏差</dt><dd>{{result.meanRgbDifference.toFixed(2)}} / 255</dd></template><template v-else-if="metricDetail==='ssim'"><dt>有效窗口 M</dt><dd>{{result.ssimWindowCount.toLocaleString()}}</dd><dt>本次 SSIM</dt><dd>{{result.ssim.toFixed(4)}}（{{(result.ssim*100).toFixed(1)}}%）</dd></template><template v-else><dt>平均 ΔL* / Δa* / Δb*</dt><dd>{{[result.deltaL,result.deltaA,result.deltaB].map(v=>signed(v)).join(' / ')}}</dd><dt>方向说明</dt><dd>{{bias}}</dd></template><dt>有效像素 N</dt><dd>{{result.validCount.toLocaleString()}}</dd></dl><details v-if="metricDetail==='delta'"><summary>查看 CIEDE2000 修正项的定义</summary><pre>{{deltaFormula}}</pre></details><details v-if="metricDetail==='delta' || metricDetail==='bias'"><summary>查看 RGB → Lab 转换公式</summary><pre>{{labFormula}}</pre></details><p v-if="result" class="muted">分析时间：{{completedAt}}（北京时间）。指标来自完整选区原始像素，预览缩放不改变结果；展示数值经过四舍五入。</p></div></dialog>
+  </main>
+</div>
+</template>
+<style src="../assets/css/production-workbench.css"></style>

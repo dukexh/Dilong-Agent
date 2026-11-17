@@ -1,0 +1,74 @@
+/* Workbench typography: task text 14/22, secondary text 13/20, sections 16/24. */
+.dilong-theme :is(.platform-page,.embedded-module) {
+  font-size:14px;
+  line-height:22px;
+}
+.dilong-theme .platform-page {
+  width:100%;
+  max-width:1600px;
+  margin-inline:auto;
+}
+.dilong-theme :is(.platform-page,.embedded-module) :is(.panel-header,.section-heading,.pc-section-heading,._panelTitle_1w9oj_1,._resultHead_1w9oj_1) :is(h2,h3) {
+  font-size:16px;
+  line-height:24px;
+  font-weight:600;
+}
+.dilong-theme .trends-view ._panelTitle_1w9oj_1 b { font-size:16px; line-height:24px; }
+.dilong-theme .color-compare .cc-grid .panel .panel-header h2,
+.dilong-theme .dashboard-page .capability-card h2 { font-size:16px; line-height:24px; }
+.dilong-theme :is(.platform-page,.embedded-module) :is(
+  .btn,.text-link,.text-button,.run-button,.restore-demo,.big-image-trigger.button-only,
+  .source-tabs button,.filter-tabs button,.ink-preview-tabs button,.view-tabs button,
+  .section-heading button,.recipe-card-head button,.compact-region-toolbar button,
+  .form-control,.design-field,.design-field b,.design-field select,.design-field textarea,
+  .pc-field,.pc-field input,.pc-field select,.pc-field textarea,
+  .upload-prompt,.source-panel dt,.source-panel dd,.ink-choice span,
+  .ink-selector legend,.ink-settings-toolbar label,.ink-settings-toolbar input,
+  .recipe-card-total,.recipe-card-total strong,.recipe-card li b,
+  .ink-metric>span,.ink-metric>strong,.hex-value,.current-layer-hex,
+  .layer-copy strong,.layer-copy b,.stack-copy b,
+  .library-search input,.library-pagination button,.library-pagination select,
+  .sample-card-body h2,.sample-inspector dt,.sample-inspector dd,
+  .cc-grid label,.cc-grid legend,.cc-grid input,.cc-grid select,.cc-grid textarea,
+  .cc-grid th,.cc-grid td,.cc-result-card>span,.cc-direction-values b,
+  .pc-controls .btn,.pc-metric>.metric-label,.source-file-actions button,
+  ._queryPanel_1w9oj_1 label,._platforms_1w9oj_1 button,
+  .trend-copy p,.source-row>span,.source-row>b,.source-row>strong,
+  .research-results dt,.research-results dd,._researchOptions_1w9oj_1 label,
+  ._judgement_1w9oj_1 dt,._judgement_1w9oj_1 dd,._judgement_1w9oj_1 p,
+  ._specCard_1w9oj_1 b
+) {
+  font-size:14px;
+  line-height:22px;
+}
+.dilong-theme .trends-view .trend-tabs button { font-size:14px !important; }
+.dilong-theme .design-page .design-workspace .source-panel .compare-image-actions :is(.source-id,.button-only),
+.dilong-theme .design-page .design-workspace .config-panel .restore-demo,
+.dilong-theme .design-page .design-workspace .source-panel .upload-box .upload-prompt {
+  font-size:14px;
+  line-height:22px;
+}
+.dilong-theme .design-page .design-workspace:not(.completion-workspace) .source-panel :is(dt,dd) {
+  font-size:14px;
+  line-height:22px;
+}
+.dilong-theme :is(.platform-page,.embedded-module) :is(
+  .mode-card small,.panel-header p,.context-help,.context-help p,
+  .source-pixel-dimensions,.source-file-info small,.pc-resolution-note,
+  .cc-params-status,.cc-result-card small,.cc-result-card p,.metric-details-link,
+  .format-note,.complete-badge,.formula-status,.layer-copy small,.layer-values small,
+  .sample-card-body p,.sample-card-body em,.sample-card-body>div>span,
+  .research-palette>span>span,.bar-value,._paletteCard_1w9oj_1 em
+) { font-size:13px; line-height:20px; }
+.dilong-theme .ink-page :is(.layer-index,.stack-order,.stack-copy small,.difference-note strong) { font-size:13px; line-height:20px; }
+.dilong-theme .design-page .design-workspace .results-panel:has(.result-idle) .panel-content {
+  min-height:0;
+}
+.dilong-theme .design-page .design-workspace:not(.completion-workspace) .results-panel .result-idle { min-height:56px; }
+.dilong-theme .design-page .design-workspace:not(.completion-workspace) .source-panel dl>div { min-height:32px; }
+.dilong-theme .design-page .source-tabs button { padding-inline:8px; }
+.dilong-theme .design-page .design-mode-grid .mode-card { grid-template-columns:auto minmax(0,1fr); min-height:56px; padding-block:12px; }
+.dilong-theme .production-workbench .pc-coordinate-grid>div>span { white-space:nowrap; }
+@media(max-width:600px) {
+  .dilong-theme .production-workbench .pc-coordinate-grid { grid-template-columns:minmax(0,1fr); }
+}

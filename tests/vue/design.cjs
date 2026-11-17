@@ -231,7 +231,7 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
     await check('源样例删除后历史候选可查看评价，重试必须更换输入', async page => {
       await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).first().click(); const assets = await untilRecords(page, 'assets', rows => rows.length === 1)
       await page.getByLabel('候选评价', { exact: true }).selectOption('accepted'); await page.getByRole('button', { name: '保存评价', exact: true }).click(); await untilRecords(page, 'assets', rows => rows[0]?.candidateReview?.status === 'accepted');
-      await page.locator('.source-panel select').selectOption(assets[0].id); await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).nth(1).click()
+      await page.getByRole('combobox', { name: '设计输入样例', exact: true }).selectOption(assets[0].id); await run(page); await page.getByRole('button', { name: '保存候选方案', exact: true }).nth(1).click()
       const tasks = await untilRecords(page, 'tasks', rows => rows.length === 2 && rows.some(task => task.sampleId === assets[0].id && task.resultIds.length === 1)); const target = tasks.find(task => task.sampleId === assets[0].id)
       await page.evaluate(async id => { await (await import('/src/services/workflows.ts')).S.deleteAsset(id) }, assets[0].id)
       await openTask(page, target.id); assert.equal(await page.locator('.saved-results article').count(), 1); assert(await page.locator('.run-button').isDisabled()); assert.equal(await page.locator('.run-button').textContent(), '请先选择新输入')

@@ -48,32 +48,27 @@ async function review() {
 
 <style scoped>
 @reference "../assets/css/style.css";
-.review-conflict { margin-top: 10px; padding: 10px; background: #fff7e9; border-left: 3px solid #bb813d; }
+.candidate-review { margin-top: 10px; color: var(--dl-text); }
+.candidate-review label { @apply flex items-center justify-between gap-[10px] text-[14px]; color: var(--dl-muted); }
 .review-note { margin: 10px 0; flex-direction: column; align-items: stretch !important; }
-.review-note textarea { width: 100%; padding: 8px; border: 1px solid var(--border); resize: vertical; color: var(--text); background: var(--card, #fff); }
-.candidate-review {
-  @apply mt-[10px]
+.review-note textarea,.candidate-review select {
+  padding: 8px 10px;
+  border: .5px solid var(--dl-border);
+  border-radius: var(--dsw-radius-md, 12px);
+  color: var(--dl-text);
+  background: var(--dl-inset);
+  font-family: var(--dl-font);
+  font-size: 14px;
 }
-.candidate-review label {
-  @apply flex;
-  @apply items-center;
-  @apply justify-between;
-  @apply gap-[10px];
-  color: var(--muted,#6b7280);
-  @apply text-[12px]
-}
-.candidate-review select {
-  @apply [padding:6px_9px];
-  @apply [border:1px_solid_var(--border,#e5e7eb)];
-  @apply rounded-[2px];
-  background: var(--card,#fff);
-  color: var(--text,#374151);
-  @apply text-[12px]
-}
-.candidate-review .library-effect { color: var(--muted); margin: 10px 0; line-height: 1.6; }
-.candidate-review p {
-  @apply text-[12px];
-  color: #dc2626;
-  @apply [margin:7px_0_0]
+.review-note textarea { width: 100%; resize: vertical; }
+.candidate-review select { min-height: 36px; padding: 6px 9px; }
+.review-note textarea:focus-visible,.candidate-review select:focus-visible { outline: 2px solid var(--dl-accent); outline-offset: 2px; }
+.candidate-review .library-effect { color: var(--dl-muted); margin: 10px 0; line-height: 1.6; font-size: 13px; }
+.candidate-review p { margin: 7px 0 0; font-size: 13px; line-height: 1.6; color: var(--dl-danger); }
+.review-conflict { margin-top: 10px; padding: 12px; border: .5px solid var(--dl-warning); border-radius: var(--dsw-radius-md, 12px); background: var(--dl-warning-soft); }
+.review-conflict p { color: var(--dl-warning); }
+.candidate-review .button-row [role="status"] { font-size: 13px; color: var(--dl-success); }
+@media (hover: hover) {
+  .review-note textarea:hover,.candidate-review select:hover { border-color: var(--dl-border-strong); }
 }
 </style>

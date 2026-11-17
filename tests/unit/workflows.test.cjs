@@ -100,3 +100,22 @@ test('只有采用候选参与默认检索与推荐，全部记录仍可用于�
  assert.deepEqual(S.formalSamples().map(a=>a.id),['public','imported'])
  assert.equal(S.all().length,6)
 })
+
+test('抖音七天卧室专题独立于默认和研究资料，并关联可用样例', () => {
+ S.originalTrends = JSON.parse(fs.readFileSync(path.join(__dirname, '../../src/data/trends.json'), 'utf8'))
+ S.base = JSON.parse(fs.readFileSync(path.join(__dirname, '../../src/data/base-samples.json'), 'utf8'))
+ const before = S.researchOriginal('小户型厨房的浅色橡木柜门搭配', ['小红书','抖音'], true)
+ const rows = S.filterOriginal('抖音', '近7天', '卧室')
+ assert.equal(rows.length, 4)
+ assert.equal(new Set(rows.map(row => row.id)).size, 4)
+ assert(rows.every(row => !S.originalTrends.some(original => original.id === row.id)))
+ for (const row of rows) {
+  assert.deepEqual(row.sources.map(source => source.platform), ['抖音'])
+  assert.equal(S.matchOriginal(row).length, 3)
+  assert.equal(row.palette.length, 4)
+ }
+ assert.deepEqual(S.filterOriginal('全平台', '近90天', '全屋空间').map(row => row.id), S.originalTrends.map(row => row.id))
+ assert.deepEqual(S.researchOriginal('小户型厨房的浅色橡木柜门搭配', ['小红书','抖音'], true), before)
+ rows[0].palette[0] = '#000000'
+ assert.notEqual(S.filterOriginal('抖音', '近7天', '卧室')[0].palette[0], '#000000')
+})

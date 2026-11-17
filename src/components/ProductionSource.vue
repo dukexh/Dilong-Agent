@@ -41,7 +41,7 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
       </div>
       <div v-else class="empty-state"><LoaderCircle v-if="loading" :size="26" class="spin"/><Upload v-else :size="26"/><span>{{loading?'正在读取图片…':'拖入图片或选择本地文件'}}</span></div>
     </div>
-    <div class="pc-file-row source-bottom"><div><strong :title="asset?.name">{{asset?.name || 'JPG · PNG · WebP'}}</strong><small>{{asset ? asset.width+' × '+asset.height+(asset.example?' · 演示样本':' · 本地图片') : (side===0?'拖动框选矩形，或精确输入百分比':'实物选区随设计原图按比例同步')}}</small></div><input ref="input" type="file" class="sr-only" accept=".png,.jpg,.jpeg,.webp" :aria-label="side===0?'上传设计原图':'上传生产实物'" :disabled="busy || loading" @change="selected"><BigImageViewer v-if="asset" button-only :src="asset.originalUrl" :alt="side===0?'设计原图':'生产实物'" :description="'原始图片 '+asset.width+' × '+asset.height+'；100%按真实原图像素显示。选区请在主页面调整。'"/><button class="btn btn-secondary" :disabled="busy || loading" @click="input?.click()"><Upload :size="14"/> 更换图片</button></div>
+    <div class="pc-file-row source-bottom"><div class="source-file-info"><strong v-if="asset && !asset.example" :title="asset.name">{{asset.name}}</strong><small>{{asset ? asset.width+' × '+asset.height+' px' : (side===0?'拖动框选矩形，或精确输入百分比':'实物选区随设计原图按比例同步')}}</small></div><input ref="input" type="file" class="sr-only" accept=".png,.jpg,.jpeg,.webp" :aria-label="side===0?'上传设计原图':'上传生产实物'" :disabled="busy || loading" @change="selected"><div class="source-file-actions"><BigImageViewer v-if="asset" button-only :src="asset.originalUrl" :alt="side===0?'设计原图':'生产实物'" :description="'原始图片 '+asset.width+' × '+asset.height+'；100%按真实原图像素显示。选区请在主页面调整。'"/><button class="btn btn-secondary" :disabled="busy || loading" @click="input?.click()"><Upload :size="14"/> 更换图片</button></div></div>
     <div v-if="asset && side===0" class="source-tools pc-toolbar"><button class="text-link" :disabled="busy || loading" @click="emit('quad',[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1}])"><RotateCcw :size="13"/> 使用整张图片</button><details><summary>精确调整选区（百分比）</summary><div class="coordinate-grid pc-coordinate-grid"><div v-for="index in [0,2]" :key="index"><span>原图角点 {{index+1}}</span><label v-for="axis in (['x','y'] as const)" :key="axis">{{axis.toUpperCase()}}<input class="form-control" type="number" min="0" max="100" step=".1" :value="Math.round(quad[index]![axis]*1000)/10" :disabled="busy || loading" :aria-label="'原图角点'+(index+1)+axis.toUpperCase()+'百分比'" @change="coordinate(index,axis,$event)"></label></div></div></details></div>
   </section>
 </template>
@@ -49,7 +49,7 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
 @reference "../assets/css/style.css";
 .source-card {
   @apply min-w-[0];
-  background: var(--surface);
+  background: var(--dl-surface);
   @apply overflow-visible
 }
 .source-heading {
@@ -68,15 +68,15 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
   @apply text-[14px]
 }
 .source-heading small {
-  @apply text-[11px];
-  color: var(--muted)
+  @apply text-[13px];
+  color: var(--dl-muted)
 }
 .source-step {
   flex: none
 }
 .demo-badge {
-  font: 9px var(--font-mono);
-  color: #869c9e;
+  font: 13px var(--dl-mono);
+  color: var(--dl-muted);
   @apply ml-[auto]
 }
 .source-image {
@@ -84,7 +84,7 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
   @apply flex;
   @apply items-center;
   @apply justify-center;
-  background: #edf1f0;
+  background: var(--dl-inset);
   @apply min-h-[200px]
 }
 .source-frame {
@@ -131,39 +131,39 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
   @apply gap-[6px]
 }
 .source-bottom strong {
-  @apply text-[12px];
+  @apply text-[13px];
   @apply wrap-anywhere
 }
 .source-bottom small {
-  @apply text-[10px];
-  color: #899fa0
+  @apply text-[13px];
+  color: var(--dl-muted)
 }
 .source-bottom button {
-  @apply text-[11px];
+  @apply text-[13px];
   flex: none
 }
 .source-tools {
   @apply [padding:8px_16px_14px];
   @apply grid;
   @apply gap-[16px];
-  @apply text-[11px];
-  color: var(--muted)
+  @apply text-[13px];
+  color: var(--dl-muted)
 }
 .source-tools details {
-  @apply text-[10px]
+  @apply text-[13px]
 }
 .source-tools summary {
   cursor: pointer
 }
 .text-link {
-  @apply [border:1px_solid_#c5d5d5];
-  background: var(--surface);
+  @apply [border:0.5px_solid_var(--dl-border)];
+  background: var(--dl-surface);
   @apply [padding:7px_10px];
-  color: #145f65;
+  color: var(--dl-accent);
   @apply flex;
   @apply items-center;
   @apply gap-[5px];
-  @apply text-[10px];
+  @apply text-[13px];
   @apply w-[max-content]
 }
 .coordinate-grid {
@@ -186,14 +186,14 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
 }
 .coordinate-grid input {
   @apply w-[65px];
-  @apply text-[11px];
+  @apply text-[13px];
   @apply p-[6px]
 }
 .empty-state {
   @apply min-h-[200px]
 }
 .source-card.dragging {
-  outline: 2px dashed #145f65
+  outline: 2px dashed var(--dl-accent)
 }
 @media(max-width:600px){
 .source-bottom {
@@ -206,7 +206,7 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
   @apply p-[12px]
 }
 .source-heading small {
-  @apply text-[10px]
+  @apply text-[13px]
 }
 .coordinate-grid>div {
   @apply gap-[6px]
@@ -215,4 +215,7 @@ function dropped(event: DragEvent) { event.preventDefault(); dragging.value = fa
   @apply w-[58px]
 }}
 .pc-stage.has-image.source-image{height:var(--pc-source-height,300px);min-height:0}.pc-image-frame.source-frame{width:min(100%,calc(var(--pc-source-height,300px) * var(--source-ratio)));flex:none}
+
+.source-card .text-link { min-height: 28px; border-radius: 8px; }
+.source-card .coordinate-grid input { min-height: 28px; border: 0.5px solid var(--dl-border); border-radius: 8px; background: var(--dl-surface); color: var(--dl-text); font-variant-numeric: tabular-nums; }
 </style>

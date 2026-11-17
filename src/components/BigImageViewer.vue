@@ -91,7 +91,7 @@ onBeforeUnmount(() => { observer?.disconnect(); thumbnailRevision++; dialog.valu
     <span v-if="src&&!buttonOnly" class="image-hint"><Maximize2 :size="13" />放大查看</span>
   </button>
   <Teleport to="body">
-    <dialog v-if="opened" ref="dialog" class="big-image-dialog" :aria-label="alt" @cancel.prevent="close" @click="event => { if (event.target === event.currentTarget) close() }">
+    <dialog v-if="opened" ref="dialog" class="big-image-dialog dilong-theme" :aria-label="alt" @cancel.prevent="close" @click="event => { if (event.target === event.currentTarget) close() }">
       <header><div><strong>{{ alt }}</strong><p>{{description || '完整分辨率查看；支持缩放、拖动或滚动，按 Esc 关闭。'}}</p></div><button type="button" aria-label="关闭大图" @click="close"><X :size="20" /></button></header>
       <div class="image-tools">
         <button type="button" @click="setZoom(null)">适应窗口</button><button type="button" @click="setZoom(1)">100%</button>
@@ -110,158 +110,84 @@ onBeforeUnmount(() => { observer?.disconnect(); thumbnailRevision++; dialog.valu
 <style scoped>
 @reference "../assets/css/style.css";
 .big-image-trigger {
-  @apply relative;
+  @apply relative flex items-center justify-center w-full h-full min-h-[80px] p-0 border-0 overflow-hidden;
   isolation: isolate;
-  @apply flex;
-  @apply items-center;
-  @apply justify-center;
-  @apply w-[100%];
-  @apply h-[100%];
-  @apply min-h-[80px];
-  @apply p-[0];
-  @apply [border:0];
   background: transparent;
   cursor: zoom-in;
-  @apply overflow-hidden
 }
-.big-image-trigger:disabled {
-  cursor: default
-}
-.big-image-trigger>img {
-  @apply w-[100%];
-  @apply h-[100%];
-  @apply object-contain;
-  @apply block
-}
+.big-image-trigger:disabled { cursor: default; }
+.big-image-trigger>img { @apply w-full h-full object-contain block; }
 .image-hint {
-  @apply absolute;
-  @apply z-[2];
-  @apply right-[10px];
-  @apply bottom-[10px];
+  @apply absolute z-[2] right-[10px] bottom-[10px] whitespace-nowrap flex gap-[5px] items-center px-2 py-[5px] text-[13px] leading-[1.4];
   pointer-events: none;
-  @apply whitespace-nowrap;
-  @apply leading-[1.4];
-  @apply [border:1px_solid_#c5d5d6];
-  @apply flex;
-  @apply gap-[5px];
-  @apply items-center;
-  @apply [padding:5px_8px];
-  @apply rounded-[1px];
-  @apply text-[11px];
-  background: #ffffffea;
-  color: #145f65;
-  box-shadow: 0 2px 10px #0001
+  border: .5px solid var(--dl-border);
+  border-radius: var(--dsw-radius-sm, 8px);
+  background: var(--dl-surface);
+  color: var(--dl-text);
+  box-shadow: var(--dl-shadow);
 }
-.image-unavailable {
-  color: var(--muted,#6b7280);
-  @apply text-[13px]
-}
+.image-unavailable { color: var(--dl-muted); font-size: 14px; }
 .big-image-dialog {
-  @apply w-[min(1100px,94vw)];
-  @apply max-w-[94vw];
-  @apply m-[auto];
-  @apply p-[0];
-  @apply [border:1px_solid_var(--border,#e5e7eb)];
-  @apply rounded-[2px];
-  background: var(--card,#fff);
-  color: var(--text,#374151);
-  box-shadow: 0 25px 80px #0005
+  @apply w-[min(1100px,94vw)] max-w-[94vw] m-auto p-0;
+  border: 0;
+  border-radius: var(--dsw-radius-panel, 28px);
+  background: var(--dl-surface);
+  color: var(--dl-text);
+  box-shadow: var(--dl-shadow);
+  font-family: var(--dl-font);
+  overflow: hidden;
 }
-.big-image-dialog::backdrop {
-  background: #10101caa;
-  backdrop-filter: blur(3px)
-}
+.big-image-dialog::backdrop { background: var(--dl-mask); backdrop-filter: none; }
 header {
-  @apply flex;
-  @apply items-center;
-  @apply justify-between;
-  @apply [padding:18px_20px];
-  @apply [border-bottom:1px_solid_var(--border,#e5e7eb)]
+  @apply flex items-center justify-between gap-3 px-5 py-[18px];
+  border-bottom: .5px solid var(--dl-border);
 }
-header strong {
-  @apply text-[16px];
-  color: var(--title,#111827)
-}
-header p {
-  @apply [margin:4px_0_0];
-  @apply text-[12px];
-  color: var(--muted,#6b7280)
-}
+header>div { min-width: 0; flex: 1; }
+header strong { @apply block text-[16px] font-semibold wrap-anywhere; color: var(--dl-text); }
+header p { @apply mt-1 mb-0 text-[13px] leading-[1.6]; color: var(--dl-muted); }
 header button,.image-tools button {
-  @apply [border:1px_solid_var(--border,#e5e7eb)];
-  background: var(--card,#fff);
-  color: inherit;
-  @apply rounded-[1px];
+  @apply inline-flex items-center justify-center px-[10px] py-[6px] text-[14px];
+  min-height: 32px;
+  border: .5px solid var(--dl-border);
+  border-radius: var(--dsw-radius-md, 12px);
+  background: var(--dl-surface);
+  color: var(--dl-text);
+  font: inherit;
   cursor: pointer;
-  @apply inline-flex;
-  @apply items-center;
-  @apply justify-center;
-  @apply [padding:7px_10px]
 }
-header button {
-  @apply p-[7px]
-}
-.image-tools {
-  @apply flex;
-  @apply items-center;
-  @apply gap-[7px];
-  @apply flex-wrap;
-  @apply [padding:12px_20px];
-  @apply text-[12px]
-}
-.image-tools span {
-  @apply ml-[4px];
-  color: var(--muted,#6b7280)
-}
-.image-tools a {
-  @apply inline-flex;
-  @apply gap-[6px];
-  @apply items-center;
-  @apply ml-[auto];
-  color: var(--primary,#145f65);
-  text-decoration: none
-}
+header button { @apply p-[7px]; width: 36px; height: 36px; flex: none; }
+.image-tools { @apply flex items-center gap-[7px] flex-wrap px-5 py-3 text-[13px]; }
+.image-tools span { margin-left: 4px; color: var(--dl-muted); font-variant-numeric: tabular-nums; }
+.image-tools a { @apply inline-flex gap-[6px] items-center ml-auto; color: var(--dl-accent); text-decoration: none; }
 .image-viewport {
-  @apply h-[min(67vh,720px)];
-  @apply overflow-auto;
-  background: repeating-conic-gradient(#e5e7eb 0% 25%,#f9fafb 0% 50%) 50% / 18px 18px;
+  @apply h-[min(67vh,720px)] overflow-auto;
+  background: repeating-conic-gradient(var(--dl-border) 0% 25%,var(--dl-inset) 0% 50%) 50% / 18px 18px;
   cursor: grab;
   touch-action: none;
-  overscroll-behavior: contain
+  overscroll-behavior: contain;
 }
-.image-viewport:active {
-  cursor: grabbing
+.image-viewport:active { cursor: grabbing; }
+.image-viewport img { @apply block max-w-none max-h-none object-contain m-auto; user-select: none; }
+.image-error { @apply px-5 text-[13px] leading-[1.6]; color: var(--dl-danger); }
+button:focus-visible,a:focus-visible,.image-viewport:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
 }
-.image-viewport img {
-  @apply block;
-  @apply max-w-[none];
-  @apply max-h-[none];
-  @apply object-contain;
-  @apply m-[auto];
-  user-select: none
+.button-only {
+  @apply w-auto h-auto min-h-[32px] px-[10px] py-[6px] gap-[6px] text-[14px];
+  border: .5px solid var(--dl-border);
+  border-radius: var(--dsw-radius-md, 12px);
+  background: var(--dl-surface);
+  color: var(--dl-text);
 }
-.image-error {
-  @apply [padding:0_20px];
-  color: #dc2626;
-  @apply text-[12px]
+@media (hover: hover) {
+  header button:hover,.image-tools button:hover,.button-only:hover { background: var(--dl-hover); border-color: var(--dl-border-strong); }
+  .image-tools a:hover { text-decoration: underline; text-underline-offset: 3px; }
 }
-button:focus-visible,a:focus-visible {
-  outline: 3px solid #438e93;
-  outline-offset: 2px
-}@media(max-width:600px){
-header {
-  @apply p-[13px]
+@media(max-width:600px) {
+  header { padding: 13px; }
+  .image-tools { padding: 10px; }
+  .image-tools a { margin-left: 0; }
+  .image-viewport { height: 62vh; }
 }
-.image-tools {
-  @apply p-[10px]
-}
-.image-tools a {
-  @apply ml-[0]
-}
-.image-viewport {
-  @apply h-[62vh]
-}}
-/* Long names remain readable within the existing layout. */
-header { @apply gap-[12px]; } header>div { @apply min-w-0; flex: 1; } header strong { @apply block wrap-anywhere; } header>button { flex: none; }
-.button-only{@apply w-auto h-auto min-h-[32px] px-[10px] py-[6px] gap-[6px] border border-[#bdcdce] bg-white text-[#145f65] text-[11px];}
 </style>

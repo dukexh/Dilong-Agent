@@ -51,79 +51,27 @@ defineExpose({ cleaning })
 <style scoped>
 @reference "../assets/css/style.css";
 .review-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
-.history-dialog {
-  @apply grid;
-  @apply gap-[18px]
-}
+.history-dialog { @apply grid gap-[18px]; color: var(--dl-text); font-size: 14px; }
 .summary-record {
-  @apply [border:1px_solid_var(--border)];
-  @apply rounded-[2px];
-  @apply p-[18px];
-  @apply grid;
-  @apply gap-[16px]
+  @apply p-[18px] grid gap-4;
+  border: .5px solid var(--dl-border);
+  border-radius: var(--dsw-radius-xl, 20px);
+  background: var(--dl-surface);
 }
-.summary-record header {
-  @apply flex;
-  @apply items-center;
-  @apply gap-[12px];
-  @apply flex-wrap
+.summary-record header { @apply flex items-center gap-3 flex-wrap; }
+.summary-record h3 { @apply text-[15px] font-semibold wrap-anywhere; flex: 1; color: var(--dl-text); }
+.summary-record header label { @apply text-[13px] flex gap-[5px] items-center; color: var(--dl-muted); }
+.summary-record input[type="checkbox"] { accent-color: var(--dl-accent); }
+.summary-record dl { @apply grid grid-cols-[repeat(2,minmax(0,1fr))] gap-[13px]; }
+.summary-record dl>div { @apply grid grid-cols-[95px_1fr] gap-2 text-[14px]; }
+.summary-record dt { color: var(--dl-muted); }
+.summary-record dd { @apply m-0 wrap-anywhere; color: var(--dl-text); font-variant-numeric: tabular-nums; }
+.summary-candidate { @apply grid-cols-[140px_1fr]; align-items: start; }
+.summary-candidate>img { @apply w-[140px] h-[140px] object-contain; background: var(--dl-inset); border-radius: var(--dsw-radius-lg, 16px); }
+.summary-candidate>div { @apply grid gap-[13px] min-w-0; }
+@media(max-width:600px) {
+  .summary-record dl,.summary-candidate { grid-template-columns: 1fr; }
+  .summary-candidate>img { width: 100%; height: 180px; }
+  .summary-record { padding: 13px; }
 }
-.summary-record h3 {
-  @apply text-[15px];
-  @apply wrap-anywhere;
-  flex: 1
-}
-.summary-record header label {
-  @apply text-[11px];
-  @apply flex;
-  @apply gap-[5px];
-  @apply items-center
-}
-.summary-record dl {
-  @apply grid;
-  @apply grid-cols-[repeat(2,minmax(0,1fr))];
-  @apply gap-[13px]
-}
-.summary-record dl>div {
-  @apply grid;
-  @apply grid-cols-[95px_1fr];
-  @apply gap-[8px];
-  @apply text-[12px]
-}
-.summary-record dt {
-  color: var(--muted)
-}
-.summary-record dd {
-  @apply m-[0];
-  @apply wrap-anywhere
-}
-.summary-candidate {
-  @apply grid-cols-[140px_1fr];
-  align-items: start
-}
-.summary-candidate>img {
-  @apply w-[140px];
-  @apply h-[140px];
-  @apply object-contain;
-  background: var(--soft);
-  @apply rounded-[2px]
-}
-.summary-candidate>div {
-  @apply grid;
-  @apply gap-[13px];
-  @apply min-w-[0]
-}@media(max-width:600px){
-.summary-record dl {
-  @apply grid-cols-[1fr]
-}
-.summary-candidate {
-  @apply grid-cols-[1fr]
-}
-.summary-candidate>img {
-  @apply w-[100%];
-  @apply h-[180px]
-}
-.summary-record {
-  @apply p-[13px]
-}}
 </style>

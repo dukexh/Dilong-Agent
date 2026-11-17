@@ -1,4 +1,4 @@
-/* Template Tailwind entry; Dilong's established palette and geometry are intentional. */
+/* Existing page geometry with locally scoped Harness visual tokens. */
 @import "tailwindcss";
 @import "../../../node_modules/preline/variants.css";
 @import "./components/business.css";
@@ -7,11 +7,16 @@
 @import "./components/shell.css";
 @import "./components/library.css";
 @import "./workspace.css";
+@import "./harness-theme.css";
+@import "./harness-components.css";
+@import "./workspace-polish.css";
+@import "./readable-type.css";
+@import "./sample-archive.css";
 @plugin "@tailwindcss/forms" { strategy: "class"; }
 @source "../../**/*.{vue,ts,tsx}";
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @theme {
-  --color-primary: #145f65;
-  --font-sans: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
-  --font-mono: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+  --color-primary: var(--dl-accent);
+  --font-sans: var(--dl-font);
+  --font-mono: var(--dl-mono);
 }

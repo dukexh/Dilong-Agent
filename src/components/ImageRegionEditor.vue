@@ -54,21 +54,21 @@ function reset() { region.value = fullRegion(); emit('edit') }
 <style scoped>
 @reference "../assets/css/style.css";
 .region-editor { @apply min-w-0 border-0 p-0 my-3; }
-legend { @apply text-xs font-semibold; color:var(--ink); }
-p { @apply text-xs leading-relaxed my-2; color:var(--muted); }
-.region-stage { @apply relative overflow-hidden max-w-80 my-2; touch-action:none; cursor:crosshair; background:var(--surface); }
+legend { @apply text-xs font-semibold; color:var(--dl-text); }
+p { @apply text-xs leading-relaxed my-2; color:var(--dl-muted); }
+.region-stage { @apply relative overflow-hidden max-w-80 my-2; touch-action:none; cursor:crosshair; background:var(--dl-surface); }
 .region-stage img { @apply block w-full select-none; pointer-events:none; }
-.region-selection { @apply absolute border-2 border-teal-600; box-shadow:0 0 0 500px #10282d44; pointer-events:none; }
+.region-selection { @apply absolute border-2; border-color:var(--dl-focus);box-shadow:0 0 0 1px var(--dl-primary-text),0 0 0 500px var(--dl-mask); pointer-events:none; }
 .region-fields { @apply grid grid-cols-4 gap-2; }
-label { @apply text-xs min-w-0; color:var(--muted); }
-input,select { @apply w-full mt-1 px-2 py-2 min-w-0 border; background:var(--surface); color:var(--ink); border-color:var(--line-strong); }
+label { @apply text-xs min-w-0; color:var(--dl-muted); }
+input,select { @apply w-full mt-1 px-2 py-2 min-w-0 border;min-height:36px;border-radius:var(--dl-r-md);font-size:14px; background:var(--dl-surface); color:var(--dl-text); border-color:var(--dl-border); }
 .region-actions { @apply flex flex-wrap items-end gap-3 mt-3; }
 .region-actions label { @apply flex-1; }
 .region-compact { @apply m-0; }
 .region-compact .region-stage { @apply m-0 mx-auto rounded-md; }
-.compact-region-toolbar { @apply flex items-center justify-between gap-2 text-[11px] mt-3; color:var(--muted); }
-.compact-region-toolbar button { color:var(--teal); }
-.region-compact .region-parameters { @apply border-t mt-3 pt-2; border-color:var(--line-strong); }
+.compact-region-toolbar { @apply flex items-center justify-between gap-2 text-xs mt-3; color:var(--dl-muted); }
+.compact-region-toolbar button { color:var(--dl-text);padding:6px 8px;min-height:32px;border-radius:var(--dl-r-sm); }
+.region-compact .region-parameters { @apply border-t mt-3 pt-2; border-color:var(--dl-border); }
 .region-compact .region-fields { @apply grid-cols-2; }
 .region-horizontal { @apply grid gap-x-5 gap-y-3;grid-template-columns:minmax(0,200px) minmax(0,1fr);align-items:start; }
 .region-horizontal .region-stage { grid-column:1;grid-row:1; }
@@ -76,4 +76,8 @@ input,select { @apply w-full mt-1 px-2 py-2 min-w-0 border; background:var(--sur
 .region-horizontal .region-parameters { grid-column:2;grid-row:1/span 2;@apply border-0 m-0 p-0; }
 .region-horizontal .region-parameters>p { @apply mt-0; }
 @media(max-width:760px){.region-horizontal{grid-template-columns:1fr;}.region-horizontal .region-stage{grid-column:1;grid-row:1;}.region-horizontal .compact-region-toolbar{grid-column:1;grid-row:2;}.region-horizontal .region-parameters{grid-column:1;grid-row:3;}}
+
+.region-stage,.region-compact .region-stage { border-radius:var(--dl-r-md); }
+:where(input,select,button):focus-visible { outline:2px solid var(--dl-focus);outline-offset:2px; }
+.compact-region-toolbar button:hover:not(:disabled) { background:var(--dl-hover); }
 </style>

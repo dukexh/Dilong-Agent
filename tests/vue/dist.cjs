@@ -17,7 +17,11 @@ async function check(browser,directory,prefix){
  try{
   for(const route of routes){
    await page.goto(base+route,{waitUntil:'networkidle'});assert.equal(await page.locator('h1').count(),1);assert.equal(await page.evaluate(()=>typeof window.React),'undefined')
-   await page.locator('main img').evaluateAll(images=>Promise.all(images.map(image=>image.decode())))
+   // Lazy images need to enter the viewport before decode() can finish.
+   for(const image of await page.locator('main img').all()){
+    await image.scrollIntoViewIfNeeded();await image.evaluate(el=>el.decode())
+   }
+   await page.evaluate(()=>scrollTo(0,0))
    if(route==='samples')assert.equal(await page.locator('.sample-card').count(),24)
    if(route==='ink')await page.waitForFunction(()=>!Array.from(document.querySelectorAll('button')).find(button=>button.textContent.includes('导出配墨建议单'))?.disabled)
    await page.screenshot({path:path.join(output,(prefix==='/'?'root':'subpath')+'-'+(route||'home')+'.png')})
