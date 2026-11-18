@@ -1,4 +1,4 @@
-import type { ImageSummary, InkLayer, InkRenderModel, RGB } from '../core/types'
+import type { ImageSummary, InkLayer, InkRenderModel, RGB, GenerationCheckpoint, ModelUsage } from '../core/types'
 import type { EngineeringProject, CompletionPipeline } from '../core/seamless'
 import type { InkKey } from '../core/ink-recipe'
 
@@ -16,6 +16,7 @@ export type ProductionRecord = Record<ProductionKey, string>
 export interface SampleHistory { date: string; title: string; description: string; status: string }
 export interface CandidateReview { status: CandidateStatus; note?: string; updatedAt?: string }
 export interface DesignParameters {
+  usage?: ModelUsage; model?: string; prompt?: string; generationId?: string; generationIndex?: number
   searchScope?: 'all' | 'mine'; completionPipeline?: CompletionPipeline
   engineering?: EngineeringProject; seamlessOverlap?: number; lightBalance?: boolean
   outputWidth?: number; outputHeight?: number
@@ -47,10 +48,10 @@ export type TaskInput = { kind: 'library'; sampleId: string; name: string } | { 
 export interface DesignTask extends Revisioned {
   schemaVersion: number; source: string; sourceId: string; sampleId: string | null; title: string
   conditions: string; status: DesignTaskStatus; resultIds: string[]; mode?: DesignMode; input?: TaskInput
-  parameters?: DesignParameters; attempts?: number; runKey?: string; ownerId?: string; error?: string; outputCount?: number; completedAt?: string
+  parameters?: DesignParameters; attempts?: number; runKey?: string; ownerId?: string; error?: string; outputCount?: number; completedAt?: string; generation?: GenerationCheckpoint; modelUsage?: ModelUsage[]
 }
 export interface BeginDesignTaskRequest {
-  mode: DesignMode; runKey: string; taskId?: string | null; parameters: DesignParameters
+  mode: DesignMode; runKey: string; taskId?: string | null; parameters: DesignParameters; resumeGeneration?: boolean
   input: { kind: 'library'; sampleId: string; name: string } | { kind: 'upload'; name: string; src: string | HTMLImageElement; summary: ImageSummary }
 }
 export interface InkSettings { selectedInks?: InkKey[]; weight: number; enabled: boolean[]; selectedLayer: number; tab: 'overview' | 'detail' }
@@ -61,7 +62,7 @@ export interface InkRun extends Revisioned {
 }
 export type RestorableInkRun = InkRun & { snapshot: InkSnapshot }
 export interface InkRecordStatus extends OperationStatus { id: string }
-export interface DesignProgress { fraction: number; phase: string }
+export interface DesignProgress { fraction: number; phase: string; indeterminate?: boolean }
 export interface DesignRun extends DesignProgress { controller: AbortController }
 export interface DesignRunOptions { signal: AbortSignal; onProgress: (progress: DesignProgress) => void }
 export type HistoryStore = 'tasks' | 'inkRuns'

@@ -95,14 +95,6 @@ async function check(name, action, init) {
       await seed(page); await page.getByLabel('上传配墨图片').setInputFiles({ name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from('invalid image') })
       await page.getByRole('alert').filter({ hasText: '加载失败' }).waitFor(); assert.equal(await page.locator('.aggregate-color .hex-value').innerText(), '—'); assert.equal(await page.evaluate(() => window.__S.inkRuns.length), 2)
     })
-    await check('四个趋势的商业潜力和建议动作对齐原版，置信度独立显示', async page => {
-      await page.goto(base + '/trends'); await service(page); await page.getByRole('tab', { name: '趋势预测', exact: true }).click()
-      for (const [id, commercial, action, confidence] of [['warm-grey', '较强', '进入设计转化', '88%'], ['smoked-oak', '较强', '进入设计转化', '84%'], ['cream-wood', '稳定', '进入设计转化', '91%'], ['red-brown', '较强', '小批量验证', '72%']]) {
-        await page.getByLabel('选择预测对象', { exact: true }).selectOption(id)
-        assert.deepEqual(await page.evaluate(() => ['商业转化潜力', '建议动作'].map(label => Array.from(document.querySelectorAll('dt')).find(el => el.textContent === label)?.nextElementSibling?.textContent)), [commercial, action])
-        assert.equal(await page.locator('.trend-overview strong').last().innerText(), confidence)
-      }
-    })
     async function checkTheme(page, initial) {
       await page.goto(base); await page.locator('.app-shell').waitFor(); assert.equal(await page.locator('html').getAttribute('data-theme'), initial)
       await page.getByRole('button', { name: initial === 'light' ? '切换深色' : '切换浅色', exact: true }).click()

@@ -6,6 +6,7 @@ import type { WorkflowAsset } from '../services/types'
 import BigImageViewer from './BigImageViewer.vue'
 import CandidateReview from './CandidateReview.vue'
 import EngineeringExportButton from './EngineeringExportButton.vue'
+import DesignResultDetails from './DesignResultDetails.vue'
 
 const props = defineProps<{ taskId: string | null }>()
 const tick = ref(0)
@@ -20,7 +21,7 @@ function similarity(asset: WorkflowAsset) { return scoreLabel(typeof asset.param
 <template>
   <div v-if="deleted" class="saved-empty"><strong>任务记录已删除</strong><span>已保存候选仍在方案评价中，采用后进入样例库。</span><button type="button" @click="S.showStats('pending')">查看方案评价</button></div>
   <div v-else-if="assets.length" class="saved-results">
-    <article v-for="asset in assets" :key="asset.id"><div class="saved-image"><BigImageViewer :src="asset.imageUrl" :preview-src="asset.thumbnailUrl" :alt="asset.name" /></div><div class="saved-copy"><strong>{{ asset.name }}</strong><p>此任务已保存的候选</p><p v-if="asset.parameters?.mode === 'twin'" title="原图与候选的全分辨率灰度 SSIM；明暗变化也会影响；负值显示 0%。">{{ similarity(asset) }}</p><EngineeringExportButton :src="asset.imageUrl" :name="asset.name" :project="asset.parameters?.engineering"/><CandidateReview :sample="asset" /></div></article>
+    <article v-for="asset in assets" :key="asset.id"><div class="saved-image"><BigImageViewer :src="asset.imageUrl" :preview-src="asset.thumbnailUrl" :alt="asset.name" /></div><div class="saved-copy"><strong>{{ asset.name }}</strong><p>此任务已保存的候选</p><p v-if="asset.parameters?.mode === 'twin' && typeof asset.parameters?.structureSimilarity === 'number'" title="原图与候选的全分辨率灰度 SSIM，明暗变化也会影响结果。">{{ similarity(asset) }}</p><DesignResultDetails :model="asset.parameters?.model" :prompt="asset.parameters?.prompt" :width="asset.parameters?.outputWidth" :height="asset.parameters?.outputHeight" :similarity-error="asset.parameters?.similarityError" :usage="asset.parameters?.usage"/><EngineeringExportButton :src="asset.imageUrl" :name="asset.name" :project="asset.parameters?.engineering"/><CandidateReview :sample="asset" /></div></article>
   </div>
   <div v-else class="saved-empty"><strong>本任务尚未保存候选</strong><span>{{ task?.error || '输入与参数已恢复，可重新执行并保存需要的方案。' }}</span></div>
 </template>

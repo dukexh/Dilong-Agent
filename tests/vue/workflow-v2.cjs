@@ -7,6 +7,7 @@ function tifPixels(bytes){const tags=new Map();for(let p=10;p<10+bytes.readUInt1
 ;(async()=>{
  const browser=await chromium.launch({channel:process.env.DILONG_BROWSER_CHANNEL||'chrome',headless:true}),context=await browser.newContext({viewport:{width:1440,height:1080},acceptDownloads:true}),page=await context.newPage(),errors=[],requests=[]
  page.setDefaultTimeout(45000);page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>requests.push(r.url()));page.on('console',m=>{if(m.type()==='error')console.log('BROWSER',m.text())});page.on('requestfailed',r=>console.log('REQUEST_FAILED',r.url(),r.failure()?.errorText))
+ await require('../helpers/model-api.cjs')(context)
  async function ready(){await page.evaluate(async()=>{window.S=(await import('/src/services/workflows.ts')).S;await S.ready})}
  async function run(){await page.locator('.run-button').click();await page.waitForFunction(()=>!document.querySelector('.run-button')?.disabled)}
  async function download(selector,format,name,layers){
@@ -51,7 +52,7 @@ function tifPixels(bytes){const tags=new Map();for(let p=10;p<10+bytes.readUInt1
   await page.locator('[data-design-mode="generate"]').click();await run();assert(await page.locator('.candidate-card').count()>0)
   assert.equal(await page.locator('.candidate-copy .engineering-export-button').count(),await page.locator('.candidate-card').count())
   await download('.candidate-copy .engineering-export-button','tif','recommend.tif');await download('.candidate-copy .engineering-export-button','psd','recommend.psd',1)
-  await page.locator('[data-design-mode="twin"]').click();await run();assert.equal(await page.locator('.candidate-card').count(),3)
+  await page.locator('[data-design-mode="twin"]').click();await run();assert.equal(await page.locator('.candidate-card').count(),1)
   await download('.candidate-copy .engineering-export-button','tif','style.tif');await download('.candidate-copy .engineering-export-button','psd','style.psd',1)
   console.log('PASS every search, recommendation and style result offers direct TIF/PSD export before saving')
   await page.locator('[data-design-mode="complete"]').click();await page.getByRole('button',{name:'上传图片',exact:true}).click();await page.locator('.source-panel input[type=file]').setInputFiles({name:'连续单元原图.png',mimeType:'image/png',buffer:Buffer.from(fixture.original.split(',')[1],'base64')});await page.locator('.source-panel[data-input-ready="true"]').waitFor()

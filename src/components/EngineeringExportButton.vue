@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { Download } from 'lucide-vue-next'
-import { exportEngineering, loadImage, type EngineeringProject } from '../services/image-tools'
-import { physicalSize, type ExportSettings } from '../core/engineering-export'
+import { exportEngineering, inspectExport, loadImage, type EngineeringProject } from '../services/image-tools'
+import { physicalSize, preflightExport, type ExportSettings } from '../core/engineering-export'
 const props = defineProps<{ src: string; name: string; project?: EngineeringProject; compact?: boolean }>()
 const dialog=ref<HTMLDialogElement|null>(null),format=ref<ExportSettings['format']>('tif'),ppi=ref(300),width=ref(0),height=ref(0),busy=ref(false),loading=ref(false),error=ref('')
 let controller:AbortController|undefined
 const size=computed(()=>{try{return physicalSize(width.value,height.value,ppi.value)}catch{return null}})
+const budgetError=computed(()=>{if(!width.value)return '';try{preflightExport({width:width.value,height:height.value},{format:format.value,ppi:ppi.value},format.value==='psd'&&!!props.project);return ''}catch(e){return (e as Error).message}})
 async function open(){
   error.value='';width.value=height.value=0;loading.value=true;controller=new AbortController()
   await nextTick();dialog.value?.showModal()
-  try{const image=await loadImage(props.src,controller.signal);width.value=image.naturalWidth;height.value=image.naturalHeight}catch(reason){if(reason instanceof Error&&reason.name!=='AbortError')error.value=reason.message}finally{loading.value=false}
+  try{const image=await loadImage(props.src,controller.signal);width.value=image.naturalWidth;height.value=image.naturalHeight;await inspectExport(props.src,{format:format.value,ppi:ppi.value},props.project,controller.signal)}catch(reason){if(reason instanceof Error&&reason.name!=='AbortError')error.value=reason.message}finally{loading.value=false}
 }
 function close(){controller?.abort();dialog.value?.close();busy.value=false;loading.value=false}
 async function download(){
@@ -23,12 +24,13 @@ async function download(){
   }catch(reason){if(reason instanceof Error&&reason.name!=='AbortError')error.value=reason.message}
   finally{busy.value=false}
 }
+watch([format,ppi],()=>{if(!busy.value)error.value=''})
 watch(()=>props.src,close)
 onBeforeUnmount(()=>controller?.abort())
 </script>
 <template>
   <button type="button" class="engineering-export-button btn btn-secondary" :class="{'export-compact':compact}" :aria-label="compact?'导出 TIF / PSD':undefined" :title="compact?'导出 TIF / PSD':undefined" @click="open"><Download v-if="compact" :size="14"/>导出 TIF / PSD</button>
-  <Teleport to="body"><dialog ref="dialog" aria-label="工程文件导出" class="engineering-dialog dilong-theme" @cancel.prevent="close" @close="controller?.abort()"><header><h2>工程文件导出</h2><button type="button" class="btn btn-secondary" @click="close">关闭</button></header><p class="export-name">{{name}}</p><p v-if="loading" role="status">正在读取完整像素原图…</p><template v-else-if="width"><dl><div><dt>实际像素</dt><dd>{{width}} × {{height}}</dd></div><div><dt>按当前分辨率的尺寸</dt><dd>{{size?size.widthMm.toFixed(2)+' × '+size.heightMm.toFixed(2)+' mm':'请输入有效分辨率'}}</dd></div><div><dt>颜色</dt><dd>8 位 RGB · 保留透明度</dd></div></dl><label>文件格式<select v-model="format" :disabled="busy" aria-label="工程文件格式"><option value="tif">TIF 无损合成图</option><option value="psd">PSD {{project?'分层连续单元':'完整设计图'}}</option></select></label><label>分辨率 ppi<input v-model.number="ppi" type="number" min="1" max="2400" step="1" :disabled="busy" aria-label="工程文件分辨率"/></label><p>按实际像素导出，不改变图像尺寸。300 ppi 表示每英寸 300 个像素，修改此值不会增加图像细节。</p><p v-if="format==='psd'">{{project?'包含原始单元参考、单元基础和接缝修补图层；透明区域可继续编辑。':'此来源为合成图，PSD 包含一个完整设计图层。'}}生产分色尚未确认。</p><button type="button" class="btn btn-primary" :disabled="busy||!size" @click="download">{{busy?'正在编码文件…':'下载工程文件'}}</button><button v-if="busy" type="button" class="btn btn-secondary" @click="controller?.abort()">取消导出</button></template><p v-if="error" class="export-error" role="alert">{{error}}</p></dialog></Teleport>
+  <Teleport to="body"><dialog ref="dialog" aria-label="工程文件导出" class="engineering-dialog dilong-theme" @cancel.prevent="close" @close="controller?.abort()"><header><h2>工程文件导出</h2><button type="button" class="btn btn-secondary" @click="close">关闭</button></header><p class="export-name">{{name}}</p><p v-if="loading" role="status">正在读取图像尺寸…</p><template v-else-if="width"><dl><div><dt>实际像素</dt><dd>{{width}} × {{height}}</dd></div><div><dt>按当前分辨率的尺寸</dt><dd>{{size?size.widthMm.toFixed(2)+' × '+size.heightMm.toFixed(2)+' mm':'请输入有效分辨率'}}</dd></div><div><dt>颜色</dt><dd>8 位 RGB · 保留透明度</dd></div></dl><label>文件格式<select v-model="format" :disabled="busy" aria-label="工程文件格式"><option value="tif">TIF 无损合成图</option><option value="psd">PSD {{project?'分层连续单元':'完整设计图'}}</option></select></label><label>分辨率 ppi<input v-model.number="ppi" type="number" min="1" max="2400" step="1" :disabled="busy" aria-label="工程文件分辨率"/></label><p>按实际像素导出，不改变图像尺寸。300 ppi 表示每英寸 300 个像素，修改此值不会增加图像细节。</p><p v-if="format==='psd'">{{project?'包含原始单元参考、单元基础和接缝修补图层；透明区域可继续编辑。':'此来源为合成图，PSD 包含一个完整设计图层。'}}生产分色尚未确认。</p><button type="button" class="btn btn-primary" :disabled="busy||!size||!!budgetError" @click="download">{{busy?'正在编码文件…':'下载工程文件'}}</button><button v-if="busy" type="button" class="btn btn-secondary" @click="controller?.abort()">取消导出</button></template><p v-if="error||budgetError" class="export-error" role="alert">{{budgetError||error}}</p></dialog></Teleport>
 </template>
 <style scoped>
 @reference "../assets/css/style.css";

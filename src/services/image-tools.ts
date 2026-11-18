@@ -1,7 +1,7 @@
 import { DesignImages } from '../core/design-images'
 import { TEXTURE_VERSION, type TextureFeatures } from '../core/texture-search'
 import { decodeTextureIndex, type TextureIndexManifest } from '../core/texture-index'
-import { validateExport, type ExportSettings } from '../core/engineering-export'
+import { preflightExport, validateExport, type ExportSettings } from '../core/engineering-export'
 import type { PixelImage, DesignOptions, DesignResult } from '../core/types'
 import type { SeamlessDocument, EngineeringProject, UnitSnapshot } from '../core/seamless'
 export type { UnitSnapshot } from '../core/seamless'
@@ -189,8 +189,29 @@ export async function createSeamless(src: string, overlap: number, lightBalance:
   return { url: pixelsUrl(document.result), thumbnailUrl: pixelsUrl(document.result, 640), width: document.result.width, height: document.result.height, document, engineering }
 }
 
+let exporting = false
+export async function inspectExport(src: string, settings: ExportSettings, project?: EngineeringProject, signal?: AbortSignal) {
+  const image = await loadImage(src, signal)
+  const width = image.naturalWidth, height = image.naturalHeight
+  const bytes = preflightExport({width,height}, settings, settings.format === 'psd' && !!project)
+  if (settings.format === 'psd' && project) {
+    if (project.version !== 'seamless-v1') throw Error('不支持的工程版本')
+    const repeat = project.repeat
+    if (repeat && (![repeat.columns,repeat.rows,repeat.unitWidth,repeat.unitHeight].every(n=>Number.isSafeInteger(n)&&n>0) || repeat.unitWidth*repeat.columns!==width || repeat.unitHeight*repeat.rows!==height)) throw Error('工程铺排参数与图像尺寸不一致')
+    for (const url of [project.baseUrl,project.maskUrl]) {
+      const layer = await loadImage(url,signal)
+      if(layer.naturalWidth!==(repeat?.unitWidth||width)||layer.naturalHeight!==(repeat?.unitHeight||height)) throw Error('保存的工程图层尺寸不一致，请重新生成连续单元')
+    }
+  }
+  return {width,height,bytes}
+}
 export async function exportEngineering(src: string, settings: ExportSettings, project?: EngineeringProject, signal?: AbortSignal): Promise<Blob> {
+  if (exporting) throw Error('另一项工程导出正在执行，请稍后重试')
+  exporting = true
+  try {
+  const expected = await inspectExport(src,settings,project,signal)
   const image = await readPixels(src, fullRegion(), Infinity, signal)
+  if(image.width!==expected.width||image.height!==expected.height) throw Error('图片尺寸发生变化，请重新导出')
   validateExport(image, settings, !!project)
   let document: SeamlessDocument | undefined
   if (settings.format === 'psd' && project?.version === 'seamless-v1') {
@@ -207,4 +228,5 @@ export async function exportEngineering(src: string, settings: ExportSettings, p
   checkCancelled(signal)
   const bytes = await workerTask<Uint8Array<ArrayBuffer>>({ kind: 'export', image, ...settings, document }, signal)
   return new Blob([bytes], { type: settings.format === 'tif' ? 'image/tiff' : 'image/vnd.adobe.photoshop' })
+  } finally { exporting = false }
 }

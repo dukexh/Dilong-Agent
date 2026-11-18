@@ -2,7 +2,7 @@
 async function records(page, store) {
   return page.evaluate(async store => {
     const database = await new Promise((resolve, reject) => {
-      const request = indexedDB.open('dilong-workflows', 2)
+      const request = indexedDB.open('dilong-workflows')
       request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error)
     })

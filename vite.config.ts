@@ -14,6 +14,7 @@ export default defineConfig({
   base: process.env.DILONG_BASE || '/',
   cacheDir: process.env.DILONG_CACHE_DIR || 'node_modules/.vite',
   optimizeDeps: { include: ['ag-psd'] },
-  server: { host: '127.0.0.1', port: 51458, strictPort: true, watch: { ignored: ['**/verification/**'] } },
+  server: { host: '127.0.0.1', port: 51458, strictPort: true, fs: { deny: ['.env','.env.*','**/.git/**','**/.dilong-runtime/**','**/verification/**','**/backend/**'] }, watch: { ignored: ['**/.dilong-runtime/**','**/verification/**','**/backend/**'] }, proxy: { [((process.env.DILONG_BASE || '/').replace(/\/$/, '') + '/api')]: { target: 'http://127.0.0.1:' + (process.env.DILONG_BACKEND_PORT || '51460'), rewrite: path => path.replace((process.env.DILONG_BASE || '/').replace(/\/$/, '') + '/api', '/api') } } },
+  preview: { proxy: { [((process.env.DILONG_BASE || '/').replace(/\/$/, '') + '/api')]: { target: 'http://127.0.0.1:' + (process.env.DILONG_BACKEND_PORT || '51460'), rewrite: path => path.replace((process.env.DILONG_BASE || '/').replace(/\/$/, '') + '/api', '/api') } } },
   build: { outDir: 'dist' },
 })

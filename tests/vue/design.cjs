@@ -33,6 +33,7 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
   const results = [], errors = []
   async function check(name, action) {
     const context = await browser.newContext({ viewport: { width: 1480, height: 1100 }, acceptDownloads: true })
+    await require('../helpers/model-api.cjs')(context)
     const page = await context.newPage(); page.setDefaultTimeout(20000)
     page.on('pageerror', error => errors.push(`${name}: ${error.message}`))
     try {
@@ -109,16 +110,12 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
       assert(repeated.every(asset => asset.parameters.sourceKind === 'upload' && asset.parameters.sourceName === '真实纹理.png' && !Object.hasOwn(asset.parameters, 'sourceId')))
       assert.deepEqual(repeated.find(asset => asset.id === assets[0].id), assets[0])
     })
-    await check('风格迁移保留尺寸，真实SSIM与计算失败不显示虚假百分比', async page => {
-      await upload(page, { width: 120, height: 80 }); await mode(page, '风格迁移'); await run(page)
-      assert.equal(await page.locator('.candidate-card').count(), 3)
-      assert((await page.locator('.image-dimensions').allTextContents()).every(text => text.includes('120 × 80')))
-      const scores = await page.locator('.similarity').allTextContents(); assert(scores.every(text => /结构相似度 \d+\.\d%/.test(text)))
-      await page.getByRole('button', { name: '保存候选方案', exact: true }).first().click(); const assets = await untilRecords(page, 'assets', rows => rows.length === 1)
-      assert.equal(typeof assets[0].parameters.structureSimilarity, 'number'); assert(Number.isFinite(assets[0].parameters.structureSimilarity))
-      assert.equal(assets[0].parameters.sourceKind, 'upload'); assert.equal(assets[0].parameters.sourceName, '真实纹理.png'); assert.equal(Object.hasOwn(assets[0].parameters, 'sourceId'), false)
-      await page.evaluate(async () => { const { DesignImages } = await import('/src/core/design-images.ts'); const original = DesignImages.twin; DesignImages.twin = async (...args) => (await original(...args)).map(result => ({ ...result, similarity: null, similarityError: 'TEST_SSIM_UNAVAILABLE' })) })
-      await run(page); assert((await page.locator('.similarity').allTextContents()).every(text => text === '结构相似度：暂无法计算'))
+    await check('模型风格迁移记录实际尺寸与模型信息，不显示虚假SSIM',async page=>{
+      await upload(page,{width:120,height:80});await mode(page,'风格迁移');await run(page)
+      assert.equal(await page.locator('.candidate-card').count(),1);assert.equal(await page.locator('.similarity').count(),0)
+      await page.getByRole('button',{name:'保存候选方案',exact:true}).click();const assets=await untilRecords(page,'assets',rows=>rows.length===1)
+      assert.equal(assets[0].parameters.model,'qwen-image-3.0-pro');assert.equal(assets[0].parameters.outputWidth,1)
+      assert.equal(assets[0].parameters.sourceKind,'upload');assert.equal(assets[0].parameters.sourceName,'真实纹理.png')
     })
     await check('样例库输入生成候选保留真实来源编号与名称', async page => {
       const source = await page.evaluate(async () => { const { S } = await import('/src/services/workflows.ts'); return { id: S.base[0].id, name: S.base[0].name } })
@@ -128,11 +125,9 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
       assert.equal(assets[0].parameters.sourceKind, 'library'); assert.equal(assets[0].parameters.sourceName, source.name); assert.equal(assets[0].parameters.sourceId, source.id)
       const tasks = await records(page, 'tasks'); assert.equal(tasks[0].sampleId, source.id); assert(tasks[0].resultIds.includes(assets[0].id))
     })
-    await check('候选推荐遵守全部已识别关键词，无匹配不填充无关图片', async page => {
-      await mode(page, '候选推荐'); await run(page); const tasks = await records(page, 'tasks'); assert.equal(tasks[0].mode, 'generate')
-      assert(await page.locator('.candidate-card').count() > 0)
-      await page.locator('.config-panel textarea').fill('完全不存在的外星材质'); const empty = await run(page); assert.equal(empty.at(-1).status, '无匹配结果'); assert.equal(empty.at(-1).outputCount, 0)
-      assert.equal(await page.locator('.candidate-card').count(), 0); await page.getByText(/没有匹配样例；支持材质/).waitFor()
+    await check('自动设计产生新图片，采用前保留为候选',async page=>{
+      await mode(page,'候选推荐');await run(page);const tasks=await records(page,'tasks');assert.equal(tasks[0].mode,'generate');assert.equal(tasks[0].outputCount,3)
+      assert.equal(await page.locator('.candidate-card').count(),3)
     })
     await check('取消可重试复用任务，完成后的再次执行创建新任务', async page => {
       await page.evaluate(() => { const original = window.setTimeout; window.setTimeout = (fn, delay, ...args) => original(fn, delay === 420 ? 1200 : delay, ...args) })
@@ -223,9 +218,9 @@ async function openTask(page, id) { await page.evaluate(async id => { const { S 
       const tasks = await untilRecords(page, 'tasks', rows => rows.length === 2 && rows.every(task => task.status === '已处理'))
       const current = await page.evaluate(async () => (await import('/src/services/workflows.ts')).S.activeTask)
       assert.equal(tasks.find(task => task.id === current).sampleId, selectedId); assert.equal(await page.locator('.candidate-card').count(), 5)
-      await page.evaluate(async () => { const { DesignImages } = await import('/src/core/design-images.ts'); window.designNativeTwin = DesignImages.twin; DesignImages.twin = async () => { throw Error('TEST_TWIN_FAILURE') } })
+      await page.route('**/api/model/tasks',route=>route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:'TEST_TWIN_FAILURE'})}))
       await mode(page, '风格迁移'); await run(page); const failed = await records(page, 'tasks'); const failedTask = failed.find(task => task.status === '执行失败'); assert(failedTask)
-      await page.evaluate(async () => { (await import('/src/core/design-images.ts')).DesignImages.twin = window.designNativeTwin })
+      await page.unroute('**/api/model/tasks')
       await run(page); const restored = await records(page, 'tasks'); assert.equal(restored.length, failed.length); assert.equal(restored.find(task => task.id === failedTask.id).attempts, 2)
     })
     await check('源样例删除后历史候选可查看评价，重试必须更换输入', async page => {

@@ -1,0 +1,33 @@
+const {chromium}=require('playwright'),assert=require('node:assert/strict'),fs=require('node:fs')
+const mock=require('../helpers/model-api.cjs'),base=process.env.DILONG_URL||'http://127.0.0.1:51458'
+;(async()=>{
+ const browser=await chromium.launch({channel:'chrome',headless:true}),context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true}),page=await context.newPage(),errors=[]
+ page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(20000);await mock(context)
+ try{
+  await page.goto(base+'/design');await page.locator('.source-panel[data-input-ready="true"]').waitFor()
+  await page.locator('[data-design-mode="generate"]').click();assert.equal(await page.locator('.config-panel select').last().inputValue(),'3')
+  let firstPoll=true;await page.route('**/api/jobs/*',route=>{if(firstPoll&&route.request().method()==='GET'){firstPoll=false;return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({state:'running',phase:'正在生成图片'})})}return route.fallback()});
+  await page.locator('.run-button').click();await page.waitForFunction(()=>{const p=document.querySelector('.results-panel progress');return p&&!p.hasAttribute('value')});assert.doesNotMatch(await page.locator('.results-panel [role=status]').innerText(),/%/);await page.locator('.candidate-card').first().waitFor();await page.waitForFunction(()=>document.querySelector('.run-button')?.disabled===false);await page.unroute('**/api/jobs/*');assert.equal(await page.locator('.candidate-card').count(),3);assert.equal(await page.locator('.candidate-card').first().locator('.design-result-details[open]').count(),0);await page.locator('.candidate-card .design-result-details summary').first().click();assert.match(await page.locator('.candidate-card').first().innerText(),/qwen-image-3.0-pro/)
+  await page.getByRole('button',{name:'保存候选方案',exact:true}).first().click();await page.waitForFunction(async()=>{const {S}=await import('/src/services/workflows.ts');return S.assets.some(a=>a.candidateReview?.status==='pending')})
+  assert.equal(await page.evaluate(async()=>{const {S}=await import('/src/services/workflows.ts');return S.personalSamples().length}),0)
+  await page.locator('.candidate-card .engineering-export-button').first().click();await page.getByRole('dialog',{name:'工程文件导出'}).locator('dd').first().waitFor();const pending=page.waitForEvent('download');await page.getByRole('button',{name:'下载工程文件',exact:true}).click();const dl=await pending;await dl.saveAs('verification/model-ui.tif');assert.equal(fs.readFileSync('verification/model-ui.tif').subarray(0,4).toString('hex'),'49492a00');await page.getByRole('button',{name:'关闭',exact:true}).click()
+  await page.locator('[data-design-mode="twin"]').click();await page.locator('.run-button').click();await page.locator('.candidate-card').first().waitFor();assert.equal(await page.locator('.candidate-card').count(),1)
+  await page.route('**/api/jobs/*',route=>route.request().method()==='GET'?route.fulfill({status:404,contentType:'application/json',body:JSON.stringify({error:'任务不存在或服务已重启，请重新执行'})}):route.fallback())
+  await page.locator('.run-button').click();await page.waitForFunction(async()=>{const {S}=await import('/src/services/workflows.ts');return S.tasks.at(-1)?.status==='已中断'});await page.unroute('**/api/jobs/*')
+  await page.goto(base+'/samples');await page.getByLabel('搜索样例',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'文字搜图',exact:true}).count(),0);await page.getByLabel('搜索样例',{exact:true}).fill('Wood 033');await page.locator('.sample-card').first().waitFor();assert.match(await page.locator('.sample-card').first().innerText(),/Wood 033/);await page.getByLabel('搜索样例',{exact:true}).press('Enter');await page.waitForFunction(()=>document.querySelector('.library-count span')?.textContent==='条记录');assert.match(await page.locator('.sample-card').first().innerText(),/Wood 033/);await page.getByLabel('搜索样例',{exact:true}).fill('浅色自然木纹');const termsRequest=page.waitForRequest(r=>r.url().endsWith('/model/tasks')&&r.postDataJSON()?.kind==='terms');await page.getByLabel('搜索样例',{exact:true}).press('Enter');await termsRequest;await page.waitForFunction(()=>document.querySelector('.library-count span')?.textContent==='条记录');assert(await page.locator('.sample-card').count()>0)
+  await page.goto(base+'/trends');await page.getByRole('tab',{name:'热点雷达',exact:true}).waitFor();assert.equal(await page.getByRole('tab').count(),4);await page.getByLabel('帖子搜索关键词').fill('木纹')
+  for(const width of [1440,390,320]){await page.setViewportSize({width,height:900});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`verification/trends-${width}.png`})}
+  const preflight=await page.evaluate(async()=>{
+   const {exportEngineering}=await import('/src/services/image-tools.ts');const OriginalImage=window.Image,originalCreate=document.createElement;let canvases=0;
+   window.Image=class{naturalWidth=5000;naturalHeight=4100;onload;onerror;set src(value){if(value)queueMicrotask(()=>this.onload?.())}};
+   document.createElement=function(name,...args){if(name==='canvas')canvases++;return originalCreate.call(this,name,...args)};
+   try{await exportEngineering('fake',{format:'psd',ppi:300},{version:'seamless-v1',baseUrl:'fake',maskUrl:'fake',overlap:15,lightBalance:false});return {canvases,error:''}}catch(e){return {canvases,error:e.message}}finally{window.Image=OriginalImage;document.createElement=originalCreate}
+  });assert.equal(preflight.canvases,0);assert.match(preflight.error,/768 MB/)
+  const recovery=await page.evaluate(async()=>{
+   const {localTask}=await import('/src/services/local-api.ts');const original=window.fetch;let creates=0,polls=0;
+   window.fetch=async(url,init)=>{if(init?.method==='POST'){creates++;return new Response(JSON.stringify({id:'test-reconnect'}))}if(init?.method==='DELETE')return new Response('{}');polls++;if(polls===1)throw new TypeError('temporary disconnect');return new Response(JSON.stringify({state:'succeeded',result:'existing-result'}))};
+   try{return {result:await localTask('model/tasks',{kind:'probe'}),creates,polls}}finally{window.fetch=original}
+  });assert.deepEqual(recovery,{result:'existing-result',creates:1,polls:2})
+  assert.deepEqual(errors,[]);console.log('PASS UI transport regression: generation, editing, pending library exclusion, TIF download, existing keyword search, mobile layout and polling recovery without duplicate generation')
+ }finally{await context.close();await browser.close()}
+})().catch(e=>{console.error(e);process.exitCode=1})

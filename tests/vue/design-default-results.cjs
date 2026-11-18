@@ -16,6 +16,7 @@ async function results(page) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
   try {
     const context = await browser.newContext(), page = await context.newPage()
+    await require('../helpers/model-api.cjs')(context)
     await page.goto(base + '/design')
     const initial = await results(page)
     assert.deepEqual(await counts(page), { tasks: 0, assets: 0 })
@@ -29,6 +30,7 @@ async function results(page) {
     // Hold the index request to exercise edits while the initial lookup is in flight.
     for (const action of ['scope', 'manual']) {
       const context = await browser.newContext(), page = await context.newPage()
+      await require('../helpers/model-api.cjs')(context)
       let release, firstRequest
       const hold = new Promise(resolve => { release = resolve })
       const requested = new Promise(resolve => { firstRequest = resolve })

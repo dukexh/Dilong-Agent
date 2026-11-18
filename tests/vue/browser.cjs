@@ -7,8 +7,8 @@ async function port(){const server=net.createServer();await new Promise(resolve=
  const server=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(value),'--strictPort'],{cwd:root,stdio:['ignore','pipe','pipe'],windowsHide:true,env:{...process.env,DILONG_CACHE_DIR:cache}})
  let log='';server.stdout.on('data',data=>log+=data);server.stderr.on('data',data=>log+=data)
  try{
-  let ready=false;for(let i=0;i<100&&!ready;i++){ready=await new Promise(resolve=>{const r=http.get(base+'/src/main.ts',res=>{res.resume();resolve(res.statusCode===200)});r.on('error',()=>resolve(false))});if(!ready)await pause(100)}if(!ready)throw Error('Vite did not start: '+log)
-  const scripts=process.argv.slice(2).length?process.argv.slice(2):['candidate-review.cjs','color-compare.cjs','measurement-retention.cjs','design-default-results.cjs','design.cjs','storage.cjs','ink-production.cjs','production-layout.cjs','library-home-trends.cjs','compatibility.cjs','layout.cjs','theme.cjs','interaction-polish.cjs','template-ecosystem.cjs','image-tools.cjs','review-repairs.cjs']
+  let ready=false;for(let i=0;i<300&&!ready;i++){ready=await new Promise(resolve=>{const r=http.get(base+'/src/main.ts',res=>{res.resume();resolve(res.statusCode===200)});r.on('error',()=>resolve(false))});if(!ready)await pause(100)}if(!ready)throw Error('Vite did not start: '+log)
+  const scripts=process.argv.slice(2).length?process.argv.slice(2):['model-contracts.cjs','model-workflows.cjs','platform-api.cjs','candidate-review.cjs','color-compare.cjs','measurement-retention.cjs','design-default-results.cjs','design.cjs','storage.cjs','ink-production.cjs','production-layout.cjs','library-home-trends.cjs','compatibility.cjs','layout.cjs','theme.cjs','interaction-polish.cjs','template-ecosystem.cjs','image-tools.cjs','review-repairs.cjs']
   for(const script of scripts){
    console.log('\nRunning '+script)
    const result=spawnSync(process.execPath,[path.join('tests/vue',script)],{cwd:root,stdio:'inherit',windowsHide:true,env:{...process.env,DILONG_URL:base,DILONG_TEST_URL:base,DILONG_TEST_BASE:base,DILONG_TEST_FILTER:''}})

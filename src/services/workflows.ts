@@ -1,3 +1,4 @@
+import { designContext, styleTendency } from '../core/model-contracts'
 import { normalize, recipe } from '../core/ink-recipe'
 import { radarScenarios } from '../data/radar-scenarios'
 /** Local workflow service. IndexedDB names and record schemas remain compatible with v0.3. */
@@ -78,7 +79,7 @@ function startDesignRun(key: string): DesignRunOptions {
   const controller = new AbortController(), run: DesignRun = { controller, fraction: 0, phase: '准备任务' }
   S.designRuns.set(key, run); emit()
   return { signal: controller.signal, onProgress: progress => {
-    if (!controller.signal.aborted) { run.fraction = Math.max(run.fraction, Math.min(.99, progress.fraction)); run.phase = progress.phase; emit() }
+    if (!controller.signal.aborted) { run.fraction = Math.max(run.fraction, Math.min(.99, progress.fraction)); run.phase = progress.phase; run.indeterminate = !!progress.indeterminate; emit() }
   } }
 }
 function checkDesignCancelled(options: Pick<DesignRunOptions, 'signal'>): void {
@@ -136,11 +137,15 @@ export function initializeWorkflows(base: WorkflowAsset[]): Promise<void> {
 }
 function db(): Promise<IDBDatabase> {
   return dbPromise ||= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open('dilong-workflows', 2)
-    request.onupgradeneeded = () => { for (const name of storeNames) if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name, { keyPath: 'id' }) }
-    request.onblocked = () => S.status('storage', 'error', '本地记录升级被旧标签页占用，请关闭本网站其他标签页后刷新。')
-    request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); S.status('storage', 'ready'); resolve(request.result) }
-    request.onerror = () => reject(request.error)
+    const open = (version?: number): void => {
+      const request = version ? indexedDB.open('dilong-workflows', version) : indexedDB.open('dilong-workflows')
+      request.onupgradeneeded = () => { for (const name of storeNames) if (!request.result.objectStoreNames.contains(name)) request.result.createObjectStore(name, { keyPath: 'id' }) }
+      request.onblocked = () => S.status('storage', 'error', '本地记录升级被旧标签页占用，请关闭本网站其他标签页后刷新。')
+      request.onsuccess = () => { request.result.onversionchange = () => request.result.close(); S.status('storage', 'ready'); resolve(request.result) }
+      // Accept an already newer local database without downgrading or touching its records.
+      request.onerror = () => { if (version && request.error?.name === 'VersionError') open(); else reject(request.error) }
+    }
+    open(2)
   }).catch(error => { dbPromise = undefined; throw error })
 }
 function notify(): void { try { channel?.postMessage('changed') } catch { /* Storage remains authoritative. */ } }
@@ -499,7 +504,7 @@ function describeConditions(mode: DesignMode, parameters: DesignParameters): str
   if (mode === 'compare') return (parameters.searchScope === 'mine' ? '我的样例' : '全部样例') + ' · 纹理结构；返回 ' + parameters.limit + ' 条'
   if (mode === 'seamless') return '四方连续单元；重叠 ' + (parameters.seamlessOverlap ?? 15) + '%；' + (parameters.lightBalance ? '光照均衡' : '保留原光照')
   if (mode === 'complete') return completion[parameters.completion || 'horizontal3']
-  if (mode === 'twin') return styles[parameters.style || 'smoked'] + '；强度 ' + parameters.strength + '%'
+  if (mode === 'twin') return styles[parameters.style || 'smoked'] + (parameters.strengthMode==='qualitative-v1'?'；变化倾向 '+styleTendency(parameters.strength??78):'；强度 '+parameters.strength+'%')
   return parameters.direction || ''
 }
 async function beginDesignTask(request: BeginDesignTaskRequest): Promise<DesignTask> {
@@ -508,23 +513,30 @@ async function beginDesignTask(request: BeginDesignTaskRequest): Promise<DesignT
   if (input.kind === 'library' && !S.all().some(asset => asset.id === input.sampleId)) throw Error('任务输入样例已不存在，请重新选择')
   return withDataWrite(async () => {
     const previous = S.tasks.find(task => task.id === request.taskId), reuse = previous && ['待处理', '执行失败', '已中断', '状态待确认', '已取消'].includes(previous.status), now = new Date().toISOString()
-    const next: DesignTask = { ...(reuse ? previous : {}), schemaVersion: 2, id: reuse ? previous.id : createId(), source: reuse ? previous.source : '设计智能体', sourceId: reuse ? previous.sourceId : 'design-' + request.runKey,
-      sampleId: input.kind === 'library' ? input.sampleId : null, title: reuse && previous.source !== '设计智能体' ? previous.title : input.name + ' · ' + S.designModeLabels[request.mode], mode: request.mode, input, parameters: request.parameters,
-      conditions: describeConditions(request.mode, request.parameters), status: '处理中', resultIds: reuse ? (previous.resultIds || []) : [], attempts: (reuse ? previous.attempts || 0 : 0) + 1,
+    const parameters = { ...designContext(previous?.parameters), ...request.parameters }
+    const next: DesignTask = { ...(reuse ? previous : {}), schemaVersion: 2, id: reuse ? previous.id : createId(), source: previous?.source || '设计智能体', sourceId: previous?.sourceId || 'design-' + request.runKey,
+      sampleId: input.kind === 'library' ? input.sampleId : null, title: reuse && previous.source !== '设计智能体' ? previous.title : input.name + ' · ' + S.designModeLabels[request.mode], mode: request.mode, input, parameters,
+      conditions: describeConditions(request.mode, parameters), generation:reuse&&request.resumeGeneration?previous.generation:undefined, modelUsage:reuse?previous.modelUsage||[]:[], outputCount:reuse&&request.resumeGeneration?previous.generation?.results.length||0:0, status: '处理中', resultIds: reuse ? (previous.resultIds || []) : [], attempts: (reuse ? previous.attempts || 0 : 0) + 1,
       createdAt: reuse ? previous.createdAt : now, updatedAt: now, runKey: request.runKey, error: '', ownerId: taskOwner,
     }
     await write('tasks', [next]); S.tasks = S.tasks.some(task => task.id === next.id) ? S.tasks.map(task => task.id === next.id ? next : task) : [...S.tasks, next]
     S.status('task', 'ready'); return next
   })
 }
-function createTask(record: TrendTaskSource, sample: WorkflowAsset): Promise<DesignTask> {
+function createTask(record: TrendTaskSource, sample: WorkflowAsset, patch: Partial<DesignTask> = {}): Promise<DesignTask> {
   return withDataWrite(async () => {
     await S.ready
-    let task = S.tasks.find(item => item.sourceId === record.id && item.sampleId === sample.id)
+    const patched=Object.keys(patch).length>0
+    // New requirements must not rewrite the context of completed/partial history.
+    let task = S.tasks.find(item => item.sourceId === record.id && item.sampleId === sample.id && (!patched || (item.status==='待处理'&&!item.resultIds.length&&!item.generation?.results.length)))
+    const created=!task
     if (!task) {
       task = { schemaVersion: 1, id: createId(), source: '演示趋势资料', sourceId: record.id, sampleId: sample.id, title: record.title, conditions: record.keywords.join('，'), status: '待处理', resultIds: [], createdAt: new Date().toISOString() }
-      await write('tasks', [task]); S.tasks.push(task); emit()
     }
+    if (patched) {
+      task = { ...task, ...patch, parameters:{...task.parameters,...patch.parameters} }
+    }
+    if(created||patched){await write('tasks',[task]);S.tasks=created?[...S.tasks,task]:S.tasks.map(t=>t.id===task!.id?task!:t);emit()}
     S.openTask(task); return task
   })
 }

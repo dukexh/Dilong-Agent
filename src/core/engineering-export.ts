@@ -6,13 +6,17 @@ export function physicalSize(width: number, height: number, ppi = 300) {
   if (!Number.isFinite(ppi) || ppi < 1 || ppi > 2400) throw Error('分辨率须在 1—2400 ppi 之间')
   return { widthMm: width / ppi * 25.4, heightMm: height / ppi * 25.4 }
 }
-export function validateExport(image: PixelImage, settings: ExportSettings, layered = false) {
+export function preflightExport(image: { width: number; height: number }, settings: ExportSettings, layered = false) {
   physicalSize(image.width, image.height, settings.ppi)
   const maxSide = settings.format === 'psd' ? 30000 : 32767
   if (!Number.isInteger(image.width) || !Number.isInteger(image.height) || image.width < 1 || image.height < 1 || image.width > maxSide || image.height > maxSide || image.width * image.height > 40000000) throw Error('文件超过格式尺寸限制或 4000 万像素上限')
-  if (image.data.length !== image.width * image.height * 4) throw Error('导出图像数据不完整')
-  const estimate = image.width * image.height * (settings.format === 'psd' ? layered ? 40 : 20 : 12)
+  const estimate = image.width * image.height * (settings.format === 'psd' ? layered ? 64 : 32 : 24)
   if (estimate > 768 * 1024 * 1024) throw Error('本次导出预计超过 768 MB 内存预算，请减小单元尺寸或选择 TIF；系统不会自动降低像素')
+  return estimate
+}
+export function validateExport(image: PixelImage, settings: ExportSettings, layered = false) {
+  preflightExport(image, settings, layered)
+  if (image.data.length !== image.width * image.height * 4) throw Error('导出图像数据不完整')
 }
 
 /** Baseline TIFF: uncompressed, 8-bit sRGB-compatible RGBA, unassociated alpha, explicit inch resolution. */

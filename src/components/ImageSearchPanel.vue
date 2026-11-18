@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { Camera, ChevronDown, ImagePlus, RotateCcw, Search, ScanSearch, ArrowUpRight } from 'lucide-vue-next'
+import { modelImageSearch } from '../services/model-design'
 import { S } from '../services/workflows'
 import { useWorkflowStore } from '../stores/workflow'
 import { fullRegion, searchTextures, demoSearchUrl, DEMO_SEARCH_NAME, type SearchScope, type TextureMatch } from '../services/image-tools'
@@ -10,7 +11,7 @@ import BigImageViewer from './BigImageViewer.vue'
 import EngineeringExportButton from './EngineeringExportButton.vue'
 const emit = defineEmits<{ open: [asset: WorkflowAsset] }>()
 const store = useWorkflowStore(), source = ref(demoSearchUrl()), sourceName = ref(DEMO_SEARCH_NAME), region = ref(fullRegion()), count = ref(5)
-const busy = ref(false), error = ref(''), searched = ref(false), skipped = ref(0), phase = ref(''), fraction = ref(0)
+const busy = ref(false), error = ref(''), searched = ref(false), skipped = ref(0), phase = ref(''), notice=ref(''), fraction = ref(0), indeterminate=ref(false)
 const results = shallowRef<TextureMatch[]>([])
 const scope = ref<SearchScope>('all')
 const mine = computed(() => store.assets.filter(S.isLibraryAsset))
@@ -18,7 +19,7 @@ const eligible = computed(() => scope.value === 'mine' ? mine.value : store.all.
 const matches = computed(() => results.value.flatMap(row => { const latest = eligible.value.find(a => a.id === row.sample.id); return latest ? [{...row,sample:latest}] : [] }))
 let controller: AbortController | undefined
 function restoreDemo() { if(busy.value)return; if(source.value.startsWith('blob:'))URL.revokeObjectURL(source.value);source.value=demoSearchUrl();sourceName.value=DEMO_SEARCH_NAME;region.value=fullRegion();scope.value='all';clearResults() }
-function clearResults() { results.value=[]; searched.value=false; error.value=''; skipped.value=0 }
+function clearResults() { results.value=[]; searched.value=false; error.value=''; skipped.value=0;notice.value='' }
 function upload(event: Event) {
   const input=event.target as HTMLInputElement, file=input.files?.[0]; input.value=''
   if(!file || busy.value) return
@@ -31,8 +32,8 @@ async function search() {
   if(busy.value || !source.value)return
   clearResults();busy.value=true;controller=new AbortController()
   try {
-    const result=await searchTextures(source.value,eligible.value,region.value,count.value,{scope:scope.value,publicIds:S.base.map(a=>a.id),signal:controller.signal,onProgress:p=>{phase.value=p.phase;fraction.value=p.fraction}})
-    results.value=result.matches;skipped.value=result.skipped;searched.value=true
+    const result=await modelImageSearch(source.value,eligible.value,region.value,count.value,{scope:scope.value,publicIds:S.base.map(a=>a.id),signal:controller.signal,onProgress:p=>{phase.value=p.phase;fraction.value=p.fraction;indeterminate.value=!!p.indeterminate}})
+    notice.value=result.notice;results.value=result.matches;skipped.value=result.skipped;searched.value=true
     if(!result.matches.length && result.skipped)error.value='本地样例图片无法读取，请检查样例原图后重试'
   }catch(reason){error.value=reason instanceof Error&&reason.name==='AbortError'?'检索已取消':reason instanceof Error?reason.message:String(reason)}
   finally{busy.value=false;controller=undefined}
@@ -50,16 +51,16 @@ onBeforeUnmount(()=>{controller?.abort();if(source.value)URL.revokeObjectURL(sou
         <p class="source-name" :title="sourceName">{{sourceName}}</p>
         <div class="search-upload-actions"><label class="query-upload"><ImagePlus :size="15"/>更换图片<input type="file" aria-label="上传搜图样板" accept="image/png,image/jpeg,image/webp" :disabled="busy" @change="upload"/></label><label class="query-upload"><Camera :size="15"/>拍照<input type="file" aria-label="拍摄搜图样板" accept="image/*" capture="environment" :disabled="busy" @change="upload"/></label><BigImageViewer v-if="source" :src="source" alt="搜图来样" button-only/></div>
         <button type="button" class="search-submit" aria-label="开始以图搜图" :disabled="busy||!source||!eligible.length" @click="search"><Search :size="16"/>{{busy?'正在检索…':'开始检索'}}</button>
-        <div v-if="busy" class="search-progress" role="status"><progress :value="fraction" max="1" aria-label="搜图进度"/><div><span>{{phase}}</span><button type="button" @click="controller?.abort()">取消</button></div></div>
+        <div v-if="busy" class="search-progress" role="status"><progress :value="indeterminate?undefined:fraction" max="1" aria-label="搜图进度"/><div><span>{{phase}}</span><button type="button" @click="controller?.abort()">取消</button></div></div>
         <p v-if="error" role="alert" class="search-error">{{error}}</p><p v-if="scope==='mine'&&!mine.length" class="query-empty">还没有正式个人样例。<button type="button" class="text-link" @click="S.showPackage()">导入样例包</button></p>
       </aside>
       <div class="search-results-area"><div class="results-heading"><h3>检索结果 <span v-if="searched">{{matches.length}}</span></h3><label class="result-count">显示 <select v-model.number="count" aria-label="搜图返回数量" :disabled="busy" @change="clearResults"><option :value="5">5 项</option><option :value="10">10 项</option><option :value="20">20 项</option></select></label></div>
         <div class="image-search-results"><article v-for="(row,index) in matches" :key="row.sample.id" class="search-match"><div class="match-image"><BigImageViewer :src="row.sample.imageUrl" :preview-src="row.sample.thumbnailUrl" :alt="row.sample.name"/><span class="match-rank">{{String(index+1).padStart(2,'0')}}</span></div><div class="match-body"><h4 :title="row.sample.name">{{displayName(row.sample)}}</h4><p class="match-source">{{sourceLabel(row.sample)}}</p><div class="match-actions"><button type="button" class="match-archive" @click="emit('open',row.sample)">档案<ArrowUpRight :size="13"/></button><EngineeringExportButton :src="row.sample.imageUrl" :name="row.sample.name" :project="row.sample.parameters?.engineering" compact/><button type="button" class="match-design" @click="S.open('design',row.sample)">用于设计</button></div></div></article></div>
         <div v-if="!matches.length" class="search-empty"><ScanSearch :size="32" :stroke-width="1.2"/><h4>{{busy?'正在寻找相近纹理':searched?'当前范围没有可用样例':'寻找相近的纹理'}}</h4><p>{{busy?'比较整体形态、疏密与走向':searched?'试试更换范围或上传其他来样':'使用左侧演示来样，或上传自己的图片'}}</p></div>
-        <p v-if="skipped" class="search-skipped">{{skipped}} 张图片无法读取，已跳过。</p>
+        <p v-if="notice" class="search-skipped" role="status">{{notice}}</p><p v-if="skipped" class="search-skipped">{{skipped}} 张图片无法读取，已跳过。</p>
       </div>
     </div>
-    <details class="search-method"><summary>检索方式<ChevronDown :size="12"/></summary><p>比较整图、中心和四个分区的纹理形态、疏密与走向。颜色不参与排序；需要换方向时，可在来样中展开“裁剪与旋转”。当前使用本地纹理特征算法，排序不表示视觉相似百分比。</p></details>
+    <details class="search-method"><summary>检索方式<ChevronDown :size="12"/></summary><p>先比较整图与分区的纹理形态、疏密和走向，再对召回样例进行图片比较排序。颜色不参与排序；服务不可用时使用结构检索结果，并在结果区注明。排序不表示视觉相似百分比。</p></details>
   </section>
 </template>
 <style scoped>

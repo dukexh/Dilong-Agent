@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { ArrowUpRight, CheckCircle2, ImagePlus, Layers, LoaderCircle, Palette, Play, Search, ShieldCheck, Sparkles, Upload } from 'lucide-vue-next'
+import { modelImageSearch, modelGenerate } from '../services/model-design'
+import { designContext, designPrompt, styleTendency, mergeUsage } from '../core/model-contracts'
 import Panel from '../components/Panel.vue'
 import BigImageViewer from '../components/BigImageViewer.vue'
 import CandidateSaveButton from '../components/CandidateSaveButton.vue'
@@ -11,7 +13,8 @@ import EngineeringExportButton from '../components/EngineeringExportButton.vue'
 import { fullRegion, searchTextures, demoSearchUrl, DEMO_SEARCH_NAME, type SearchScope, type TextureMatch } from '../services/image-tools'
 import { analyzeSummary } from '../core/color-analysis'
 import { DesignImages, scoreLabel } from '../core/design-images'
-import type { DesignResult, ImageSummary } from '../core/types'
+import DesignResultDetails from '../components/DesignResultDetails.vue'
+import type { DesignResult, ImageSummary, GenerationCheckpoint, ModelUsage } from '../core/types'
 import { S } from '../services/workflows'
 import type { BeginDesignTaskRequest, DesignMode, DesignParameters, DesignTask, WorkflowAsset, WorkflowOpenDetail } from '../services/types'
 
@@ -37,10 +40,9 @@ const region = ref(fullRegion())
 const direction = ref('浅色自然橡木'), candidateCount = ref(3)
 const currentTaskId = ref<string | null>(null), showTaskResults = ref(false)
 const task = computed(() => { tick.value; return S.tasks.find(row => row.id === currentTaskId.value) })
+const allowResume=ref(false)
 const taskDeleted = computed(() => { tick.value; return !!currentTaskId.value && S.deletedHistory.tasks.has(currentTaskId.value) })
 const busy = ref(false), executed = ref(false), executionError = ref(''), candidateRun = ref('')
-const defaultLoading = ref(false)
-let defaultSearch: AbortController | undefined
 const rankedResults = shallowRef<RankedResult[]>([]), imageResults = shallowRef<DesignResult[]>([]), recommended = shallowRef<WorkflowAsset[]>([])
 const progress = computed(() => { tick.value; return S.designRuns.get(candidateRun.value) })
 let designRevision = 0, uploadRevision = 0, ownedUploadUrl = '', designError = '', inputTouched = false
@@ -49,19 +51,26 @@ const deferredUploadUrls = new Set<string>()
 const working = computed(() => busy.value || completionBusy.value)
 const completionInput = computed<BeginDesignTaskRequest['input'] | null>(() => sourceKind.value === 'upload' ? uploadedSummary.value && uploadedUrl.value ? { kind: 'upload', name: sourceName.value, src: uploadedUrl.value, summary: uploadedSummary.value } : null : source.value && !source.value.missing ? {kind:'library',sampleId:source.value.id,name:source.value.name} : null)
 const modes = [
-  { key: 'compare' as const, name: '快速比对排序', icon: Search },
-  { key: 'complete' as const, name: '小样联想补全', icon: Layers },
-  { key: 'twin' as const, name: '风格迁移孪生', icon: Palette },
-  { key: 'generate' as const, name: '样例自动设计', icon: Sparkles },
+  { key: 'compare' as const, name: '快速比对排序', description: '检索历史相似样例', icon: Search },
+  { key: 'complete' as const, name: '小样联想补全', description: '扩展连续大幅纹理', icon: Layers },
+  { key: 'twin' as const, name: '风格迁移孪生', description: '模型编辑纹理风格', icon: Palette },
+  { key: 'generate' as const, name: '样例自动设计', description: '按要求生成设计图片', icon: Sparkles },
 ]
 const activeMode = computed(() => modes.find(item => item.key === mode.value)!)
-const runLabel = computed(() => missingSource.value ? '请先选择新输入' : ['已中断', '状态待确认', '已取消', '执行失败'].includes(task.value?.status || '') ? '重新执行' : mode.value === 'compare' ? '开始相似检索' : mode.value === 'complete' ? '生成本地补全' : mode.value === 'twin' ? '生成风格孪生' : '开始候选推荐')
-const executionLabel = computed(() => mode.value === 'compare' ? '全部 / 个人正式样例 · 纹理结构检索' : mode.value === 'complete' ? '已确认连续单元周期铺排' : mode.value === 'twin' ? '结构保留色彩迁移' : '样例库关键词匹配')
-const truth = computed(() => mode.value === 'compare' ? '按整图及对应分区的形态、疏密和走向排序，颜色不参与比较。可手动旋转来样调整方向；排序不是视觉相似百分比。' : mode.value === 'complete' ? '先制作并确认四方连续单元，再按原像素周期铺排；请查看单元图后确认。' : mode.value === 'twin' ? '保留原图分辨率与纹理，调整综合色。结构相似度采用原图与候选的全分辨率灰度 SSIM，明暗变化也会影响结果。' : '候选来自已有样例库，按材质、色系及风格关键词匹配，当前未生成新图片。')
+const pendingGeneration=computed(()=>allowResume.value&&['执行失败','已取消','已中断','状态待确认','待处理'].includes(task.value?.status||'')?task.value?.generation:undefined)
+const runLabel = computed(() => pendingGeneration.value ? (pendingGeneration.value.results.length<pendingGeneration.value.targetCount ? `继续生成剩余 ${pendingGeneration.value.targetCount-pendingGeneration.value.results.length} 张` : '恢复已生成结果') : missingSource.value ? '请先选择新输入' : ['已中断', '状态待确认', '已取消', '执行失败'].includes(task.value?.status || '') ? '重新执行' : mode.value === 'compare' ? '开始相似检索' : mode.value === 'complete' ? '生成本地补全' : mode.value === 'twin' ? '生成风格孪生' : '开始生成设计')
+const executionLabel = computed(() => mode.value === 'compare' ? '全部 / 个人正式样例 · 纹理结构检索' : mode.value === 'complete' ? '已确认连续单元周期铺排' : mode.value === 'twin' ? '图像编辑服务' : '图像生成服务')
+const truth = computed(() => mode.value === 'compare' ? '按整图及对应分区的形态、疏密和走向排序，颜色不参与比较。可手动旋转来样调整方向；排序不是视觉相似百分比。' : mode.value === 'complete' ? '先制作并确认四方连续单元，再按原像素周期铺排；请查看单元图后确认。' : mode.value === 'twin' ? '使用模型图像编辑，尽量保留纹理结构；输出像素以实际生成结果为准。' : '根据输入和设计要求调用图像生成工具，图片采用后才进入正式样例库。')
 function errorMessage(reason: unknown) { return reason instanceof Error ? reason.message : String(reason) }
 function syncStatus() { S.status('design', jobs.size ? 'busy' : designError ? 'error' : 'ready', jobs.size ? '设计任务正在执行' : designError) }
-function cancelDefaultSearch() { defaultSearch?.abort(); defaultSearch = undefined; defaultLoading.value = false }
+const executionNotice = ref('')
+const styleNames:Record<string,string>={smoked:'烟熏胡桃',warmGrey:'暖灰中古',lightNatural:'浅色自然',redBrown:'红棕复古'}
+const styleName=computed(()=>styleNames[targetStyle.value]||targetStyle.value)
+const defaultLoading = ref(false)
+let defaultSearch: AbortController | undefined
+function cancelDefaultSearch() { defaultSearch?.abort(); defaultSearch=undefined;defaultLoading.value=false }
 function invalidate() {
+  executionNotice.value='';allowResume.value=false
   cancelDefaultSearch()
   designRevision++; busy.value = false; executed.value = false; showTaskResults.value = false
   rankedResults.value = []; imageResults.value = []; recommended.value = []; executionError.value = ''; designError = ''
@@ -160,6 +169,7 @@ function restore(detail: WorkflowOpenDetail) {
   sorting.value = 'texture'; limit.value = parameters?.limit || 5; searchScope.value = parameters?.searchScope || 'all'
   void nextTick(() => { region.value = parameters?.searchRegion ? { ...parameters.searchRegion } : fullRegion() })
   completion.value = parameters?.completion || 'horizontal3'; targetStyle.value = parameters?.style || 'smoked'; strength.value = parameters?.strength ?? 78
+  if((mode.value==='twin'||mode.value==='generate')&&detail.task?.generation){imageResults.value=detail.task.generation.results;showTaskResults.value=false;executed.value=!!imageResults.value.length;allowResume.value=true}
 }
 function onOpen(event: Event) { restore((event as CustomEvent<WorkflowOpenDetail>).detail) }
 function onDeleted(event: Event) {
@@ -176,33 +186,43 @@ function onUpdated(event: Event) {
 }
 async function run() {
   if (working.value || mode.value === 'complete' || mode.value === 'seamless') return
+  cancelDefaultSearch()
   const inputSource = source.value, kind = sourceKind.value, src = sourceUrl.value, summary = sourceSummary.value
   if (kind === 'library' && (!inputSource || inputSource.missing)) { executionError.value = '源样例已删除，请先选择新输入。'; return }
   if (kind === 'upload' && (!src || !summary || reading.value)) { executionError.value = '请先上传一张可读取的样例图片。'; return }
   if (mode.value === 'compare' && !summary) { executionError.value = '当前样例缺少图像分析，请重新选择输入。'; return }
-  cancelDefaultSearch()
+  executionNotice.value=''
   const revision = ++designRevision, runKey = S.createId(), runMode = mode.value, inputName = sourceName.value
-  const parameters: DesignParameters = { sorting: sorting.value, limit: limit.value, completion: completion.value, style: targetStyle.value, strength: strength.value, direction: direction.value, candidateCount: candidateCount.value,
+  const resume=pendingGeneration.value
+  const parameters: DesignParameters = { ...designContext(task.value?.parameters), ...(runMode==='twin'?{strengthMode:'qualitative-v1'}:{}), sorting: sorting.value, limit: limit.value, completion: completion.value, style: targetStyle.value, strength: strength.value, direction: direction.value, candidateCount: candidateCount.value,
     ...(runMode === 'compare' ? {searchRegion:{...region.value}} : {}), ...(runMode==='compare'?{searchScope:searchScope.value}:{}) }
   const options = S.startDesignRun(runKey), isCurrent = () => revision === designRevision
-  const request: BeginDesignTaskRequest = { taskId: currentTaskId.value, runKey, mode: runMode, parameters, input: kind === 'upload' ? { kind: 'upload', src, name: inputName, summary: summary! } : { kind: 'library', sampleId: inputSource!.id, name: inputName } }
+  const request: BeginDesignTaskRequest = { resumeGeneration:!!resume, taskId: currentTaskId.value, runKey, mode: runMode, parameters, input: kind === 'upload' ? { kind: 'upload', src, name: inputName, summary: summary! } : { kind: 'library', sampleId: inputSource!.id, name: inputName } }
   jobs.add(revision); designError = ''; executionError.value = ''; candidateRun.value = runKey; busy.value = true; executed.value = false; showTaskResults.value = false; rankedResults.value = []; imageResults.value = []; recommended.value = []; syncStatus()
-  let startedTask: DesignTask | undefined
+  let startedTask: DesignTask | undefined, generatedState:GenerationCheckpoint|undefined=resume
+  let modelUsage:ModelUsage[]=[]
   try {
     startedTask = await S.beginDesignTask(request)
     if (isCurrent()) { currentTaskId.value = startedTask.id; S.activeTask = startedTask.id }
     S.checkDesignCancelled(options)
     const executionSrc = startedTask.input?.kind === 'upload' ? startedTask.input.imageUrl : src
     let generated: DesignResult[] = [], recommendations: WorkflowAsset[] = [], matches: RankedResult[] = [], count = 0
-    if (runMode === 'twin') { generated = await DesignImages.twin(executionSrc, parameters.style || 'smoked', parameters.strength ?? 78, options); count = generated.length }
+    if (runMode === 'twin' || runMode === 'generate') {
+      const prompt=designPrompt(runMode,startedTask.parameters||parameters)
+      generated = await modelGenerate(executionSrc,prompt,runMode==='twin'?'edit':'generate',runMode==='twin'?1:parameters.candidateCount||3,{...options,generationId:runKey,checkpoint:resume,onCheckpoint:async state=>{
+        generatedState=state;modelUsage=mergeUsage(startedTask?.modelUsage,state.usage)
+        if(isCurrent()){imageResults.value=[...state.results];allowResume.value=true}
+        await S.updateTask(startedTask!.id,{generation:state,outputCount:state.results.length,modelUsage})
+      }});count=generated.length
+    }
     else {
-      options.onProgress({ fraction: .1, phase: '检索候选' }); await new Promise<void>(resolve => setTimeout(resolve, 420)); S.checkDesignCancelled(options)
+      options.onProgress({ fraction: .1, phase: '检索候选' }); await new Promise<void>(resolve => setTimeout(resolve, 0)); S.checkDesignCancelled(options)
       if (runMode === 'compare') {
-        const result = await searchTextures(executionSrc, (searchScope.value === 'mine' ? S.assets.filter(S.isLibraryAsset) : S.formalSamples()), parameters.searchRegion, parameters.limit, {...options,scope:searchScope.value,publicIds:S.base.map(a=>a.id)})
+        const result = await modelImageSearch(executionSrc, (searchScope.value === 'mine' ? S.assets.filter(S.isLibraryAsset) : S.formalSamples()), parameters.searchRegion, parameters.limit, {...options,scope:searchScope.value,publicIds:S.base.map(a=>a.id)})
         if (!result.matches.length && result.skipped) throw Error('本地样例图片无法读取，请检查原图后重试')
-        matches = result.matches; count = matches.length
+        modelUsage=result.usage;if(isCurrent())executionNotice.value=result.notice;matches = result.matches; count = matches.length
       }
-      else { recommendations = S.recommend(parameters.direction || '', parameters.candidateCount || 3, S.formalSamples()); count = recommendations.length }
+
     }
     S.checkDesignCancelled(options); options.onProgress({ fraction: .99, phase: '保存任务状态' })
     // 保留本次排序及分数，只移除已删除或撤回采用的候选，并读取最新资料。
@@ -211,32 +231,38 @@ async function run() {
       if (runMode === 'compare') {
         matches = matches.flatMap(item => { const sample = available.get(item.sample.id); return sample ? [{ ...item, sample }] : [] })
         count = matches.length
-      } else if (runMode === 'generate') {
-        recommendations = recommendations.flatMap(item => { const sample = available.get(item.id); return sample ? [sample] : [] })
-        count = recommendations.length
       }
     }
-    const completionStatus = () => startedTask!.input?.kind === 'library' && !S.all().some(asset => asset.id === startedTask!.sampleId) ? '源样例已删除' : count ? '已处理' : '无匹配结果'
+    const completionStatus = ():DesignTask['status'] => {
+      if(startedTask!.input?.kind === 'library' && !S.all().some(asset => asset.id === startedTask!.sampleId))return '源样例已删除'
+      const saved=S.tasks.find(t=>t.id===startedTask!.id)?.resultIds||[]
+      if(saved.length)return saved.some(id=>S.assets.some(a=>a.id===id&&(!a.candidateReview||a.candidateReview.status==='pending')))?'已保存候选':'已评价'
+      return count?'已处理':'无匹配结果'
+    }
     refreshCandidates()
     // 保存本身也是异步操作；期间若有候选退出，修正数量后再发布结果。
     let savedCount: number, savedStatus: ReturnType<typeof completionStatus>
     do {
       savedCount = count; savedStatus = completionStatus()
-      await S.updateTask(startedTask.id, { status: savedStatus, outputCount: savedCount, completedAt: new Date().toISOString(), error: '' })
+      await S.updateTask(startedTask.id, { status: savedStatus, outputCount: savedCount, modelUsage, completedAt: new Date().toISOString(), error: '' })
       refreshCandidates()
     } while (savedCount !== count || savedStatus !== completionStatus())
     if (isCurrent()) {
       imageResults.value = generated; rankedResults.value = matches; recommended.value = recommendations; executed.value = true
-      if (runMode === 'generate') executionError.value = !count ? '没有匹配样例；支持材质、色系及风格关键词，例如浅色橡木、深色胡桃、黑色石纹。' : count < (parameters.candidateCount || 3) ? `匹配不足，实际找到 ${count} 个候选。` : ''
+
     }
   } catch (reason) {
+    const failedState=(reason as {checkpoint?:GenerationCheckpoint}).checkpoint
+    if(failedState)generatedState=failedState
+    if(generatedState&&isCurrent()){imageResults.value=generatedState.results;allowResume.value=true}
     const cancelled = reason instanceof Error && reason.name === 'AbortError'
+    const interrupted = reason instanceof Error && reason.name === 'ServiceRestartError'
     let text = cancelled ? '任务已取消，可重新执行。' : `任务执行失败：${errorMessage(reason)}`
     if (startedTask) {
-      try { await S.updateTask(startedTask.id, { status: cancelled ? '已取消' : '执行失败', error: text, completedAt: new Date().toISOString() }) }
+      try { await S.updateTask(startedTask.id, { ...(generatedState?{generation:generatedState,outputCount:generatedState.results.length,modelUsage:mergeUsage(startedTask.modelUsage,generatedState.usage)}:{}),status: interrupted ? '已中断' : cancelled ? '已取消' : '执行失败', error: text, completedAt: new Date().toISOString() }) }
       catch (saveError) { text += `；任务状态保存失败：${errorMessage(saveError)}` }
     }
-    if (isCurrent()) { executionError.value = text; designError = text }
+    if (isCurrent()) { executionError.value = text; designError = text;executed.value=imageResults.value.length>0 }
   } finally {
     S.finishDesignRun(runKey); jobs.delete(revision)
     if (!jobs.size) { deferredUploadUrls.forEach(url => URL.revokeObjectURL(url)); deferredUploadUrls.clear() }
@@ -244,12 +270,13 @@ async function run() {
     syncStatus()
   }
 }
+function restartGeneration(){allowResume.value=false;void run()}
 function cancel() { const running = progress.value; if (running && running.phase !== '保存任务状态') { running.controller.abort(); syncStatus() } }
 function imageParameters(result: DesignResult): DesignParameters {
-  return { mode: mode.value, sourceKind: sourceKind.value, sourceName: sourceName.value,
+  return { ...task.value?.parameters,mode: mode.value, sourceKind: sourceKind.value, sourceName: sourceName.value,
     ...(sourceKind.value === 'library' ? { sourceId: source.value?.id } : {}),
     completion: completion.value, style: targetStyle.value, strength: strength.value, outputWidth: result.width, outputHeight: result.height,
-    ...(mode.value === 'twin' ? { structureSimilarity: result.similarity, similarityError: result.similarityError } : {}) }
+    model:result.model,prompt:result.prompt,usage:result.usage,generationId:result.generationId,generationIndex:result.generationIndex,direction:direction.value,structureSimilarity:result.similarity,similarityError:result.similarityError }
 }
 function engineeringParameters(sample: WorkflowAsset): DesignParameters {
   const p = sample.parameters
@@ -284,18 +311,18 @@ onBeforeUnmount(() => { cancelDefaultSearch(); unsubscribe(); window.removeEvent
       <CompletionWorkflow v-if="mode === 'complete'" :src="sourceUrl" :name="sourceName" :input="completionInput" :task-id="currentTaskId" :restore-key="restoreKey" :missing="missingSource" :disabled="reading" @busy="completionBusy=$event" @task="currentTaskId=$event"/>
       <Panel v-if="mode !== 'complete'" class="design-config config-panel" :title="activeMode.name" >
         <template v-if="mode === 'compare'"><label class="design-field">搜图范围<select v-model="searchScope" aria-label="搜图范围" :disabled="working" @change="invalidate"><option value="all">全部样例</option><option value="mine">我的样例</option></select></label><button type="button" class="btn btn-secondary restore-demo" :disabled="working" @click="restoreDemo">恢复演示来样</button><label class="design-field">返回数量 <b>{{ limit }} 条</b><input v-model.number="limit" type="range" min="3" max="20" :disabled="working" @input="invalidate" /></label></template>
-        <template v-else-if="mode === 'twin'"><label class="design-field">目标风格<select v-model="targetStyle" :disabled="working" @change="invalidate"><option value="smoked">烟熏胡桃</option><option value="warmGrey">暖灰中古</option><option value="lightNatural">浅色自然</option><option value="redBrown">红棕复古</option></select></label><label class="design-field">色彩迁移强度 <b>{{ strength }}%</b><input v-model.number="strength" type="range" min="35" max="95" :disabled="working" @input="invalidate" /></label><div class="config-note">保留原始纹理结构，按强度调整综合色，生成三个完整分辨率候选。</div></template>
-        <template v-else><label class="design-field">设计方向<textarea v-model="direction" rows="4" :disabled="working" @input="invalidate" /></label><label class="design-field">候选方案数量<select v-model.number="candidateCount" :disabled="working" @change="invalidate"><option :value="3">3 个方案</option><option :value="4">4 个方案</option></select></label><div class="config-note">支持材质、色系及风格关键词，例如“浅色自然橡木”。未匹配时不会用无关图片补足数量。</div></template>
-        <button type="button" class="run-button" :disabled="working || reading || missingSource || !sourceUrl" @click="run"><LoaderCircle v-if="busy" :size="16" class="spin" /><Play v-else :size="16" />{{ busy ? '正在执行…' : runLabel }}</button><p v-if="executionError" class="design-error" role="alert">{{ executionError }}</p>
+        <template v-else-if="mode === 'twin'"><label class="design-field">目标风格<select v-model="targetStyle" :disabled="working" @change="invalidate"><option value="smoked">烟熏胡桃</option><option value="warmGrey">暖灰中古</option><option value="lightNatural">浅色自然</option><option value="redBrown">红棕复古</option></select></label><label class="design-field">风格变化倾向 <b>{{ styleTendency(strength) }}</b><input v-model.number="strength" type="range" min="35" max="95" :disabled="working" @input="invalidate" /></label><div class="config-note">根据目标风格生成候选，尽量保持纹理走向与尺度；输出尺寸以实际结果为准。</div></template>
+        <template v-else><label class="design-field">设计方向<textarea v-model="direction" rows="4" :disabled="working" @input="invalidate" /></label><label class="design-field">候选方案数量<select v-model.number="candidateCount" :disabled="working" @change="invalidate"><option v-if="candidateCount===1" :value="1">1 个方案（历史设置）</option><option :value="3">3 个方案</option><option :value="4">4 个方案</option></select></label><div class="config-note">根据参考样例与设计要求生成候选，支持材质、色系及风格描述；方案采用后入库。</div></template>
+        <button type="button" class="run-button" :disabled="working || reading || missingSource || !sourceUrl" @click="run"><LoaderCircle v-if="busy" :size="16" class="spin" /><Play v-else :size="16" />{{ busy ? '正在执行…' : runLabel }}</button><button v-if="pendingGeneration && !working" type="button" class="btn btn-secondary" @click="restartGeneration">重新生成全部</button><p v-if="executionNotice" class="muted" role="status">{{executionNotice}}</p><p v-if="executionError" class="design-error" role="alert">{{ executionError }}</p>
       </Panel>
       <Panel v-if="mode !== 'complete'" class="design-results results-panel" title="候选结果"  :description="showTaskResults ? '已保存的任务结果' : ''">
-        <div v-if="busy" class="result-waiting"><LoaderCircle :size="30" class="spin" /><strong>正在计算图像结果</strong><template v-if="progress"><span role="status">{{ progress.controller.signal.aborted ? '正在取消，等待当前处理步骤结束…' : `${progress.phase} · ${Math.floor(progress.fraction * 100)}%` }}</span><progress aria-label="设计任务进度" :value="progress.fraction" max="1" /><button type="button" :disabled="progress.controller.signal.aborted || progress.phase === '保存任务状态'" @click="cancel">取消任务</button></template></div>
-        <TaskSavedResults v-else-if="showTaskResults" :task-id="currentTaskId" />
-        <div v-else-if="executed && mode === 'compare'" class="candidate-grid"><article v-for="(result, index) in rankedResults" :key="result.sample.id" class="candidate-card"><div class="candidate-image"><BigImageViewer :src="result.sample.imageUrl" :preview-src="result.sample.thumbnailUrl" :alt="result.sample.name" /><span class="candidate-letter">{{ String.fromCharCode(65 + index) }}</span></div><div class="candidate-copy"><div class="candidate-title"><strong>{{ result.sample.name }}</strong><em>排序 {{ String(index+1).padStart(2,'0') }}</em></div><CandidateSaveButton :src="result.sample.imageUrl" :name="`${result.sample.name} · 检索候选`" source="相似检索" :source-key="result.sample.id" :task-id="currentTaskId" :parameters="{ ...engineeringParameters(result.sample), wood: result.sample.wood, style: result.sample.style, tone: result.sample.tone }" /><EngineeringExportButton :src="result.sample.imageUrl" :name="result.sample.name" :project="result.sample.parameters?.engineering"/></div></article><p v-if="!rankedResults.length" class="result-empty">当前范围没有可比较的正式样例，请切换范围或导入样例。</p></div>
-        <div v-else-if="executed && mode === 'twin'" class="candidate-grid"><article v-for="(result, index) in imageResults" :key="`${candidateRun}-${index}`" class="candidate-card"><div class="candidate-image"><BigImageViewer :src="result.url" :preview-src="result.thumbnailUrl" :alt="`结构保留候选 ${String.fromCharCode(65+index)}`"/><span class="candidate-letter">{{String.fromCharCode(65+index)}}</span></div><div class="candidate-copy"><div class="candidate-title"><strong>结构保留候选 {{String.fromCharCode(65+index)}}</strong></div><p class="similarity" :title="result.similarityError || '原图与候选的全分辨率灰度 SSIM，明暗变化也会影响；负值显示 0%。'">{{scoreLabel(result.similarity)}}</p><p>{{['轻度综合色迁移','中度综合色迁移','鲜明目标色迁移'][index]}}</p><small class="image-dimensions">{{result.width}} × {{result.height}} · 完整分辨率 PNG</small><CandidateSaveButton :src="result.url" :name="`twin ${index+1}`" source="twin" :source-key="`twin-${candidateRun}-${index}`" :task-id="currentTaskId" :parameters="imageParameters(result)"/><EngineeringExportButton :src="result.url" :name="sourceName+' · '+activeMode.name"/></div></article></div>
-        <div v-else-if="executed && mode === 'generate'" class="candidate-grid"><article v-for="(result, index) in recommended" :key="result.id" class="candidate-card"><div class="candidate-image"><BigImageViewer :src="result.imageUrl" :preview-src="result.thumbnailUrl" :alt="result.name" /><span class="candidate-letter">{{ String.fromCharCode(65 + index) }}</span></div><div class="candidate-copy"><div class="candidate-title"><strong>{{ result.name }}</strong></div><p>{{ result.style }} · {{ result.tone }}</p><CandidateSaveButton :src="result.imageUrl" :name="`${result.name} · 推荐候选`" source="示例推荐" :source-key="`recommend-${result.id}`" :task-id="currentTaskId" :parameters="{ ...engineeringParameters(result), direction, wood: result.wood, style: result.style, tone: result.tone }" /><EngineeringExportButton :src="result.imageUrl" :name="result.name" :project="result.parameters?.engineering"/></div></article><p v-if="!recommended.length" class="result-empty">没有匹配样例，请调整设计方向后重试。</p></div>
-        <div v-else class="result-waiting result-idle"><strong role="status">{{defaultLoading ? '正在检索…' : '等待执行'}}</strong></div>
-        <details class="result-truth"><summary>处理说明</summary><p>{{ executionLabel }}</p><p>{{ truth }}</p><p>图片在浏览器中处理，任务保存输入图像与参数。</p></details>
+        <div v-if="busy" class="result-waiting"><LoaderCircle :size="30" class="spin" /><strong>正在处理</strong><template v-if="progress"><span role="status">{{ progress.controller.signal.aborted ? '正在取消，等待当前处理步骤结束…' : progress.indeterminate ? progress.phase : `${progress.phase} · ${Math.floor(progress.fraction * 100)}%` }}</span><progress aria-label="设计任务进度" :value="progress.indeterminate ? undefined : progress.fraction" max="1" /><button type="button" :disabled="progress.controller.signal.aborted || progress.phase === '保存任务状态'" @click="cancel">取消任务</button></template></div>
+        <div v-if="busy&&imageResults.length" class="candidate-grid"><article v-for="(result,index) in imageResults" :key="index" class="candidate-card"><BigImageViewer :src="result.url" :preview-src="result.thumbnailUrl" :alt="'已生成结果 '+(index+1)"/><small>已完成 {{index+1}} 张 · {{result.width}} × {{result.height}}</small></article></div>
+        <TaskSavedResults v-if="!busy&&showTaskResults" :task-id="currentTaskId" />
+        <div v-else-if="!busy && executed && mode === 'compare'" class="candidate-grid"><article v-for="(result, index) in rankedResults" :key="result.sample.id" class="candidate-card"><div class="candidate-image"><BigImageViewer :src="result.sample.imageUrl" :preview-src="result.sample.thumbnailUrl" :alt="result.sample.name" /><span class="candidate-letter">{{ String.fromCharCode(65 + index) }}</span></div><div class="candidate-copy"><div class="candidate-title"><strong>{{ result.sample.name }}</strong><em>排序 {{ String(index+1).padStart(2,'0') }}</em></div><CandidateSaveButton :src="result.sample.imageUrl" :name="`${result.sample.name} · 检索候选`" source="相似检索" :source-key="result.sample.id" :task-id="currentTaskId" :parameters="{ ...engineeringParameters(result.sample), wood: result.sample.wood, style: result.sample.style, tone: result.sample.tone }" /><EngineeringExportButton :src="result.sample.imageUrl" :name="result.sample.name" :project="result.sample.parameters?.engineering"/></div></article><p v-if="!rankedResults.length" class="result-empty">当前范围没有可比较的正式样例，请切换范围或导入样例。</p></div>
+        <div v-else-if="!busy && (executed || imageResults.length>0) && (mode === 'twin'||mode==='generate')" class="candidate-grid"><article v-for="(result, index) in imageResults" :key="`${candidateRun}-${index}`" class="candidate-card"><div class="candidate-image"><BigImageViewer :src="result.url" :preview-src="result.thumbnailUrl" :alt="`模型设计候选 ${String.fromCharCode(65+index)}`"/><span class="candidate-letter">{{String.fromCharCode(65+index)}}</span></div><div class="candidate-copy"><div class="candidate-title"><strong>{{mode==='twin'?'风格迁移候选':'设计候选'}} {{String.fromCharCode(65+index)}}</strong></div><p v-if="mode==='twin'">{{styleName}} · 变化倾向 {{styleTendency(strength)}}</p><p v-if="mode==='twin' && typeof result.similarity==='number'" class="similarity" title="原图与候选的全分辨率灰度 SSIM，明暗变化也会影响结果。">{{scoreLabel(result.similarity)}}</p><small class="image-dimensions">{{result.width}} × {{result.height}} · 完整分辨率 PNG</small><DesignResultDetails :model="result.model" :prompt="result.prompt" :width="result.width" :height="result.height" :similarity-error="result.similarityError" :usage="result.usage"/><CandidateSaveButton :src="result.url" :name="`${sourceName} · ${activeMode.name} ${index+1}`" :source="mode" :source-key="`model-${result.generationId||candidateRun}-${result.generationIndex??index}`" :task-id="currentTaskId" :parameters="imageParameters(result)"/><EngineeringExportButton :src="result.url" :name="sourceName+' · '+activeMode.name"/></div></article></div>
+        <div v-else-if="!busy" class="result-waiting result-idle"><strong role="status">{{defaultLoading ? '正在检索…' : '等待执行'}}</strong></div>
+        <details class="result-truth"><summary>处理说明</summary><p>{{ executionLabel }}</p><p>{{ truth }}</p><p>任务保存在浏览器；模型执行时向配置的服务发送必要参考图。</p></details>
       </Panel>
     </div>
   </div>
@@ -726,4 +753,8 @@ onBeforeUnmount(() => { cancelDefaultSearch(); unsubscribe(); window.removeEvent
 @media(max-width:760px){.design-page .design-workspace.completion-workspace{grid-template-columns:minmax(0,1fr);grid-template-rows:none;}.design-page .completion-workspace>.source-panel{grid-column:1;grid-row:auto;}.source-compact .source-image{@apply h-40;}.source-compact .upload-box{@apply py-2;}}
 /* Long names remain readable within the existing layout. */
 .task-info { @apply min-w-0 wrap-anywhere; } .task-info strong { @apply min-w-0; }
+</style>
+
+<style scoped>
+.config-panel .config-note{min-height:66px;box-sizing:border-box}
 </style>

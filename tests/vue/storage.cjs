@@ -14,7 +14,7 @@ const pass = message => console.log('PASS ' + message)
   const context = await browser.newContext()
   try {
     const a = await context.newPage(), b = await context.newPage()
-    await ready(a); await ready(b)
+    await ready(a); await ready(b); await a.waitForFunction(()=>window.__workflow.base.length>0); await b.waitForFunction(()=>window.__workflow.base.length>0)
     assert.equal(await a.evaluate(() => window.__workflow.assets.length + window.__workflow.tasks.length + window.__workflow.inkRuns.length), 0)
     const fixture = await a.evaluate(() => {
       const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 24
@@ -130,7 +130,7 @@ const pass = message => console.log('PASS ' + message)
     pass('Web Locks识别其他窗口仍在运行与已关闭任务；中断重试复用，完成后执行创建新任务')
     const result = await c.evaluate(async () => {
       const S = window.__workflow, ids = S.tasks.map(task => task.id); await S.deleteHistory('tasks', ids)
-      const database = await new Promise((resolve, reject) => { const request = indexedDB.open('dilong-workflows', 2); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
+      const database = await new Promise((resolve, reject) => { const request = indexedDB.open('dilong-workflows'); request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error) })
       const names = [...database.objectStoreNames]; database.close()
       return { tasks: S.tasks.length, assets: S.assets.length, stores: names }
     })

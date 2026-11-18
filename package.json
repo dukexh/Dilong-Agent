@@ -9,7 +9,7 @@
     "npm": ">=10"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 51458 --strictPort",
+    "dev": "node scripts/dev-local.mjs",
     "type-check": "vue-tsc --build",
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview --host 127.0.0.1 --port 51459 --strictPort",
@@ -23,7 +23,10 @@
     "test:ecosystem": "node tests/unit/template-ecosystem.test.cjs",
     "dev:tools": "vite --mode tools --host 127.0.0.1 --port 51458 --strictPort",
     "test:image-tools": "node tests/vue/browser.cjs image-tools.cjs",
-    "build:search-index": "tsx scripts/build-texture-index.ts"
+    "build:search-index": "tsx scripts/build-texture-index.ts",
+    "dev:frontend": "vite --host 127.0.0.1 --port 51458 --strictPort",
+    "dev:backend": "node scripts/start-backend.mjs",
+    "test:backend": "node scripts/start-backend.mjs --test"
   },
   "devDependencies": {
     "@babel/generator": "^8.1.0",

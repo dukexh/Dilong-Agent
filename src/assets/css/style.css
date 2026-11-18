@@ -1,5 +1,5 @@
 /* Existing page geometry with locally scoped Harness visual tokens. */
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "../../../node_modules/preline/variants.css";
 @import "./components/business.css";
 @import "./components/production.css";

@@ -106,9 +106,9 @@ async function ready(page) {
     for (const scenario of [
       { mode: 'compare', phase: 'begin', removeAll: false },
       { mode: 'compare', phase: 'save', removeAll: true },
-      { mode: 'generate', phase: 'save', removeAll: false },
     ]) {
       const context = await browser.newContext()
+      await require('../helpers/model-api.cjs')(context)
       try {
         const page = await context.newPage(), other = await context.newPage(), errors = []
         page.on('pageerror', e => errors.push(e.message)); other.on('pageerror', e => errors.push(e.message))

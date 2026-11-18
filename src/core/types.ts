@@ -7,9 +7,11 @@ export interface InkResult { layers: InkLayer[]; renderModel: InkRenderModel; re
 export interface PixelImage { width: number; height: number; data: Uint8ClampedArray }
 export interface Point { x: number; y: number }
 export interface Bounds { left: number; top: number; width: number; height: number }
-export interface Progress { fraction: number; phase: string; completed?: number; total?: number }
+export interface Progress { fraction: number; phase: string; completed?: number; total?: number; indeterminate?: boolean }
 export interface DesignOptions { signal?: AbortSignal; onProgress?: (progress: Progress) => void }
-export interface DesignResult { url: string; thumbnailUrl: string; width: number; height: number; similarity?: number | null; similarityError?: string }
+export interface ModelUsage { id: string; model: string; kind: string; status: string; inputTokens: number | null; outputTokens: number | null; reasoningTokens?: number | null; inputImages?: number; outputImages?: number; recorded?: boolean }
+export interface DesignResult { model?: string; prompt?: string; usage?: ModelUsage; generationId?: string; generationIndex?: number; url: string; thumbnailUrl: string; width: number; height: number; similarity?: number | null; similarityError?: string }
+export interface GenerationCheckpoint { version: 1; id: string; signature: string; targetCount: number; results: DesignResult[]; usage: ModelUsage[] }
 export interface CompareOptions { threshold?: number; blockRows?: number; shouldCancel?: () => boolean; signal?: AbortSignal; yieldTask?: () => Promise<unknown>; onProgress?: (progress: Progress) => void }
 export interface SimilarityOptions { signal?: AbortSignal; yieldTask?: () => Promise<unknown>; onProgress?: (fraction: number) => void }
 export interface ComparisonMetrics { width: number; height: number; meanDeltaE: number; meanRgbDifference: number; p95DeltaE: number; ssim: number; ssimWindowCount: number; deltaL: number; deltaA: number; deltaB: number; deltaMap: Float32Array; validMask: Uint8Array; validCount: number; areaPercent: number }
