@@ -1,0 +1,12 @@
+.git
+**/node_modules
+dist
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/.pytest_cache
+.dilong-runtime
+verification
+cleanup-verification
+backend/tests

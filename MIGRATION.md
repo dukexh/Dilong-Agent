@@ -2,6 +2,50 @@
 
 本文面向部署与维护人员。项目由 Vue 静态前端和 FastAPI 后端组成，完整功能需要同时部署两者。
 
+## 阿里云 ECS 使用 Docker Compose
+
+在 ECS 安装 Docker Compose 插件后，从项目根目录执行以下步骤。`web` 容器将 Vue 静态产物发布到 ECS 的 `8004` 端口，并将 `/api/` 转给 Compose 网络内的 `backend:51460`。模型用量记录保存在 `model-usage` 卷中。浏览器继续使用原来的协议、域名或 IP 和端口，即可读取已有的样例和历史。
+
+### 首次部署和切换
+
+在 ECS 拉取代码并初始化后端配置。
+
+```bash
+cd /root/Dilong-Agent
+git pull --ff-only origin main
+test -f backend/.env || install -m 600 backend/.env.example backend/.env
+```
+
+编辑 `backend/.env`，填入 `MODEL_API_KEY`、`TIKHUB_API_KEY` 和实际访问来源 `ALLOWED_ORIGINS`，例如 `http://你的ECS公网IP:8004`。密钥保存在 ECS 上。通过安全组将 `8004` 的访问限制在授权使用者范围内，公网开放时由网关提供 HTTPS 和访问认证。
+
+先构建镜像并启动后端。
+
+```bash
+sudo docker compose build && sudo docker compose up -d --wait backend
+```
+
+从旧静态部署升级时，等后端就绪后停止原容器，释放 `8004`。
+
+```bash
+sudo docker stop dilong-agent-web
+```
+
+启动前端并经由 Nginx 查询后端健康状态。
+
+```bash
+sudo docker compose up -d --wait web && curl -fsS http://127.0.0.1:8004/api/health
+```
+
+返回的 JSON 中 `ok` 应为 `true`。`modelConfigured`、`imageModelConfigured` 和 `tikhubConfigured` 显示服务配置状态，实际调用可在页面中验证。首次切换需要回退时，执行 `sudo docker compose stop web && sudo docker start dilong-agent-web`。
+
+### 后续更新
+
+```bash
+git pull --ff-only origin main && sudo docker compose up -d --build --wait
+```
+
+单独调整了 `backend/.env` 时，执行 `sudo docker compose up -d --force-recreate --wait backend` 重新载入配置。
+
 ## 发布前准备
 
 1. 安装依赖，按 [配置说明](LOCAL_SERVICE.md) 填写后端 `.env`，保留已有密钥。

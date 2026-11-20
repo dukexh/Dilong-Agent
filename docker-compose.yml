@@ -1,0 +1,36 @@
+name: dilong-agent
+
+services:
+  web:
+    build:
+      context: .
+      target: web
+    ports:
+      - "0.0.0.0:8004:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      target: backend
+    env_file:
+      - ./backend/.env
+    volumes:
+      - model-usage:/app/.dilong-runtime
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - from urllib.request import urlopen; urlopen('http://127.0.0.1:51460/api/health', timeout=2).close()
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  model-usage:
